@@ -1,37 +1,33 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const FeedPost = sequelize.define(
-	"FeedPost",
+const CommunityMember = sequelize.define(
+	"CommunityMember",
 	{
 		id: {
 			type: DataTypes.UUID,
 			defaultValue: DataTypes.UUIDV4,
 			primaryKey: true,
 		},
+		community_id: {
+			type: DataTypes.UUID,
+			allowNull: false,
+		},
 		rider_id: {
 			type: DataTypes.UUID,
 			allowNull: false,
 		},
-		caption: {
-			type: DataTypes.TEXT,
-			allowNull: true,
-		},
-		media_url: {
-			type: DataTypes.STRING(255),
-			allowNull: true,
-		},
-		media_type: {
+		role: {
 			type: DataTypes.STRING(20),
-			allowNull: true,
+			allowNull: false,
+			defaultValue: "MEMBER",
 		},
 	},
 	{
-		tableName: "feed_post",
+		tableName: "community_member",
 		underscored: true,
 		timestamps: true,
-		updatedAt: false,
 	},
 );
 
-module.exports = FeedPost;
+module.exports = CommunityMember;
