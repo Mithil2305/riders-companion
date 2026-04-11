@@ -1,0 +1,2 @@
+// Chat components - EncryptedMessageBubble
+export {};
