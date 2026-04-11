@@ -4,3 +4,4 @@ export { Checkbox } from './Checkbox';
 export { ThemeToggleButton } from './ThemeToggleButton';
 export { IconButton } from './IconButton';
 export { EmptyState } from './EmptyState';
+export { SkeletonBlock } from './SkeletonBlock';
