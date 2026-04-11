@@ -1,13 +1,16 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from '../src/contexts/ThemeContext';
 import { useTheme } from '../src/hooks/useTheme';
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <RootNavigator />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <RootNavigator />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -28,6 +31,8 @@ function RootNavigator() {
         <Stack.Screen name="setup" />
         <Stack.Screen name="room" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="tracking" />
+        <Stack.Screen name="notifications" />
       </Stack>
       <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} backgroundColor={colors.background} />
     </>
