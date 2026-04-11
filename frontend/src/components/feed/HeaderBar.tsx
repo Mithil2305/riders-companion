@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { IconButton } from '../common';
 
@@ -10,6 +11,7 @@ interface HeaderBarProps {
 
 export function HeaderBar({ title = 'Moments' }: HeaderBarProps) {
   const { colors, metrics, typography } = useTheme();
+  const router = useRouter();
 
   const styles = React.useMemo(
     () =>
@@ -50,7 +52,7 @@ export function HeaderBar({ title = 'Moments' }: HeaderBarProps) {
 
       <View style={styles.right}>
         <IconButton icon="chatbubble-ellipses-outline" />
-        <IconButton icon="notifications-outline" />
+        <IconButton icon="notifications-outline" onPress={() => router.push('/notifications')} />
       </View>
     </View>
   );
