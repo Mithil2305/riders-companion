@@ -44,6 +44,7 @@ export default function HomeScreen() {
         },
         headerSection: {
           gap: metrics.sm,
+          paddingBottom: metrics.sm,
         },
         storiesContent: {
           paddingHorizontal: metrics.md,

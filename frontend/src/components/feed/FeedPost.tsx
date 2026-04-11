@@ -127,6 +127,16 @@ export function FeedPost({ item, index, liked, onToggleLike }: FeedPostProps) {
           alignItems: 'center',
           gap: metrics.xs,
         },
+        likeButtonFrame: {
+          width: metrics.button.md.height,
+          height: metrics.button.md.height,
+          borderRadius: metrics.radius.full,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
         metaWrap: {
           paddingHorizontal: metrics.md,
           paddingVertical: metrics.sm,
@@ -205,7 +215,7 @@ export function FeedPost({ item, index, liked, onToggleLike }: FeedPostProps) {
                 likeScale.value = withSpring(1, { damping: 12, stiffness: 260 });
               });
             }}
-            style={likeAnimatedStyle}
+            style={[styles.likeButtonFrame, likeAnimatedStyle]}
           >
             <Animated.Text style={likeIconAnimatedStyle}>
               <Ionicons name={liked ? 'heart' : 'heart-outline'} size={metrics.icon.md} />
