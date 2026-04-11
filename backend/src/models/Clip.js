@@ -1,8 +1,8 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const FeedPost = sequelize.define(
-	"FeedPost",
+const Clip = sequelize.define(
+	"Clip",
 	{
 		id: {
 			type: DataTypes.UUID,
@@ -13,25 +13,21 @@ const FeedPost = sequelize.define(
 			type: DataTypes.UUID,
 			allowNull: false,
 		},
-		caption: {
-			type: DataTypes.TEXT,
-			allowNull: true,
-		},
-		media_url: {
+		video_url: {
 			type: DataTypes.STRING(255),
-			allowNull: true,
+			allowNull: false,
 		},
-		media_type: {
-			type: DataTypes.STRING(20),
+		song_id: {
+			type: DataTypes.STRING(100),
 			allowNull: true,
 		},
 	},
 	{
-		tableName: "feed_post",
+		tableName: "clip",
 		underscored: true,
 		timestamps: true,
 		updatedAt: false,
 	},
 );
 
-module.exports = FeedPost;
+module.exports = Clip;

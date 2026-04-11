@@ -1,37 +1,33 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const FeedPost = sequelize.define(
-	"FeedPost",
+const Friend = sequelize.define(
+	"Friend",
 	{
 		id: {
 			type: DataTypes.UUID,
 			defaultValue: DataTypes.UUIDV4,
 			primaryKey: true,
 		},
-		rider_id: {
+		user_id_1: {
 			type: DataTypes.UUID,
 			allowNull: false,
 		},
-		caption: {
-			type: DataTypes.TEXT,
-			allowNull: true,
+		user_id_2: {
+			type: DataTypes.UUID,
+			allowNull: false,
 		},
-		media_url: {
-			type: DataTypes.STRING(255),
-			allowNull: true,
-		},
-		media_type: {
+		status: {
 			type: DataTypes.STRING(20),
-			allowNull: true,
+			allowNull: false,
+			defaultValue: "PENDING",
 		},
 	},
 	{
-		tableName: "feed_post",
+		tableName: "friends",
 		underscored: true,
 		timestamps: true,
-		updatedAt: false,
 	},
 );
 
-module.exports = FeedPost;
+module.exports = Friend;

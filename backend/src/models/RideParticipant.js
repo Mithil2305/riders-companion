@@ -1,41 +1,33 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const UserEncryptedChat = sequelize.define(
-	"UserEncryptedChat",
+const RideParticipant = sequelize.define(
+	"RideParticipant",
 	{
 		id: {
 			type: DataTypes.UUID,
 			defaultValue: DataTypes.UUIDV4,
 			primaryKey: true,
 		},
-		sender_id: {
+		ride_id: {
 			type: DataTypes.UUID,
 			allowNull: false,
 		},
-		receiver_id: {
+		rider_id: {
 			type: DataTypes.UUID,
-			allowNull: true,
-		},
-		room_id: {
-			type: DataTypes.UUID,
-			allowNull: true,
-		},
-		encrypted_payload: {
-			type: DataTypes.TEXT,
 			allowNull: false,
 		},
-		iv: {
-			type: DataTypes.STRING(255),
+		status: {
+			type: DataTypes.STRING(30),
 			allowNull: false,
+			defaultValue: "IN_ZONE",
 		},
 	},
 	{
-		tableName: "user_encrypted_chat",
+		tableName: "ride_participant",
 		underscored: true,
 		timestamps: true,
-		updatedAt: false,
 	},
 );
 
-module.exports = UserEncryptedChat;
+module.exports = RideParticipant;
