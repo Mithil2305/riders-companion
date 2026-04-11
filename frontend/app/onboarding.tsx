@@ -40,9 +40,9 @@ const slides: Slide[] = [
   },
   {
     key: 'safe',
-    title: 'Stay Safe',
-    subtitle: 'Smart safety alerts',
-    detail: 'Out-of-zone detection and SOS support.',
+    title: 'Secure and Private',
+    subtitle: 'Smart security features',
+    detail: 'Safeguard your data with end-to-end encryption and secure authentication.',
     icon: 'shield-checkmark',
   },
 ];
