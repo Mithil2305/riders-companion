@@ -1,18 +1,43 @@
 import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { PrimaryButton } from '../../src/components/common';
 import { useTheme } from '../../src/hooks/useTheme';
 
 export default function ProfileScreen() {
   const { colors, metrics, typography } = useTheme();
+  const router = useRouter();
   const styles = React.useMemo(
     () =>
       StyleSheet.create({
         container: {
           flex: 1,
           backgroundColor: colors.background,
+        },
+        topBar: {
+          position: 'absolute',
+          top: metrics.md + 20,
+          right: metrics.md,
+          zIndex: 10,
+          shadowColor: colors.textPrimary,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.8,
+          borderWidth: 2,
+          borderRadius: metrics.radius.full,
+          borderColor: colors.primary,
+          shadowRadius: 4,
+        },
+        settingsButton: {
+          width: metrics.button.md.height,
+          height: metrics.button.md.height,
+          borderRadius: metrics.radius.full,
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         heroImage: {
           width: '100%',
@@ -96,7 +121,17 @@ export default function ProfileScreen() {
   );
 
   return (
-    <SafeAreaView edges={['left', 'right']} style={styles.container}>
+    <SafeAreaView edges={['left', 'right' , 'top']} style={styles.container}>
+      <View style={styles.topBar}>
+        <Pressable
+          onPress={() => {
+            router.push('/settings');
+          }}
+          style={styles.settingsButton}
+        >
+          <Ionicons color={colors.primary} name="settings-outline" size={metrics.icon.md} />
+        </Pressable>
+      </View>
       <ScrollView style={styles.container}>
         <Image source={require('../../assets/images/hero.png')} style={styles.heroImage} />
         <View style={styles.content}>
