@@ -1,0 +1,33 @@
+import { baseColors } from './colors';
+
+export const darkTheme = {
+  mode: 'dark' as const,
+  colors: {
+    primary: baseColors.primary,
+    secondary: baseColors.secondary,
+    background: '#181515',
+    surface: '#231D1D',
+    card: '#2B2525',
+    textPrimary: '#F8F2DE',
+    textSecondary: '#ECDCBF',
+    textTertiary: '#B9AA93',
+    textInverse: '#FFFFFF',
+    border: 'rgba(236, 220, 191, 0.22)',
+    borderDark: 'rgba(236, 220, 191, 0.12)',
+    overlay: 'rgba(10, 7, 7, 0.66)',
+    overlayLight: 'rgba(248, 242, 222, 0.18)',
+    success: baseColors.success,
+    error: '#FF6B6B',
+    warning: '#FFB74D',
+    info: '#84A9FF',
+    icon: '#ECDCBF',
+    tabBarActive: baseColors.primary,
+    tabBarInactive: '#9F9282',
+    shadow: '#000000',
+    spinnerTrack: 'rgba(216, 64, 64, 0.25)',
+    spinnerHead: '#D84040',
+    buttonPrimaryBg: '#D84040',
+    buttonPrimaryText: '#F8F2DE',
+    buttonPrimaryGlow: '#D84040',
+  },
+};

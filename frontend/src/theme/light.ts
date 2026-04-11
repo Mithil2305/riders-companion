@@ -1,0 +1,33 @@
+import { baseColors } from './colors';
+
+export const lightTheme = {
+  mode: 'light' as const,
+  colors: {
+    primary: baseColors.primary,
+    secondary: baseColors.secondary,
+    background: '#F8F2DE',
+    surface: '#FFFFFF',
+    card: '#FFFFFF',
+    textPrimary: '#141418',
+    textSecondary: '#5F6168',
+    textTertiary: '#8B8D94',
+    textInverse: '#FFFFFF',
+    border: '#E2DFDF',
+    borderDark: '#D2CECE',
+    overlay: 'rgba(0, 0, 0, 0.42)',
+    overlayLight: 'rgba(216, 64, 64, 0.16)',
+    success: baseColors.success,
+    error: '#C73A3A',
+    warning: '#D69336',
+    info: '#4A7FDB',
+    icon: '#5A5C62',
+    tabBarActive: baseColors.primary,
+    tabBarInactive: '#8E8E93',
+    shadow: '#000000',
+    spinnerTrack: '#E6DEDE',
+    spinnerHead: '#D84040',
+    buttonPrimaryBg: '#181515',
+    buttonPrimaryText: '#F8F2DE',
+    buttonPrimaryGlow: '#181515',
+  },
+};
