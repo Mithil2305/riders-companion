@@ -1,34 +1,14 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/hooks/useTheme';
 
 export default function TabLayout() {
   const { colors } = useTheme();
-  const router = useRouter();
 
   return (
     <Tabs
       screenOptions={{
-        headerStyle: {
-          backgroundColor: colors.background,
-        },
-        headerTitleStyle: {
-          color: colors.textPrimary,
-          fontWeight: '700',
-        },
-        headerShadowVisible: false,
-        headerRight: () => (
-          <Pressable
-            onPress={() => {
-              router.push('/settings');
-            }}
-          >
-            <Ionicons color={colors.primary} name="settings-outline" size={22} />
-          </Pressable>
-        ),
-        headerRightContainerStyle: { paddingRight: 12 },
+        headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
@@ -56,6 +36,18 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="compass" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="reels"
+        options={{
+          title: 'Reels',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="film" size={size} color={color} />
+          ),
+          tabBarItemStyle: {
+            marginTop: -2,
+          },
         }}
       />
       <Tabs.Screen
