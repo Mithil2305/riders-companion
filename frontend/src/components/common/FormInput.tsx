@@ -13,6 +13,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 
 interface FormInputProps {
@@ -83,14 +84,10 @@ export function FormInput({
           textAlignVertical: 'top',
         },
         toggleButton: {
-          minHeight: 36,
+          width: 36,
+          height: 36,
           justifyContent: 'center',
-          paddingHorizontal: metrics.sm,
-        },
-        toggleText: {
-          color: colors.textSecondary,
-          fontWeight: '600',
-          fontSize: typography.sizes.sm,
+          alignItems: 'center',
         },
         error: {
           color: colors.error,
@@ -140,7 +137,11 @@ export function FormInput({
             onPress={() => setMasked((previous) => !previous)}
             style={styles.toggleButton}
           >
-            <Text style={styles.toggleText}>{masked ? 'Show' : 'Hide'}</Text>
+            <Ionicons
+              color={colors.textSecondary}
+              name={masked ? 'eye-outline' : 'eye-off-outline'}
+              size={20}
+            />
           </Pressable>
         ) : null}
       </AnimatedView>
