@@ -586,7 +586,7 @@ export default function ProfileScreen() {
           </View>
 
           <View style={{ marginTop: metrics.lg }}>
-            <EditProfileButton onPress={() => router.push('/setup/profile')} />
+            <EditProfileButton onPress={() => router.push('/setup/profile?mode=edit')} />
           </View>
 
           <View style={styles.statsRow}>
