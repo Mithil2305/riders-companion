@@ -77,14 +77,12 @@ export function ExploreGrid({ sections, onEndReached, hasMore, isLoadingMore }: 
           {item.layout === 'small-large-small' ? (
             <>
               <SmallImageGrid
-                fadedRight={false}
                 leftUri={item.smallLeft.thumbnail}
                 rightUri={item.smallRight.thumbnail}
               />
               <LargeImageCard index={index * 3 + 1} uri={item.heroTop.thumbnail} />
               {item.heroBottom ? (
                 <SmallImageGrid
-                  fadedRight={false}
                   leftUri={item.heroBottom.thumbnail}
                   rightUri={item.smallLeft.thumbnail}
                 />
