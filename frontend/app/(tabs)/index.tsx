@@ -1,27 +1,28 @@
 import React from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { EmptyState } from '../../src/components/common';
 import {
+  EndOfFeed,
   FeedPost,
   FeedSkeleton,
   HeaderBar,
-  StoryItem,
 } from '../../src/components/feed';
 import { useHomeFeed } from '../../src/hooks/useHomeFeed';
 import { useTheme } from '../../src/hooks/useTheme';
-import { FeedPostItem, Story } from '../../src/types/feed';
+import { FeedPostItem } from '../../src/types/feed';
 
 export default function HomeScreen() {
   const { colors, metrics, typography } = useTheme();
-  const { loading, refreshing, posts, stories, likedPostIds, onRefresh, toggleLike } = useHomeFeed();
+  const { loading, refreshing, posts, likedPostIds, onRefresh, toggleLike } = useHomeFeed();
+  const scrollY = useSharedValue(0);
 
-  const storyItemSize = metrics.avatar.lg + metrics.md;
-
-  const renderStoryItem = React.useCallback(
-    ({ item }: { item: Story }) => <StoryItem item={item} />,
-    [],
-  );
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   const renderPost = React.useCallback(
     ({ item, index }: { item: FeedPostItem; index: number }) => (
@@ -30,9 +31,10 @@ export default function HomeScreen() {
         item={item}
         liked={Boolean(likedPostIds[item.id])}
         onToggleLike={toggleLike}
+        scrollY={scrollY}
       />
     ),
-    [likedPostIds, toggleLike],
+    [likedPostIds, scrollY, toggleLike],
   );
 
   const styles = React.useMemo(
@@ -41,20 +43,13 @@ export default function HomeScreen() {
         container: {
           flex: 1,
           backgroundColor: colors.background,
-        },
-        headerSection: {
-          gap: metrics.sm,
-          paddingBottom: metrics.sm,
-        },
-        storiesContent: {
-          paddingHorizontal: metrics.md,
-          gap: metrics.sm,
-          paddingBottom: metrics.sm,
+          gap: metrics.md,
         },
         feedContent: {
-          paddingHorizontal: metrics.md,
-          paddingTop: metrics.md,
           paddingBottom: metrics['3xl'],
+          backgroundColor: colors.background,
+          paddingTop: metrics.md,
+          // paddingHorizontal: metrics.md,
         },
         emptyWrap: {
           paddingHorizontal: metrics.md,
@@ -70,31 +65,10 @@ export default function HomeScreen() {
     [colors, metrics, typography],
   );
 
-  const listHeader = React.useMemo(
-    () => (
-      <View style={styles.headerSection}>
-        <HeaderBar title="Moments" />
-
-        <FlatList
-          contentContainerStyle={styles.storiesContent}
-          data={stories}
-          decelerationRate="fast"
-          horizontal
-          keyExtractor={(item) => item.id}
-          renderItem={renderStoryItem}
-          showsHorizontalScrollIndicator={false}
-          snapToAlignment="start"
-          snapToInterval={storyItemSize}
-        />
-      </View>
-    ),
-    [renderStoryItem, stories, storyItemSize, styles.headerSection, styles.storiesContent],
-  );
-
   if (loading) {
     return (
       <SafeAreaView edges={['left', 'right' , 'top']} style={styles.container}>
-        <HeaderBar title="Moments" />
+        <HeaderBar showSpinner title="Moments" />
         <FeedSkeleton />
         <Text style={styles.loadingTitle}>Loading your latest moments...</Text>
       </SafeAreaView>
@@ -103,7 +77,13 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={['left', 'right' , 'top']} style={styles.container}>
-      <FlatList
+      <HeaderBar
+        showSpinner={refreshing}
+        title="Moments"
+        titleIcon={require('../../assets/icons/feed-plus.png')}
+      />
+
+      <Animated.FlatList
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <EmptyState
@@ -113,10 +93,12 @@ export default function HomeScreen() {
             />
           </View>
         }
-        ListHeaderComponent={listHeader}
+        ListFooterComponent={<EndOfFeed />}
         contentContainerStyle={styles.feedContent}
         data={posts}
         keyExtractor={(item) => item.id}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             colors={[colors.primary]}

@@ -24,26 +24,26 @@ export function FeedSkeleton() {
     () =>
       StyleSheet.create({
         list: {
-          paddingHorizontal: metrics.md,
           paddingTop: metrics.sm,
-          gap: metrics.md,
+          gap: metrics.lg,
         },
         card: {
-          borderRadius: metrics.radius.xl,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.card,
+          backgroundColor: colors.background,
           overflow: 'hidden',
+          paddingBottom: metrics.md,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.borderDark,
         },
         header: {
           flexDirection: 'row',
           alignItems: 'center',
-          padding: metrics.md,
+          paddingHorizontal: metrics.md,
+          paddingBottom: metrics.sm,
           gap: metrics.sm,
         },
         avatar: {
-          width: metrics.avatar.md,
-          height: metrics.avatar.md,
+          width: 34,
+          height: 34,
           borderRadius: metrics.radius.full,
           backgroundColor: colors.surface,
         },
@@ -65,7 +65,7 @@ export function FeedSkeleton() {
         },
         image: {
           width: '100%',
-          height: metrics.screenWidth * 0.75,
+          height: metrics.screenWidth * 0.9,
           backgroundColor: colors.surface,
         },
         footer: {
