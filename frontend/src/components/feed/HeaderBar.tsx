@@ -83,7 +83,7 @@ export function HeaderBar({ title = 'Moments', titleIcon, showSpinner = false }:
       </View>
 
       <View style={styles.right}>
-        <Pressable android_ripple={{ color: colors.overlayLight }} style={styles.iconTap}>
+        <Pressable android_ripple={{ color: colors.overlayLight }} onPress={() => router.push('/status')} style={styles.iconTap}>
             <MaterialCommunityIcons color={colors.icon} name="clock-plus-outline" size={metrics.icon.md - 2}/>
         </Pressable>
 
