@@ -11,7 +11,7 @@ export default function SettingsScreen() {
       onHelpPress={() => {}}
       onNotificationsPress={() => router.push('/notifications')}
       onPrivacyPress={() => {}}
-      onProfilePress={() => router.push('/setup/profile')}
+      onProfilePress={() => router.push('/setup/profile?mode=edit')}
       onSignOutPress={() => {}}
     />
   );
