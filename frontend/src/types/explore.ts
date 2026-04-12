@@ -15,3 +15,12 @@ export interface TrendingClip {
   title: string;
   thumbnail: string;
 }
+
+export interface ExploreGridSection {
+  id: string;
+  layout: 'large-small-large' | 'small-large-small';
+  heroTop: TrendingClip;
+  smallLeft: TrendingClip;
+  smallRight: TrendingClip;
+  heroBottom?: TrendingClip;
+}

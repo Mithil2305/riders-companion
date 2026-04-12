@@ -9,6 +9,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: true,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
@@ -55,7 +56,7 @@ export default function TabLayout() {
         options={{
           title: 'Ride',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bicycle" size={size} color={color} />
+            <Ionicons name="location-outline" size={size} color={color} />
           ),
         }}
       />
