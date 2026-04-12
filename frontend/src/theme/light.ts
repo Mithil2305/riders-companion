@@ -5,7 +5,7 @@ export const lightTheme = {
   colors: {
     primary: baseColors.primary,
     secondary: baseColors.secondary,
-    background: '#F8F2DE',
+    background: '#ffffff',
     surface: '#FFFFFF',
     card: '#FFFFFF',
     textPrimary: '#141418',

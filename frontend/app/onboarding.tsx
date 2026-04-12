@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '../src/components/common';
 import { useTheme } from '../src/hooks/useTheme';
 import { lightTheme } from '../src/theme/light';
+import { markOnboardingSeen } from '../src/utils/deviceFlags';
 
 type Slide = {
   key: 'track' | 'together' | 'safe';
@@ -79,6 +80,9 @@ export default function OnboardingScreen() {
   React.useEffect(() => {
     pulse.value = withRepeat(withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.quad) }), -1, true);
     drift.value = withRepeat(withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.quad) }), -1, true);
+
+    // Mark as seen as soon as onboarding is opened so it only appears once per device.
+    void markOnboardingSeen();
   }, [drift, pulse]);
 
   const styles = React.useMemo(
