@@ -93,7 +93,7 @@ export function HeaderBar({ title = 'Moments', titleIcon, showSpinner = false }:
 
         <Pressable
           android_ripple={{ color: colors.overlayLight }}
-          onPress={() => router.push('/room/1')}
+          onPress={() => router.push('/room')}
           style={styles.iconTap}
         >
           <Ionicons color={colors.icon} name="chatbubble-outline" size={metrics.icon.md - 2} />
