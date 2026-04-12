@@ -5,15 +5,20 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInLeft, FadeInRight } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { EmptyState, SkeletonBlock } from '../src/components/common';
-import { TabSwitcher, UserListItem } from '../src/components/tracking';
+import { TabSwitcher, UserListItem } from '../src/components/followers';
 import { TrackingTabKey, useTrackingData } from '../src/hooks/useTrackingData';
 import { TrackerUser } from '../src/types/profile';
 import { useTheme } from '../src/hooks/useTheme';
 
 function parseInitialTab(value: string | string[] | undefined): TrackingTabKey {
-  if (value === 'following') {
+  if (value === 'following' || value === 'tracking') {
     return 'following';
   }
+
+  if (value === 'followers' || value === 'trackers') {
+    return 'followers';
+  }
+
   return 'followers';
 }
 
@@ -27,6 +32,7 @@ export default function TrackingScreen() {
   const previousTab = React.useRef<TrackingTabKey>(initialTab);
 
   const currentData = activeTab === 'followers' ? followers : following;
+  const currentScreenTitle = activeTab === 'followers' ? 'Trackers' : 'Tracking';
   const entering = previousTab.current === 'followers' ? FadeInRight.duration(220) : FadeInLeft.duration(220);
   previousTab.current = activeTab;
 
@@ -89,7 +95,7 @@ export default function TrackingScreen() {
             </Pressable>
             <View style={styles.titleWrap}>
               <Ionicons color={colors.primary} name="people-outline" size={metrics.icon.md} />
-              <Text style={styles.title}>Trackers</Text>
+              <Text style={styles.title}>{currentScreenTitle}</Text>
             </View>
             <View style={{ width: metrics.icon.md }} />
           </View>
@@ -110,7 +116,7 @@ export default function TrackingScreen() {
           </Pressable>
           <View style={styles.titleWrap}>
             <Ionicons color={colors.primary} name="people-outline" size={metrics.icon.md} />
-            <Text style={styles.title}>Trackers</Text>
+            <Text style={styles.title}>{currentScreenTitle}</Text>
           </View>
           <View style={{ width: metrics.icon.md }} />
         </View>
@@ -129,10 +135,10 @@ export default function TrackingScreen() {
                 icon={activeTab === 'followers' ? 'people-outline' : 'person-add-outline'}
                 subtitle={
                   activeTab === 'followers'
-                    ? 'No followers yet. Share your next ride to attract riders.'
-                    : 'You are not following anyone yet.'
+                    ? 'No trackers yet. Share your next ride to attract riders.'
+                    : 'You are not tracking anyone yet.'
                 }
-                title={activeTab === 'followers' ? 'No followers' : 'No following yet'}
+                title={activeTab === 'followers' ? 'No trackers' : 'No tracking yet'}
               />
             }
             contentContainerStyle={styles.listContent}
