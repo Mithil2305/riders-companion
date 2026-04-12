@@ -77,8 +77,8 @@ export function TabSwitcher({
   }));
 
   const labelMap: Record<TrackingTabKey, string> = {
-    followers: `Followers (${followersCount})`,
-    following: `Following (${followingCount})`,
+    followers: `Trackers (${followersCount})`,
+    following: `Tracking (${followingCount})`,
   };
 
   return (

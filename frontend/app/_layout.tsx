@@ -30,7 +30,13 @@ function RootNavigator() {
         <Stack.Screen name="auth" />
         <Stack.Screen name="setup" />
         <Stack.Screen name="room" />
-        <Stack.Screen name="settings" />
+        <Stack.Screen
+          name="settings"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'none',
+          }}
+        />
         <Stack.Screen name="tracking" />
         <Stack.Screen name="notifications" />
       </Stack>
