@@ -90,7 +90,12 @@ function RootNavigator() {
       >
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="auth" />
+        <Stack.Screen
+          name="auth"
+          options={{
+            animation: 'fade',
+          }}
+        />
         <Stack.Screen name="setup" />
         <Stack.Screen name="room" />
         <Stack.Screen name="group-room" />
