@@ -14,24 +14,28 @@ export const mockSuggestedRooms: SuggestedRoom[] = [
 ];
 
 export const mockTrendingClips: TrendingClip[] = [
-  {
-    id: '1',
-    title: 'Wheelie 🔥',
-    thumbnail: 'https://picsum.photos/seed/clip1/640/640',
-  },
-  {
-    id: '2',
-    title: 'Track Day',
-    thumbnail: 'https://picsum.photos/seed/clip2/640/640',
-  },
-  {
-    id: '3',
-    title: 'Night Run',
-    thumbnail: 'https://picsum.photos/seed/clip3/640/640',
-  },
-  {
-    id: '4',
-    title: 'Hill Climb',
-    thumbnail: 'https://picsum.photos/seed/clip4/640/640',
-  },
+  { id: '1', title: 'Dawn canyon sprint', thumbnail: 'https://picsum.photos/seed/explore-rider-1/1200/1200' },
+  { id: '2', title: 'City lane split', thumbnail: 'https://picsum.photos/seed/explore-rider-2/1200/1200' },
+  { id: '3', title: 'Track apex practice', thumbnail: 'https://picsum.photos/seed/explore-rider-3/1200/1200' },
+  { id: '4', title: 'Weekend highway push', thumbnail: 'https://picsum.photos/seed/explore-rider-4/1200/1200' },
+  { id: '5', title: 'Helmet cam rain ride', thumbnail: 'https://picsum.photos/seed/explore-rider-5/1200/1200' },
+  { id: '6', title: 'Tunnel rev check', thumbnail: 'https://picsum.photos/seed/explore-rider-6/1200/1200' },
+  { id: '7', title: 'Midnight fuel stop', thumbnail: 'https://picsum.photos/seed/explore-rider-7/1200/1200' },
+  { id: '8', title: 'Mountain switchbacks', thumbnail: 'https://picsum.photos/seed/explore-rider-8/1200/1200' },
+  { id: '9', title: 'Solo commute run', thumbnail: 'https://picsum.photos/seed/explore-rider-9/1200/1200' },
+  { id: '10', title: 'New tires first ride', thumbnail: 'https://picsum.photos/seed/explore-rider-10/1200/1200' },
+  { id: '11', title: 'Group ride meetup', thumbnail: 'https://picsum.photos/seed/explore-rider-11/1200/1200' },
+  { id: '12', title: 'Street cafe pit stop', thumbnail: 'https://picsum.photos/seed/explore-rider-12/1200/1200' },
+  { id: '13', title: 'Ridge line cruise', thumbnail: 'https://picsum.photos/seed/explore-rider-13/1200/1200' },
+  { id: '14', title: 'Sharp turn warmup', thumbnail: 'https://picsum.photos/seed/explore-rider-14/1200/1200' },
+  { id: '15', title: 'Fast lane night ride', thumbnail: 'https://picsum.photos/seed/explore-rider-15/1200/1200' },
+  { id: '16', title: 'Open road horizon', thumbnail: 'https://picsum.photos/seed/explore-rider-16/1200/1200' },
+  { id: '17', title: 'Sunday service check', thumbnail: 'https://picsum.photos/seed/explore-rider-17/1200/1200' },
+  { id: '18', title: 'Wheel control drill', thumbnail: 'https://picsum.photos/seed/explore-rider-18/1200/1200' },
+  { id: '19', title: 'Bridge crossing reel', thumbnail: 'https://picsum.photos/seed/explore-rider-19/1200/1200' },
+  { id: '20', title: 'Backroad sunset line', thumbnail: 'https://picsum.photos/seed/explore-rider-20/1200/1200' },
+  { id: '21', title: 'Touring setup check', thumbnail: 'https://picsum.photos/seed/explore-rider-21/1200/1200' },
+  { id: '22', title: 'City traffic escapes', thumbnail: 'https://picsum.photos/seed/explore-rider-22/1200/1200' },
+  { id: '23', title: 'Helmet reflection shot', thumbnail: 'https://picsum.photos/seed/explore-rider-23/1200/1200' },
+  { id: '24', title: 'Throttle control tips', thumbnail: 'https://picsum.photos/seed/explore-rider-24/1200/1200' },
 ];

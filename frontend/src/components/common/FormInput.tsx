@@ -18,6 +18,7 @@ import { useTheme } from '../../hooks/useTheme';
 
 interface FormInputProps {
   label: string;
+  required?: boolean;
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
@@ -34,6 +35,7 @@ const AnimatedView = Animated.createAnimatedComponent(View);
 
 export function FormInput({
   label,
+  required = false,
   value,
   onChangeText,
   placeholder,
@@ -60,6 +62,11 @@ export function FormInput({
           color: colors.textSecondary,
           fontSize: typography.sizes.sm,
           fontWeight: '500',
+        },
+        requiredMark: {
+          color: colors.error,
+          fontSize: typography.sizes.sm,
+          fontWeight: '700',
         },
         inputWrap: {
           minHeight: 52,
@@ -114,7 +121,10 @@ export function FormInput({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label}>
+        {label}
+        {required ? <Text style={styles.requiredMark}> *</Text> : null}
+      </Text>
       <AnimatedView style={[styles.inputWrap, animatedStyle]}>
         <TextInput
           autoCapitalize={autoCapitalize}

@@ -5,20 +5,24 @@ import { useTheme } from '../../hooks/useTheme';
 
 interface SearchBarProps {
   value: string;
-  onChangeText: (value: string) => void;
+  onChangeText: (text: string) => void;
 }
 
 export function SearchBar({ value, onChangeText }: SearchBarProps) {
-  const { colors, metrics, resolvedMode, typography } = useTheme();
-  const isDark = resolvedMode === 'dark';
+  const { colors, metrics, typography } = useTheme();
 
   const styles = React.useMemo(
     () =>
       StyleSheet.create({
-        searchWrap: {
-          height: 46,
+        root: {
+          marginHorizontal: metrics.md,
+          marginTop: metrics.md,
+          marginBottom: metrics.md,
+          minHeight: 44,
           borderRadius: 24,
-          backgroundColor: isDark ? '#2B2525' : '#F2F2F2',
+          backgroundColor: colors.chatSearchBg,
+          borderWidth: 1,
+          borderColor: colors.border,
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: metrics.md,
@@ -28,15 +32,15 @@ export function SearchBar({ value, onChangeText }: SearchBarProps) {
           flex: 1,
           color: colors.textPrimary,
           fontSize: typography.sizes.base,
-          paddingVertical: 0,
+          paddingVertical: metrics.sm,
         },
       }),
-    [colors, isDark, metrics, typography],
+    [colors, metrics, typography],
   );
 
   return (
-    <View style={styles.searchWrap}>
-      <Ionicons color="rgba(112, 112, 112, 0.8)" name="search-outline" size={metrics.icon.md} />
+    <View style={styles.root}>
+      <Ionicons color={colors.icon} name="search" size={metrics.icon.md + 2} />
       <TextInput
         onChangeText={onChangeText}
         placeholder="Search"
