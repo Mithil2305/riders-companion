@@ -38,6 +38,7 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen name="tracking" />
+        <Stack.Screen name="community" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="status" />
         <Stack.Screen
