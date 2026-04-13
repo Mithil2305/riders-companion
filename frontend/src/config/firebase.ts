@@ -1,5 +1,4 @@
 import { Platform } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import {
 	getAuth,
@@ -39,11 +38,13 @@ if (isFirebaseConfigured) {
 		auth = getAuth(app);
 	} else {
 		try {
+			const AsyncStorageModule = require("@react-native-async-storage/async-storage");
+			const AsyncStorage = AsyncStorageModule.default ?? AsyncStorageModule;
 			auth = initializeAuth(app, {
 				persistence: getReactNativePersistence(AsyncStorage),
 			});
 		} catch {
-			// If Auth was initialized already by another module, reuse it.
+			// Fallback for runtimes where AsyncStorage native module is unavailable.
 			auth = getAuth(app);
 		}
 	}

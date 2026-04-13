@@ -25,11 +25,19 @@ import {
 	ThemeToggleButton,
 } from "../../src/components/common";
 import { useTheme } from "../../src/hooks/useTheme";
-import { goBack } from "expo-router/build/global-state/routing";
+import { useAuth } from "../../src/contexts/AuthContext";
+import ProfileService from "../../src/services/ProfileService";
+import {
+	getStoredDriverLicense,
+	markProfileSetupSkipped,
+	markProfileSetupDone,
+} from "../../src/utils/profileSetupStorage";
+import { isPrivilegedAccount } from "../../src/utils/accessControl";
 
 interface UserProfile {
 	name: string;
 	username: string;
+	driverLicenseNumber: string;
 	bio: string;
 	avatar: string;
 }
@@ -44,18 +52,13 @@ interface BikeForm {
 const initialUser: UserProfile = {
 	name: "",
 	username: "",
+	driverLicenseNumber: "",
 	bio: "",
 	avatar: "",
 };
 
 const initialBikes: Bike[] = [
-	{
-		id: "1",
-		brand: "Yamaha",
-		model: "R15",
-		year: "2022",
-		image: "placeholder",
-	},
+	// Loaded from backend when available.
 ];
 
 const emptyBikeForm: BikeForm = {
@@ -67,16 +70,19 @@ const emptyBikeForm: BikeForm = {
 
 export default function ProfileSetupScreen() {
 	const { colors, metrics, typography } = useTheme();
+	const { user: authUser } = useAuth();
 	const router = useRouter();
 	const { mode } = useLocalSearchParams<{ mode?: string | string[] }>();
 	const [user, setUser] = React.useState<UserProfile>(initialUser);
 	const [bikes, setBikes] = React.useState<Bike[]>(initialBikes);
 	const [bikeForm, setBikeForm] = React.useState<BikeForm>(emptyBikeForm);
 	const [submitting, setSubmitting] = React.useState(false);
+	const [loadError, setLoadError] = React.useState<string | null>(null);
 
 	const [userErrors, setUserErrors] = React.useState<{
 		name?: string;
 		username?: string;
+		driverLicenseNumber?: string;
 	}>({});
 	const [bikeErrors, setBikeErrors] = React.useState<{
 		brand?: string;
@@ -204,6 +210,70 @@ export default function ProfileSetupScreen() {
 		? "Update your rider identity and garage."
 		: "Set up your rider identity and garage.";
 	const submitTitle = isEditMode ? "Save Profile" : "Complete Setup";
+	const canSkip = !isEditMode && !isPrivilegedAccount(authUser?.email);
+
+	React.useEffect(() => {
+		if (authUser == null) {
+			return;
+		}
+
+		let mounted = true;
+
+		setUser((previous) => ({
+			...previous,
+			name: authUser.name || previous.name,
+			username: authUser.username || previous.username,
+		}));
+
+		ProfileService.getMyProfile()
+			.then((data) => {
+				if (!mounted) {
+					return;
+				}
+
+				setUser((previous) => ({
+					...previous,
+					name: data.profile.name || previous.name,
+					username: data.profile.username || previous.username,
+					driverLicenseNumber:
+						data.profile.driverLicenseNumber || previous.driverLicenseNumber,
+					bio: data.profile.bio || previous.bio,
+					avatar: data.profile.profileImageUrl || previous.avatar,
+				}));
+
+				setBikes(
+					data.bikes.map((bike) => ({
+						id: bike.id,
+						brand: bike.brand,
+						model: bike.model,
+						year: String(bike.year),
+						image: bike.bikeImageUrl || "",
+					})),
+				);
+			})
+			.catch(() => {
+				if (mounted) {
+					setLoadError("Unable to load saved profile. You can still continue.");
+				}
+			});
+
+		getStoredDriverLicense(authUser.firebaseUid)
+			.then((license) => {
+				if (license && mounted) {
+					setUser((previous) => ({
+						...previous,
+						driverLicenseNumber: license,
+					}));
+				}
+			})
+			.catch(() => {
+				// Ignore local storage read failures.
+			});
+
+		return () => {
+			mounted = false;
+		};
+	}, [authUser]);
 
 	const validateBike = () => {
 		const nextErrors: { brand?: string; model?: string; year?: string } = {};
@@ -231,7 +301,7 @@ export default function ProfileSetupScreen() {
 		setBikes((previous) => [
 			...previous,
 			{
-				id: `${Date.now()}`,
+				id: `local-${Date.now()}`,
 				brand: bikeForm.brand.trim(),
 				model: bikeForm.model.trim(),
 				year: bikeForm.year.trim(),
@@ -242,13 +312,21 @@ export default function ProfileSetupScreen() {
 		setBikeErrors({});
 	};
 
-	const completeSetup = () => {
-		const nextErrors: { name?: string; username?: string } = {};
+	const completeSetup = async () => {
+		const nextErrors: {
+			name?: string;
+			username?: string;
+			driverLicenseNumber?: string;
+		} = {};
 		if (user.name.trim().length === 0) {
 			nextErrors.name = "Name is required";
 		}
 		if (user.username.trim().length === 0) {
 			nextErrors.username = "Username is required";
+		}
+		if (!isEditMode && user.driverLicenseNumber.trim().length < 6) {
+			nextErrors.driverLicenseNumber =
+				"Driver's license is required (min 6 characters)";
 		}
 
 		setUserErrors(nextErrors);
@@ -257,12 +335,59 @@ export default function ProfileSetupScreen() {
 		}
 
 		setSubmitting(true);
-		setTimeout(() => {
-			console.log("Ready for Home");
+		setLoadError(null);
+
+		if (authUser == null) {
+			setSubmitting(false);
+			router.replace("/auth/login");
+			return;
+		}
+
+		try {
+			await ProfileService.updateMyProfile({
+				name: user.name.trim(),
+				username: user.username.trim().toLowerCase(),
+				bio: user.bio.trim(),
+				driverLicenseNumber: user.driverLicenseNumber.trim(),
+				profileImageUrl: user.avatar || undefined,
+			});
+
+			const localBikes = bikes.filter((bike) => bike.id.startsWith("local-"));
+			for (const bike of localBikes) {
+				await ProfileService.addGarageBike({
+					brand: bike.brand,
+					model: bike.model,
+					year: Number(bike.year),
+					bikeImageUrl: bike.image || undefined,
+				});
+			}
+
+			await markProfileSetupDone(
+				authUser.firebaseUid,
+				user.driverLicenseNumber.trim(),
+			);
+
 			setSubmitting(false);
 			router.replace("/(tabs)");
-		}, 800);
+		} catch (error) {
+			setSubmitting(false);
+			setLoadError(
+				error instanceof Error
+					? error.message
+					: "Unable to save profile details right now.",
+			);
+		}
 	};
+
+	const skipForNow = React.useCallback(async () => {
+		if (authUser == null) {
+			router.replace("/auth/login");
+			return;
+		}
+
+		await markProfileSetupSkipped(authUser.firebaseUid);
+		router.replace("/(tabs)");
+	}, [authUser, router]);
 
 	return (
 		<SafeAreaView
@@ -328,6 +453,17 @@ export default function ProfileSetupScreen() {
 								}
 								placeholder="johnrider"
 								value={user.username}
+							/>
+							<FormInput
+								autoCapitalize="characters"
+								error={userErrors.driverLicenseNumber}
+								label="Driver's License Number"
+								required={!isEditMode}
+								onChangeText={(driverLicenseNumber) =>
+									setUser((previous) => ({ ...previous, driverLicenseNumber }))
+								}
+								placeholder="Enter your license number"
+								value={user.driverLicenseNumber}
 							/>
 							<FormInput
 								autoCapitalize="sentences"
@@ -408,7 +544,7 @@ export default function ProfileSetupScreen() {
 
 						<View
 							style={
-								mode === "edit"
+								mode === "edit" || canSkip
 									? {
 											flexDirection: "row",
 											justifyContent: "center",
@@ -418,8 +554,16 @@ export default function ProfileSetupScreen() {
 							}
 						>
 							{mode === "edit" && (
-								<Pressable onPress={goBack} style={styles.cancelButton}>
+								<Pressable
+									onPress={() => router.back()}
+									style={styles.cancelButton}
+								>
 									<Text style={styles.cancelButtonText}>Cancel</Text>
+								</Pressable>
+							)}
+							{canSkip && (
+								<Pressable onPress={skipForNow} style={styles.cancelButton}>
+									<Text style={styles.cancelButtonText}>Skip for now</Text>
 								</Pressable>
 							)}
 							<PrimaryButton
@@ -428,6 +572,13 @@ export default function ProfileSetupScreen() {
 								title={submitTitle}
 							/>
 						</View>
+						{loadError ? (
+							<Text
+								style={{ color: colors.error, fontSize: typography.sizes.sm }}
+							>
+								{loadError}
+							</Text>
+						) : null}
 					</Animated.View>
 				</ScrollView>
 			</KeyboardAvoidingView>

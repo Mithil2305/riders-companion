@@ -32,6 +32,14 @@ const RiderAccount = sequelize.define(
 			type: DataTypes.TEXT,
 			allowNull: true,
 		},
+		mobile_number: {
+			type: DataTypes.STRING(20),
+			allowNull: true,
+		},
+		driver_license_number: {
+			type: DataTypes.STRING(80),
+			allowNull: true,
+		},
 		profile_image_url: {
 			type: DataTypes.STRING(255),
 			allowNull: true,
@@ -43,6 +51,10 @@ const RiderAccount = sequelize.define(
 		total_miles: {
 			type: DataTypes.DECIMAL(10, 2),
 			defaultValue: 0.0,
+		},
+		profile_setup_completed_at: {
+			type: DataTypes.DATE,
+			allowNull: true,
 		},
 	},
 	{

@@ -7,9 +7,11 @@
 	"scripts": {
 		"start": "node server.js",
 		"db:init": "node src/scripts/initDatabase.js",
-		"db:sync": "node src/scripts/syncTables.js"
+		"db:sync": "node src/scripts/syncTables.js",
+		"seed:admin": "node src/scripts/seedAdminAccount.js"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.872.0",
 		"dotenv": "^16.4.5",
 		"express": "^4.21.2",
 		"firebase-admin": "^13.8.0",
