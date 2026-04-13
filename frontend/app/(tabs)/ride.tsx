@@ -342,6 +342,7 @@ export default function RideScreen() {
 				},
 				content: {
 					padding: metrics.lg,
+					paddingBottom: metrics["3xl"],
 					gap: metrics.lg,
 				},
 				header: {
@@ -353,6 +354,7 @@ export default function RideScreen() {
 					fontSize: typography.sizes["3xl"],
 					color: colors.textPrimary,
 					fontWeight: "700",
+					lineHeight: 38,
 				},
 				card: {
 					borderRadius: metrics.radius.xl,
@@ -362,6 +364,7 @@ export default function RideScreen() {
 					padding: metrics.md,
 					alignItems: "center",
 					gap: metrics.sm,
+					minHeight: 268,
 				},
 				selectedCard: {
 					borderColor: colors.primary,
@@ -379,6 +382,8 @@ export default function RideScreen() {
 				rideMeta: {
 					color: colors.textSecondary,
 					fontSize: typography.sizes.sm,
+					lineHeight: 20,
+					textAlign: "center",
 				},
 				formCard: {
 					borderRadius: metrics.radius.xl,
@@ -386,7 +391,7 @@ export default function RideScreen() {
 					borderColor: colors.border,
 					backgroundColor: colors.surface,
 					padding: metrics.md,
-					gap: metrics.sm,
+					gap: metrics.md,
 				},
 				sectionTitle: {
 					color: colors.textPrimary,
@@ -398,9 +403,11 @@ export default function RideScreen() {
 					borderColor: colors.border,
 					borderRadius: metrics.radius.lg,
 					backgroundColor: colors.background,
-					paddingHorizontal: metrics.sm,
+					paddingHorizontal: metrics.md,
 					paddingVertical: metrics.sm,
+					minHeight: 48,
 					color: colors.textPrimary,
+					fontSize: typography.sizes.base,
 				},
 				row: {
 					flexDirection: "row",
@@ -417,8 +424,10 @@ export default function RideScreen() {
 					borderColor: colors.border,
 					borderRadius: metrics.radius.full,
 					paddingHorizontal: metrics.md,
-					paddingVertical: metrics.xs,
+					paddingVertical: metrics.sm,
+					minHeight: 40,
 					backgroundColor: colors.background,
+					justifyContent: "center",
 				},
 				optionChipSelected: {
 					borderColor: colors.primary,
@@ -438,6 +447,8 @@ export default function RideScreen() {
 					borderRadius: metrics.radius.lg,
 					padding: metrics.sm,
 					marginTop: metrics.xs,
+					minHeight: 56,
+					justifyContent: "center",
 				},
 				friendItemSelected: {
 					borderColor: colors.primary,
@@ -451,11 +462,13 @@ export default function RideScreen() {
 				friendHandle: {
 					color: colors.textSecondary,
 					fontSize: typography.sizes.xs,
+					lineHeight: 18,
 				},
 				message: {
 					color: colors.primary,
 					fontSize: typography.sizes.sm,
 					fontWeight: "600",
+					lineHeight: 20,
 				},
 				suggestionWrap: {
 					borderWidth: 1,
@@ -467,13 +480,14 @@ export default function RideScreen() {
 				},
 				suggestionItem: {
 					paddingHorizontal: metrics.sm,
-					paddingVertical: metrics.sm,
+					paddingVertical: metrics.md,
 					borderTopWidth: StyleSheet.hairlineWidth,
 					borderTopColor: colors.border,
 				},
 				suggestionText: {
 					color: colors.textPrimary,
 					fontSize: typography.sizes.sm,
+					lineHeight: 20,
 				},
 			}),
 		[colors, metrics, typography],
@@ -481,7 +495,12 @@ export default function RideScreen() {
 
 	return (
 		<SafeAreaView edges={["left", "right"]} style={styles.container}>
-			<ScrollView style={styles.container}>
+			<ScrollView
+				contentContainerStyle={styles.content}
+				keyboardShouldPersistTaps="handled"
+				showsVerticalScrollIndicator={false}
+				style={styles.container}
+			>
 				<View style={styles.content}>
 					<View style={styles.header}>
 						<Ionicons
@@ -494,6 +513,7 @@ export default function RideScreen() {
 
 					<Pressable
 						onPress={() => setSelectedType("solo")}
+						hitSlop={6}
 						style={[
 							styles.card,
 							selectedType === "solo" && styles.selectedCard,
@@ -509,6 +529,7 @@ export default function RideScreen() {
 
 					<Pressable
 						onPress={() => setSelectedType("group")}
+						hitSlop={6}
 						style={[
 							styles.card,
 							selectedType === "group" && styles.selectedCard,
@@ -647,6 +668,7 @@ export default function RideScreen() {
 									(mode) => (
 										<Pressable
 											key={mode}
+											hitSlop={4}
 											onPress={() => setPrivacy(mode)}
 											style={[
 												styles.optionChip,
@@ -715,6 +737,7 @@ export default function RideScreen() {
 										return (
 											<Pressable
 												key={friend.id}
+												hitSlop={4}
 												onPress={() => toggleFriend(friend.id)}
 												style={[
 													styles.friendItem,

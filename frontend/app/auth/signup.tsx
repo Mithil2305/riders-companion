@@ -98,10 +98,13 @@ export default function SignupScreen() {
 				scrollContent: {
 					flexGrow: 1,
 					padding: metrics.lg,
+					paddingTop: metrics["3xl"],
+					paddingBottom: metrics.xl,
 					justifyContent: "center",
 				},
 				container: {
 					gap: metrics.md,
+					width: "100%",
 				},
 				toggleRow: {
 					borderRadius: metrics.radius.full,
@@ -126,6 +129,7 @@ export default function SignupScreen() {
 					color: colors.textSecondary,
 					fontSize: typography.sizes.base,
 					fontWeight: "600",
+					lineHeight: 22,
 				},
 				toggleTextActive: {
 					color: colors.textInverse,
@@ -140,6 +144,7 @@ export default function SignupScreen() {
 					color: colors.textSecondary,
 					fontSize: typography.sizes.base,
 					marginBottom: metrics.sm,
+					lineHeight: 24,
 				},
 				formWrap: {
 					gap: metrics.md,
@@ -152,6 +157,7 @@ export default function SignupScreen() {
 				errorText: {
 					color: colors.error,
 					fontSize: typography.sizes.xs,
+					lineHeight: 18,
 				},
 				googleDividerWrap: {
 					flexDirection: "row",
@@ -187,6 +193,7 @@ export default function SignupScreen() {
 					color: colors.textPrimary,
 					fontSize: typography.sizes.base,
 					fontWeight: "600",
+					lineHeight: 22,
 				},
 				disabledBtn: {
 					opacity: 0.55,
@@ -294,20 +301,24 @@ export default function SignupScreen() {
 
 				<ScrollView
 					contentContainerStyle={styles.scrollContent}
+					contentInsetAdjustmentBehavior="automatic"
 					keyboardShouldPersistTaps="handled"
+					showsVerticalScrollIndicator={false}
 				>
 					<Animated.View
-						entering={FadeInRight.duration(340)}
+						entering={FadeInRight.duration(320)}
 						style={styles.container}
 					>
 						<View style={styles.toggleRow}>
 							<TouchableOpacity
+								activeOpacity={0.85}
 								onPress={() => router.replace("/auth/login")}
 								style={styles.togglePill}
 							>
 								<Text style={styles.toggleText}>Login</Text>
 							</TouchableOpacity>
 							<TouchableOpacity
+								activeOpacity={0.85}
 								style={[styles.togglePill, styles.activeToggle]}
 							>
 								<Text style={[styles.toggleText, styles.toggleTextActive]}>
@@ -397,6 +408,7 @@ export default function SignupScreen() {
 
 							<TouchableOpacity
 								disabled={googleLoading || loading || !googleReady}
+								activeOpacity={0.9}
 								onPress={signInWithGoogle}
 								style={[
 									styles.googleBtn,

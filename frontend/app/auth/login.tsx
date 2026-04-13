@@ -109,10 +109,13 @@ export default function LoginScreen() {
 				scrollContent: {
 					flexGrow: 1,
 					padding: metrics.lg,
+					paddingTop: metrics["3xl"],
+					paddingBottom: metrics.xl,
 					justifyContent: "center",
 				},
 				container: {
 					gap: metrics.md,
+					width: "100%",
 				},
 				toggleRow: {
 					borderRadius: metrics.radius.full,
@@ -137,6 +140,7 @@ export default function LoginScreen() {
 					color: colors.textSecondary,
 					fontSize: typography.sizes.base,
 					fontWeight: "600",
+					lineHeight: 22,
 				},
 				toggleTextActive: {
 					color: colors.textInverse,
@@ -151,6 +155,7 @@ export default function LoginScreen() {
 					color: colors.textSecondary,
 					fontSize: typography.sizes.base,
 					marginBottom: metrics.xs,
+					lineHeight: 24,
 				},
 				methodRow: {
 					flexDirection: "row",
@@ -158,7 +163,7 @@ export default function LoginScreen() {
 				},
 				methodBtn: {
 					flex: 1,
-					minHeight: 42,
+					minHeight: 46,
 					borderRadius: metrics.radius.md,
 					borderWidth: 1,
 					borderColor: colors.borderDark,
@@ -174,6 +179,7 @@ export default function LoginScreen() {
 					color: colors.textSecondary,
 					fontSize: typography.sizes.sm,
 					fontWeight: "600",
+					lineHeight: 18,
 					textAlign: "center",
 					paddingHorizontal: metrics.xs,
 				},
@@ -196,10 +202,12 @@ export default function LoginScreen() {
 				errorText: {
 					color: colors.error,
 					fontSize: typography.sizes.xs,
+					lineHeight: 18,
 				},
 				infoText: {
 					color: colors.primary,
 					fontSize: typography.sizes.xs,
+					lineHeight: 18,
 				},
 				googleDividerWrap: {
 					flexDirection: "row",
@@ -235,6 +243,7 @@ export default function LoginScreen() {
 					color: colors.textPrimary,
 					fontSize: typography.sizes.base,
 					fontWeight: "600",
+					lineHeight: 22,
 				},
 				disabledBtn: {
 					opacity: 0.55,
@@ -402,14 +411,17 @@ export default function LoginScreen() {
 
 				<ScrollView
 					contentContainerStyle={styles.scrollContent}
+					contentInsetAdjustmentBehavior="automatic"
 					keyboardShouldPersistTaps="handled"
+					showsVerticalScrollIndicator={false}
 				>
 					<Animated.View
-						entering={FadeInLeft.duration(340)}
+						entering={FadeInLeft.duration(320)}
 						style={styles.container}
 					>
 						<View style={styles.toggleRow}>
 							<TouchableOpacity
+								activeOpacity={0.85}
 								style={[styles.togglePill, styles.activeToggle]}
 							>
 								<Text style={[styles.toggleText, styles.toggleTextActive]}>
@@ -417,6 +429,7 @@ export default function LoginScreen() {
 								</Text>
 							</TouchableOpacity>
 							<TouchableOpacity
+								activeOpacity={0.85}
 								onPress={() => router.replace("/auth/signup")}
 								style={styles.togglePill}
 							>
@@ -431,6 +444,7 @@ export default function LoginScreen() {
 
 						<View style={styles.methodRow}>
 							<TouchableOpacity
+								activeOpacity={0.9}
 								onPress={() => onChangeMethod("email")}
 								style={[
 									styles.methodBtn,
@@ -447,6 +461,7 @@ export default function LoginScreen() {
 								</Text>
 							</TouchableOpacity>
 							<TouchableOpacity
+								activeOpacity={0.9}
 								onPress={() => onChangeMethod("mobile")}
 								style={[
 									styles.methodBtn,
@@ -548,6 +563,7 @@ export default function LoginScreen() {
 
 							<TouchableOpacity
 								disabled={googleLoading || loading || !googleReady}
+								activeOpacity={0.9}
 								onPress={signInWithGoogle}
 								style={[
 									styles.googleBtn,
