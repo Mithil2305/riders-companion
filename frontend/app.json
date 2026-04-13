@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/images/hero.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#e8e8e8"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/hero.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#e8e8e8"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.riderscompanion.app"
@@ -31,7 +31,8 @@
       "favicon": "./assets/images/hero.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ]
   }
 }
