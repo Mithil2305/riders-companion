@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../src/hooks/useTheme';
 import { lightTheme } from '../src/theme/light';
+import { hasSeenOnboarding } from '../src/utils/deviceFlags';
 
 function withAlpha(color: string, alpha: number) {
   if (!color.startsWith('#') || (color.length !== 7 && color.length !== 9)) {
@@ -169,7 +170,22 @@ export default function SplashScreen() {
     pulse.value = withRepeat(withTiming(1, { duration: 860, easing: Easing.inOut(Easing.quad) }), -1, true);
 
     const timer = setTimeout(() => {
-      router.replace('/onboarding');
+      const routeAfterSplash = async () => {
+        try {
+          const seenOnboarding = await hasSeenOnboarding();
+
+          if (seenOnboarding) {
+            router.replace('/auth/login');
+            return;
+          }
+
+          router.replace('/onboarding');
+        } catch {
+          router.replace('/onboarding');
+        }
+      };
+
+      void routeAfterSplash();
     }, 4500);
 
     return () => clearTimeout(timer);

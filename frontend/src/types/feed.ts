@@ -12,5 +12,6 @@ export interface FeedPostItem {
   image: string;
   caption: string;
   likes: number;
+  comments: number;
   time: string;
 }

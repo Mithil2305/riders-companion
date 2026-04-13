@@ -30,9 +30,23 @@ function RootNavigator() {
         <Stack.Screen name="auth" />
         <Stack.Screen name="setup" />
         <Stack.Screen name="room" />
-        <Stack.Screen name="settings" />
+        <Stack.Screen
+          name="settings"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'none',
+          }}
+        />
         <Stack.Screen name="tracking" />
         <Stack.Screen name="notifications" />
+        <Stack.Screen name="status" />
+        <Stack.Screen
+          name="status-viewer"
+          options={{
+            animation: 'fade',
+            presentation: 'fullScreenModal',
+          }}
+        />
       </Stack>
       <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} backgroundColor={colors.background} />
     </>
