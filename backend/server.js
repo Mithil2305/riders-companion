@@ -1,11 +1,13 @@
 require("dotenv").config();
 const express = require("express");
 const { sequelize } = require("./src/models");
+const apiRoutes = require("./src/routes");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use("/api", apiRoutes);
 
 app.get("/health", async (_req, res) => {
 	try {
