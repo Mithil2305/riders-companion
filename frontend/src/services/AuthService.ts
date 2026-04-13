@@ -18,6 +18,18 @@ import {
 
 const REQUEST_TIMEOUT_MS = 15000;
 
+const isLocalOrPrivateHost = (host: string) => {
+	if (host === "localhost" || host === "127.0.0.1") {
+		return true;
+	}
+
+	return (
+		/^10\./.test(host) ||
+		/^192\.168\./.test(host) ||
+		/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+	);
+};
+
 const normalizeApiBase = (value: string) => {
 	const trimmed = value.trim().replace(/\/+$/, "");
 	return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
@@ -25,7 +37,8 @@ const normalizeApiBase = (value: string) => {
 
 const fromExpoHost = () => {
 	const hostUri =
-		Constants.expoConfig?.hostUri ?? Constants.manifest2?.extra?.expoGo?.hostUri;
+		Constants.expoConfig?.hostUri ??
+		Constants.manifest2?.extra?.expoGo?.hostUri;
 
 	if (hostUri == null || hostUri.length === 0) {
 		return null;
@@ -33,6 +46,10 @@ const fromExpoHost = () => {
 
 	const host = hostUri.split(":")[0];
 	if (host.length === 0) {
+		return null;
+	}
+
+	if (!isLocalOrPrivateHost(host)) {
 		return null;
 	}
 
@@ -66,9 +83,12 @@ type AuthUser = {
 	username: string;
 	name: string;
 	bio: string | null;
+	mobileNumber?: string | null;
+	driverLicenseNumber?: string | null;
 	profileImageUrl: string | null;
 	bannerImageUrl: string | null;
 	totalMiles: string | number;
+	profileSetupCompletedAt?: string | null;
 	createdAt: string;
 	updatedAt: string;
 };
@@ -208,9 +228,9 @@ class AuthService {
 		username: string,
 		mobileNumber?: string,
 	) {
-		let createdUser: Awaited<
-			ReturnType<typeof createUserWithEmailAndPassword>
-		>["user"] | null = null;
+		let createdUser:
+			| Awaited<ReturnType<typeof createUserWithEmailAndPassword>>["user"]
+			| null = null;
 
 		try {
 			const firebaseAuth = this.ensureFirebaseReady();

@@ -21,6 +21,14 @@ import {
 import { useTheme } from "../../src/hooks/useTheme";
 import { useNativeGoogleSignIn } from "../../src/hooks/useNativeGoogleSignIn";
 import { useAuth } from "../../src/contexts/AuthContext";
+import {
+	isProfileSetupDone,
+	isProfileSetupSkipped,
+} from "../../src/utils/profileSetupStorage";
+import {
+	hasCompletedProfile,
+	isPrivilegedAccount,
+} from "../../src/utils/accessControl";
 
 type LoginMethod = "email" | "mobile";
 
@@ -35,6 +43,33 @@ export default function LoginScreen() {
 	} = useAuth();
 	const { getIdToken, googleReady } = useNativeGoogleSignIn();
 	const router = useRouter();
+
+	const routeAfterAuth = React.useCallback(
+		async (signedInUser: {
+			firebaseUid: string;
+			email?: string;
+			profileSetupCompletedAt?: string | null;
+		}) => {
+			const firebaseUid = signedInUser.firebaseUid;
+			if (!firebaseUid) {
+				router.replace("/auth/login");
+				return;
+			}
+
+			if (isPrivilegedAccount(signedInUser.email)) {
+				router.replace("/(tabs)");
+				return;
+			}
+
+			const done = hasCompletedProfile(signedInUser)
+				? true
+				: await isProfileSetupDone(firebaseUid);
+			const skipped = await isProfileSetupSkipped(firebaseUid);
+
+			router.replace(done || skipped ? "/(tabs)" : "/setup/profile");
+		},
+		[router],
+	);
 
 	const [method, setMethod] = React.useState<LoginMethod>("email");
 
@@ -272,9 +307,9 @@ export default function LoginScreen() {
 
 			try {
 				setLoading(true);
-				await login(email.trim(), password);
+				const signedInUser = await login(email.trim(), password);
 				setLoading(false);
-				router.replace("/setup/profile");
+				await routeAfterAuth(signedInUser);
 			} catch (error) {
 				setLoading(false);
 				setAuthError(
@@ -300,9 +335,12 @@ export default function LoginScreen() {
 
 			try {
 				setLoading(true);
-				await loginWithMobileOtp(mobileNumber.trim(), otpCode.trim());
+				const signedInUser = await loginWithMobileOtp(
+					mobileNumber.trim(),
+					otpCode.trim(),
+				);
 				setLoading(false);
-				router.replace("/setup/profile");
+				await routeAfterAuth(signedInUser);
 			} catch (error) {
 				setLoading(false);
 				setAuthError(
@@ -322,13 +360,15 @@ export default function LoginScreen() {
 		try {
 			setGoogleLoading(true);
 			if (Platform.OS === "web") {
-				await loginWithGoogle();
+				const signedInUser = await loginWithGoogle();
+				setGoogleLoading(false);
+				await routeAfterAuth(signedInUser);
 			} else {
 				const idToken = await getIdToken();
-				await loginWithGoogleIdToken(idToken);
+				const signedInUser = await loginWithGoogleIdToken(idToken);
+				setGoogleLoading(false);
+				await routeAfterAuth(signedInUser);
 			}
-			setGoogleLoading(false);
-			router.replace("/setup/profile");
 		} catch (error) {
 			setGoogleLoading(false);
 			setAuthError(

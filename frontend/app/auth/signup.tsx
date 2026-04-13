@@ -21,12 +21,47 @@ import {
 import { useTheme } from "../../src/hooks/useTheme";
 import { useNativeGoogleSignIn } from "../../src/hooks/useNativeGoogleSignIn";
 import { useAuth } from "../../src/contexts/AuthContext";
+import {
+	isProfileSetupDone,
+	isProfileSetupSkipped,
+} from "../../src/utils/profileSetupStorage";
+import {
+	hasCompletedProfile,
+	isPrivilegedAccount,
+} from "../../src/utils/accessControl";
 
 export default function SignupScreen() {
 	const { colors, metrics, typography } = useTheme();
 	const { signup, loginWithGoogle, loginWithGoogleIdToken } = useAuth();
-	const { getIdToken, googleReady } = useNativeGoogleSignIn();
 	const router = useRouter();
+	const routeAfterAuth = React.useCallback(
+		async (signedInUser: {
+			firebaseUid: string;
+			email?: string;
+			profileSetupCompletedAt?: string | null;
+		}) => {
+			const firebaseUid = signedInUser.firebaseUid;
+			if (!firebaseUid) {
+				router.replace("/auth/login");
+				return;
+			}
+
+			if (isPrivilegedAccount(signedInUser.email)) {
+				router.replace("/(tabs)");
+				return;
+			}
+
+			const done = hasCompletedProfile(signedInUser)
+				? true
+				: await isProfileSetupDone(firebaseUid);
+			const skipped = await isProfileSetupSkipped(firebaseUid);
+
+			router.replace(done || skipped ? "/(tabs)" : "/setup/profile");
+		},
+		[router],
+	);
+
+	const { getIdToken, googleReady } = useNativeGoogleSignIn();
 	const [name, setName] = React.useState("");
 	const [username, setUsername] = React.useState("");
 	const [mobileNumber, setMobileNumber] = React.useState("");
@@ -165,13 +200,15 @@ export default function SignupScreen() {
 		try {
 			setGoogleLoading(true);
 			if (Platform.OS === "web") {
-				await loginWithGoogle();
+				const signedInUser = await loginWithGoogle();
+				setGoogleLoading(false);
+				await routeAfterAuth(signedInUser);
 			} else {
 				const idToken = await getIdToken();
-				await loginWithGoogleIdToken(idToken);
+				const signedInUser = await loginWithGoogleIdToken(idToken);
+				setGoogleLoading(false);
+				await routeAfterAuth(signedInUser);
 			}
-			setGoogleLoading(false);
-			router.replace("/setup/profile");
 		} catch (error) {
 			setGoogleLoading(false);
 			setAuthError(
@@ -225,7 +262,7 @@ export default function SignupScreen() {
 
 		try {
 			setLoading(true);
-			await signup(
+			const signedInUser = await signup(
 				email.trim(),
 				password,
 				name.trim(),
@@ -233,7 +270,7 @@ export default function SignupScreen() {
 				mobileNumber.trim(),
 			);
 			setLoading(false);
-			router.replace("/setup/profile");
+			await routeAfterAuth(signedInUser);
 		} catch (error) {
 			setLoading(false);
 			setAuthError(
