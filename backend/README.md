@@ -30,6 +30,7 @@ CLOUDFLARE_R2_ACCOUNT_ID=your_account_id
 CLOUDFLARE_R2_ACCESS_KEY=your_access_key
 CLOUDFLARE_R2_SECRET_KEY=your_secret_key
 CLOUDFLARE_R2_BUCKET_NAME=rider-media
+CLOUDFLARE_R2_PUBLIC_URL=https://pub-your-public-id.r2.dev
 
 2. Directory Structure Implementation
 

@@ -18,9 +18,12 @@ const toAuthUser = (user) => ({
 	username: user.username,
 	name: user.name,
 	bio: user.bio,
+	mobileNumber: user.mobile_number,
+	driverLicenseNumber: user.driver_license_number,
 	profileImageUrl: user.profile_image_url,
 	bannerImageUrl: user.banner_image_url,
 	totalMiles: user.total_miles,
+	profileSetupCompletedAt: user.profile_setup_completed_at,
 	createdAt: user.created_at,
 	updatedAt: user.updated_at,
 });
@@ -47,7 +50,7 @@ const verifyToken = async (idToken) => {
 	}
 };
 
-exports.signup = async ({ idToken, name, username }) => {
+exports.signup = async ({ idToken, name, username, mobileNumber }) => {
 	if (!name || typeof name !== "string" || !name.trim()) {
 		throw new AuthServiceError(400, "name is required", "AUTH_INVALID_NAME");
 	}
@@ -108,6 +111,10 @@ exports.signup = async ({ idToken, name, username }) => {
 		email: decodedToken.email,
 		username: normalizedUsername,
 		name: name.trim(),
+		mobile_number:
+			typeof mobileNumber === "string" && mobileNumber.trim().length > 0
+				? mobileNumber.trim()
+				: null,
 	});
 
 	return {

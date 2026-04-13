@@ -6,13 +6,29 @@ const handleAuthError = (res, error) => {
 		return formatError(res, error.statusCode, error.message, error.code);
 	}
 
+	console.error("Unexpected auth error:", error);
+
+	if (process.env.NODE_ENV !== "production") {
+		return formatError(
+			res,
+			500,
+			error?.message || "Authentication failed",
+			"AUTH_INTERNAL_ERROR",
+		);
+	}
+
 	return formatError(res, 500, "Authentication failed", "AUTH_INTERNAL_ERROR");
 };
 
 exports.signup = async (req, res) => {
 	try {
-		const { idToken, name, username } = req.body;
-		const result = await authService.signup({ idToken, name, username });
+		const { idToken, name, username, mobileNumber } = req.body;
+		const result = await authService.signup({
+			idToken,
+			name,
+			username,
+			mobileNumber,
+		});
 		return res.status(201).json({ success: true, data: result });
 	} catch (error) {
 		return handleAuthError(res, error);
