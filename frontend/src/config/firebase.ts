@@ -1,4 +1,6 @@
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getReactNativePersistence } from "@firebase/auth/dist/rn/index.js";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth, initializeAuth, type Auth } from "firebase/auth";
 
@@ -33,9 +35,11 @@ if (isFirebaseConfigured) {
 		auth = getAuth(app);
 	} else {
 		try {
-			auth = initializeAuth(app);
+			auth = initializeAuth(app, {
+				persistence: getReactNativePersistence(AsyncStorage),
+			});
 		} catch {
-			// Fallback for runtimes where AsyncStorage native module is unavailable.
+			// Fallback if auth is already initialized or persistence setup is unavailable.
 			auth = getAuth(app);
 		}
 	}

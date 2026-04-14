@@ -10,6 +10,7 @@ export type RideFriend = {
 export type RideFormPayload = {
 	rideType: "solo" | "group";
 	privacy: "friends" | "strangers" | "mixed" | "solo";
+	rideTitle?: string;
 	source: string;
 	destination: string;
 	pickupLocation?: string;
@@ -18,6 +19,13 @@ export type RideFormPayload = {
 	endDate?: string;
 	days: number;
 	budget: number;
+	maxRiders?: number;
+	ridePace?: "calm" | "balanced" | "fast";
+	roadPreference?: "scenic" | "highway" | "mixed";
+	meetupNotes?: string;
+	emergencyContactName?: string;
+	emergencyContactPhone?: string;
+	rideNotes?: string;
 	includesFood?: boolean;
 	includesFuel?: boolean;
 	bikeProvided?: boolean;
@@ -29,11 +37,19 @@ export type RideFormPayload = {
 type RideDetails = {
 	rideType?: "solo" | "group";
 	privacy?: "friends" | "strangers" | "mixed" | "solo";
+	rideTitle?: string;
 	source?: string;
 	destination?: string;
 	startDate?: string;
 	endDate?: string | null;
 	budget?: number;
+	maxRiders?: number;
+	ridePace?: "calm" | "balanced" | "fast";
+	roadPreference?: "scenic" | "highway" | "mixed";
+	meetupNotes?: string;
+	emergencyContactName?: string;
+	emergencyContactPhone?: string;
+	rideNotes?: string;
 	includesFood?: boolean;
 	includesFuel?: boolean;
 	bikeProvided?: boolean;
