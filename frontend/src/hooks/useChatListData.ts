@@ -4,58 +4,55 @@ import { ChatFilter, ChatPreview } from '../types/chat';
 const CHAT_PREVIEWS: ChatPreview[] = [
   {
     id: '1',
-    name: 'Cameron Williamson',
-    message: 'Hiiii',
-    time: '2m',
-    avatar: 'https://i.pravatar.cc/120?img=33',
-    unreadCount: 3,
-    hasUnreadDot: true,
-    category: 'mutual',
+    name: 'Arun Kumar',
+    message: 'Heading out for the weekend?',
+    time: '10:45 AM',
+    avatar: 'https://i.pravatar.cc/120?img=68',
+    roomType: 'personal',
+    unreadCount: 2,
+    isOnline: true,
   },
   {
     id: '2',
-    name: 'Annette Black',
-    message: 'curtis.weaver@example.com',
-    time: '5m',
-    avatar: 'https://i.pravatar.cc/120?img=5',
-    category: 'new',
+    name: 'Chennai Riders',
+    senderName: 'Sarah',
+    message: 'Checkpoints look good',
+    time: '09:30 AM',
+    avatar: 'https://i.pravatar.cc/120?img=9',
+    roomType: 'group',
+    status: 'active',
   },
   {
     id: '3',
-    name: 'Marvin McKinney',
-    message: 'How are you',
-    time: '3m',
-    avatar: 'https://i.pravatar.cc/120?img=12',
-    unreadCount: 1,
-    hasUnreadDot: true,
-    category: 'mutual',
-  },
-  {
-    id: '4',
-    name: 'Brooklyn Simmons',
-    message: 'Available for group rides',
-    time: '15m',
-    avatar: 'https://i.pravatar.cc/120?img=29',
-    category: 'group',
-  },
-  {
-    id: '5',
-    name: 'Devon Lane',
-    message: 'Mountain bike enthusiast',
-    time: '1m',
-    avatar: 'https://i.pravatar.cc/120?img=45',
-    unreadCount: 5,
-    hasUnreadDot: true,
-    category: 'mutual',
+    name: 'Mountain Loop',
+    message: 'Ride completed successfully',
+    time: '2D AGO',
+    avatar: 'https://i.pravatar.cc/120?img=56',
+    roomType: 'group',
+    status: 'ended',
   },
 ];
 
 export function useChatListData() {
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [activeFilter, setActiveFilter] = React.useState<ChatFilter>('mutual');
+  const [activeFilter, setActiveFilter] = React.useState<ChatFilter>('all');
 
   const filteredChats = React.useMemo(() => {
-    const byFilter = CHAT_PREVIEWS.filter((item) => item.category === activeFilter);
+    const byFilter = CHAT_PREVIEWS.filter((item) => {
+      if (activeFilter === 'all') {
+        return true;
+      }
+
+      if (activeFilter === 'personal') {
+        return item.roomType === 'personal';
+      }
+
+      if (activeFilter === 'group') {
+        return item.roomType === 'group' && item.status !== 'ended';
+      }
+
+      return item.status === 'ended';
+    });
 
     if (!searchQuery.trim()) {
       return byFilter;
@@ -64,7 +61,7 @@ export function useChatListData() {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
     return byFilter.filter((item) => {
-      const searchable = `${item.name} ${item.message}`.toLowerCase();
+      const searchable = `${item.name} ${item.senderName ?? ''} ${item.message}`.toLowerCase();
       return searchable.includes(normalizedQuery);
     });
   }, [activeFilter, searchQuery]);

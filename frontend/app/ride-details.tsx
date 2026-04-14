@@ -179,7 +179,7 @@ export default function RideDetailsScreen() {
 	const redirectToLiveScreen = React.useCallback(
 		(rideId: string) => {
 			if (selectedType === "group") {
-				router.replace(`/group-room/${rideId}`);
+				router.replace(`/group-chat/${rideId}`);
 				return;
 			}
 

@@ -46,7 +46,12 @@ const buildWebSocketUrl = (urlOverride: string, token: string) => {
 };
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
-	const resolved = { ...defaultOptions, ...options };
+	const url = options.url ?? defaultOptions.url;
+	const autoConnect = options.autoConnect ?? defaultOptions.autoConnect;
+	const reconnectOnClose =
+		options.reconnectOnClose ?? defaultOptions.reconnectOnClose;
+	const reconnectDelayMs =
+		options.reconnectDelayMs ?? defaultOptions.reconnectDelayMs;
 
 	const [isConnected, setIsConnected] = useState(false);
 	const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
@@ -56,6 +61,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 	const wsRef = useRef<WebSocket | null>(null);
 	const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const manualCloseRef = useRef(false);
+	const isConnectingRef = useRef(false);
 
 	const clearReconnectTimer = useCallback(() => {
 		if (reconnectTimerRef.current) {
@@ -66,6 +72,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
 	const disconnect = useCallback(() => {
 		manualCloseRef.current = true;
+		isConnectingRef.current = false;
 		clearReconnectTimer();
 
 		if (wsRef.current) {
@@ -77,6 +84,16 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 	}, [clearReconnectTimer]);
 
 	const connect = useCallback(async () => {
+		if (
+			isConnectingRef.current ||
+			(wsRef.current &&
+				(wsRef.current.readyState === WebSocket.OPEN ||
+					wsRef.current.readyState === WebSocket.CONNECTING))
+		) {
+			return false;
+		}
+
+		isConnectingRef.current = true;
 		manualCloseRef.current = false;
 		clearReconnectTimer();
 
@@ -85,15 +102,17 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 			if (!user) {
 				setError("Login required before opening websocket connection.");
 				setIsConnected(false);
+				isConnectingRef.current = false;
 				return false;
 			}
 
 			const token = await user.getIdToken();
-			const wsUrl = buildWebSocketUrl(resolved.url, token);
+			const wsUrl = buildWebSocketUrl(url, token);
 			const ws = new WebSocket(wsUrl);
 			wsRef.current = ws;
 
 			ws.onopen = () => {
+				isConnectingRef.current = false;
 				setConnectedUrl(wsUrl);
 				setError(null);
 				setIsConnected(true);
@@ -103,37 +122,40 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 				try {
 					const parsed = JSON.parse(String(event.data)) as WebSocketMessage;
 					setLastMessage(parsed);
-				} catch (_err) {
+				} catch {
 					setError("Received malformed websocket payload.");
 				}
 			};
 
 			ws.onerror = () => {
+				isConnectingRef.current = false;
 				setError("WebSocket error occurred.");
 				setIsConnected(false);
 			};
 
 			ws.onclose = () => {
+				isConnectingRef.current = false;
 				setIsConnected(false);
 
 				if (
 					!manualCloseRef.current &&
-					resolved.reconnectOnClose &&
-					resolved.autoConnect
+					reconnectOnClose &&
+					autoConnect
 				) {
 					reconnectTimerRef.current = setTimeout(() => {
 						void connect();
-					}, resolved.reconnectDelayMs);
+					}, reconnectDelayMs);
 				}
 			};
 
 			return true;
-		} catch (_err) {
+		} catch {
+			isConnectingRef.current = false;
 			setIsConnected(false);
 			setError("Failed to connect to websocket server.");
 			return false;
 		}
-	}, [clearReconnectTimer, resolved]);
+	}, [autoConnect, clearReconnectTimer, reconnectDelayMs, reconnectOnClose, url]);
 
 	const sendMessage = useCallback(
 		(type: string, payload: Record<string, unknown> = {}) => {
@@ -154,7 +176,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 	);
 
 	useEffect(() => {
-		if (resolved.autoConnect) {
+		if (autoConnect) {
 			void connect();
 		}
 
@@ -162,7 +184,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 			disconnect();
 			clearReconnectTimer();
 		};
-	}, [connect, disconnect, clearReconnectTimer, resolved.autoConnect]);
+	}, [autoConnect, clearReconnectTimer, connect, disconnect]);
 
 	return {
 		isConnected,
