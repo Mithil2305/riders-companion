@@ -6,11 +6,20 @@ import { withAlpha } from '../../../utils/color';
 interface GroupChatMenuSheetProps {
   visible: boolean;
   isAdmin: boolean;
+  isRideEnded?: boolean;
   onClose: () => void;
   onInvite: () => void;
+  onEndRide: () => void;
 }
 
-export function GroupChatMenuSheet({ visible, isAdmin, onClose, onInvite }: GroupChatMenuSheetProps) {
+export function GroupChatMenuSheet({
+  visible,
+  isAdmin,
+  isRideEnded = false,
+  onClose,
+  onInvite,
+  onEndRide,
+}: GroupChatMenuSheetProps) {
   const { colors, metrics, typography } = useTheme();
 
   const styles = React.useMemo(
@@ -78,7 +87,9 @@ export function GroupChatMenuSheet({ visible, isAdmin, onClose, onInvite }: Grou
   );
 
   const rows = isAdmin
-    ? ['Ride Settings', 'End Ride', 'Mute Notifications', 'Report']
+    ? isRideEnded
+      ? ['Ride Settings', 'Mute Notifications', 'Report']
+      : ['Ride Settings', 'End Ride', 'Mute Notifications', 'Report']
     : ['Ride Settings', 'Mute Notifications', 'Report'];
 
   return (
@@ -88,17 +99,23 @@ export function GroupChatMenuSheet({ visible, isAdmin, onClose, onInvite }: Grou
         <View style={styles.sheet}>
           <View style={styles.handle} />
           {rows.map((row) => (
-            <Pressable key={row} onPress={onClose} style={styles.rowTap}>
+            <Pressable
+              key={row}
+              onPress={row === 'End Ride' ? onEndRide : onClose}
+              style={styles.rowTap}
+            >
               <Text style={styles.rowText}>{row}</Text>
             </Pressable>
           ))}
-          <Pressable
-            accessibilityLabel="Invite friends"
-            onPress={onInvite}
-            style={styles.inviteBtn}
-          >
-            <Text style={styles.inviteText}>Invite Friends</Text>
-          </Pressable>
+          {!isRideEnded ? (
+            <Pressable
+              accessibilityLabel="Invite friends"
+              onPress={onInvite}
+              style={styles.inviteBtn}
+            >
+              <Text style={styles.inviteText}>Invite Friends</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </Modal>

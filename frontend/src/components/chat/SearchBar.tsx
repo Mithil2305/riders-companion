@@ -17,8 +17,8 @@ export function SearchBar({ value, onChangeText, placeholder = 'Search riders or
       StyleSheet.create({
         root: {
           marginHorizontal: metrics.md,
-          marginTop: metrics.md,
-          marginBottom: metrics.lg,
+          marginTop: metrics.sm,
+          marginBottom: metrics.sm,
           minHeight: 46,
           borderRadius: 30,
           backgroundColor: colors.chatSearchBg,
@@ -32,7 +32,7 @@ export function SearchBar({ value, onChangeText, placeholder = 'Search riders or
         input: {
           flex: 1,
           color: colors.textPrimary,
-          fontSize: typography.sizes.lg,
+          fontSize: typography.sizes['base'],
           paddingVertical: metrics.sm,
         },
       }),

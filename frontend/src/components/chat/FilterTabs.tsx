@@ -23,10 +23,10 @@ export function FilterTabs({ activeFilter, onChange }: FilterTabsProps) {
       StyleSheet.create({
         root: {
           paddingHorizontal: metrics.md,
-          marginBottom: metrics.md,
+          marginBottom: metrics.sm,
         },
         content: {
-          gap: metrics.sm,
+          gap: metrics.xs,
           paddingRight: metrics.md,
         },
         tab: {
