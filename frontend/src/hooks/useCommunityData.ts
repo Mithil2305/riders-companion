@@ -7,7 +7,7 @@ const toTagChips = (details: {
 	includesFood?: boolean;
 	stayArranged?: boolean;
 	includesFuel?: boolean;
-}) => {
+}): RideItem["tags"] => {
 	const tags = [] as RideItem["tags"];
 
 	if (details.includesFood) {
@@ -22,9 +22,11 @@ const toTagChips = (details: {
 		tags.push({ id: "fuel", label: "Fuel Included", icon: "cafe" });
 	}
 
-	return tags.length > 0
-		? tags
-		: [{ id: "basic", label: "Self Managed", icon: "cafe" }];
+	if (tags.length > 0) {
+		return tags;
+	}
+
+	return [{ id: "basic", label: "Self Managed", icon: "cafe" }];
 };
 
 const toRideItem = (

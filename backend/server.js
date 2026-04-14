@@ -1,9 +1,12 @@
 require("dotenv").config();
+const http = require("http");
 const express = require("express");
 const { sequelize } = require("./src/models");
 const apiRoutes = require("./src/routes");
+const setupWebSockets = require("./src/websockets/wss");
 
 const app = express();
+const server = http.createServer(app);
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
@@ -18,6 +21,8 @@ app.get("/health", async (_req, res) => {
 	}
 });
 
-app.listen(port, () => {
+setupWebSockets(server);
+
+server.listen(port, () => {
 	console.log(`Backend running on port ${port}`);
 });

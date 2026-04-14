@@ -1,76 +1,176 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { API_URL } from "../services/api";
+import { auth } from "../config/firebase";
 
-interface WebSocketMessage {
-  type: string;
-  payload: any;
+export interface WebSocketMessage {
+	type: string;
+	payload?: unknown;
+	timestamp?: string;
 }
 
-export function useWebSocket(url: string) {
-  const [isConnected, setIsConnected] = useState(false);
-  const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const ws = useRef<WebSocket | null>(null);
+type UseWebSocketOptions = {
+	url?: string;
+	autoConnect?: boolean;
+	reconnectOnClose?: boolean;
+	reconnectDelayMs?: number;
+};
 
-  const connect = useCallback(() => {
-    try {
-      ws.current = new WebSocket(url);
+const defaultOptions: Required<UseWebSocketOptions> = {
+	url: "",
+	autoConnect: true,
+	reconnectOnClose: true,
+	reconnectDelayMs: 1500,
+};
 
-      ws.current.onopen = () => {
-        setIsConnected(true);
-        setError(null);
-      };
+const toWebSocketBaseUrl = () => {
+	const baseApi = API_URL.replace(/\/api\/?$/, "");
+	if (baseApi.startsWith("https://")) {
+		return baseApi.replace("https://", "wss://");
+	}
 
-      ws.current.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          setLastMessage(message);
-        } catch (err) {
-          console.error('Error parsing WebSocket message:', err);
-        }
-      };
+	if (baseApi.startsWith("http://")) {
+		return baseApi.replace("http://", "ws://");
+	}
 
-      ws.current.onerror = (event) => {
-        setError('WebSocket error occurred');
-        setIsConnected(false);
-      };
+	return `ws://${baseApi}`;
+};
 
-      ws.current.onclose = () => {
-        setIsConnected(false);
-      };
-    } catch (err) {
-      setError('Failed to connect to WebSocket');
-    }
-  }, [url]);
+const buildWebSocketUrl = (urlOverride: string, token: string) => {
+	const base =
+		typeof urlOverride === "string" && urlOverride.trim().length > 0
+			? urlOverride.trim()
+			: `${toWebSocketBaseUrl()}/ws`;
 
-  const disconnect = useCallback(() => {
-    if (ws.current) {
-      ws.current.close();
-      ws.current = null;
-    }
-    setIsConnected(false);
-  }, []);
+	const separator = base.includes("?") ? "&" : "?";
+	return `${base}${separator}token=${encodeURIComponent(token)}`;
+};
 
-  const sendMessage = useCallback((type: string, payload: any) => {
-    if (ws.current && isConnected) {
-      ws.current.send(JSON.stringify({ type, payload }));
-    } else {
-      console.warn('WebSocket is not connected');
-    }
-  }, [isConnected]);
+export function useWebSocket(options: UseWebSocketOptions = {}) {
+	const resolved = { ...defaultOptions, ...options };
 
-  useEffect(() => {
-    connect();
-    return () => {
-      disconnect();
-    };
-  }, [connect, disconnect]);
+	const [isConnected, setIsConnected] = useState(false);
+	const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+	const [error, setError] = useState<string | null>(null);
+	const [connectedUrl, setConnectedUrl] = useState<string | null>(null);
 
-  return {
-    isConnected,
-    lastMessage,
-    error,
-    connect,
-    disconnect,
-    sendMessage,
-  };
+	const wsRef = useRef<WebSocket | null>(null);
+	const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const manualCloseRef = useRef(false);
+
+	const clearReconnectTimer = useCallback(() => {
+		if (reconnectTimerRef.current) {
+			clearTimeout(reconnectTimerRef.current);
+			reconnectTimerRef.current = null;
+		}
+	}, []);
+
+	const disconnect = useCallback(() => {
+		manualCloseRef.current = true;
+		clearReconnectTimer();
+
+		if (wsRef.current) {
+			wsRef.current.close();
+			wsRef.current = null;
+		}
+
+		setIsConnected(false);
+	}, [clearReconnectTimer]);
+
+	const connect = useCallback(async () => {
+		manualCloseRef.current = false;
+		clearReconnectTimer();
+
+		try {
+			const user = auth?.currentUser;
+			if (!user) {
+				setError("Login required before opening websocket connection.");
+				setIsConnected(false);
+				return false;
+			}
+
+			const token = await user.getIdToken();
+			const wsUrl = buildWebSocketUrl(resolved.url, token);
+			const ws = new WebSocket(wsUrl);
+			wsRef.current = ws;
+
+			ws.onopen = () => {
+				setConnectedUrl(wsUrl);
+				setError(null);
+				setIsConnected(true);
+			};
+
+			ws.onmessage = (event) => {
+				try {
+					const parsed = JSON.parse(String(event.data)) as WebSocketMessage;
+					setLastMessage(parsed);
+				} catch (_err) {
+					setError("Received malformed websocket payload.");
+				}
+			};
+
+			ws.onerror = () => {
+				setError("WebSocket error occurred.");
+				setIsConnected(false);
+			};
+
+			ws.onclose = () => {
+				setIsConnected(false);
+
+				if (
+					!manualCloseRef.current &&
+					resolved.reconnectOnClose &&
+					resolved.autoConnect
+				) {
+					reconnectTimerRef.current = setTimeout(() => {
+						void connect();
+					}, resolved.reconnectDelayMs);
+				}
+			};
+
+			return true;
+		} catch (_err) {
+			setIsConnected(false);
+			setError("Failed to connect to websocket server.");
+			return false;
+		}
+	}, [clearReconnectTimer, resolved]);
+
+	const sendMessage = useCallback(
+		(type: string, payload: Record<string, unknown> = {}) => {
+			if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+				return false;
+			}
+
+			wsRef.current.send(
+				JSON.stringify({
+					type,
+					payload,
+				}),
+			);
+
+			return true;
+		},
+		[],
+	);
+
+	useEffect(() => {
+		if (resolved.autoConnect) {
+			void connect();
+		}
+
+		return () => {
+			disconnect();
+			clearReconnectTimer();
+		};
+	}, [connect, disconnect, clearReconnectTimer, resolved.autoConnect]);
+
+	return {
+		isConnected,
+		lastMessage,
+		error,
+		connectedUrl,
+		connect,
+		disconnect,
+		sendMessage,
+	};
 }
