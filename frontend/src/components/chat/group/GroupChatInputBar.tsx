@@ -7,9 +7,15 @@ interface GroupChatInputBarProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  disabled?: boolean;
 }
 
-export function GroupChatInputBar({ value, onChange, onSend }: GroupChatInputBarProps) {
+export function GroupChatInputBar({
+  value,
+  onChange,
+  onSend,
+  disabled = false,
+}: GroupChatInputBarProps) {
   const { colors, metrics, typography } = useTheme();
 
   const styles = React.useMemo(
@@ -61,18 +67,22 @@ export function GroupChatInputBar({ value, onChange, onSend }: GroupChatInputBar
           shadowRadius: 12,
           elevation: 6,
         },
+        disabled: {
+          opacity: 0.55,
+        },
       }),
     [colors, metrics, typography],
   );
 
   return (
-    <View style={styles.root}>
-      <Pressable accessibilityLabel="Add attachment" style={styles.plusTap}>
+    <View style={[styles.root, disabled ? styles.disabled : null]}>
+      <Pressable accessibilityLabel="Add attachment" disabled={disabled} style={styles.plusTap}>
         <Ionicons color={colors.icon} name="add" size={28} />
       </Pressable>
 
       <View style={styles.field}>
         <TextInput
+          editable={!disabled}
           onChangeText={onChange}
           onSubmitEditing={onSend}
           placeholder="Send a message..."
@@ -82,7 +92,7 @@ export function GroupChatInputBar({ value, onChange, onSend }: GroupChatInputBar
         />
       </View>
 
-      <Pressable accessibilityLabel="Send message" onPress={onSend} style={styles.sendTap}>
+      <Pressable accessibilityLabel="Send message" disabled={disabled} onPress={onSend} style={styles.sendTap}>
         <Ionicons color={colors.textInverse} name="send" size={28} />
       </Pressable>
     </View>

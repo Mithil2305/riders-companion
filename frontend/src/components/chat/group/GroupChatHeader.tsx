@@ -7,12 +7,20 @@ import { withAlpha } from '../../../utils/color';
 interface GroupChatHeaderProps {
   title: string;
   subtitle: string;
+  rideStatus?: 'active' | 'ended';
   onBack: () => void;
   onOpenMenu: () => void;
 }
 
-export function GroupChatHeader({ title, subtitle, onBack, onOpenMenu }: GroupChatHeaderProps) {
+export function GroupChatHeader({
+  title,
+  subtitle,
+  rideStatus = 'active',
+  onBack,
+  onOpenMenu,
+}: GroupChatHeaderProps) {
   const { colors, metrics, typography } = useTheme();
+  const isEnded = rideStatus === 'ended';
 
   const styles = React.useMemo(
     () =>
@@ -47,27 +55,33 @@ export function GroupChatHeader({ title, subtitle, onBack, onOpenMenu }: GroupCh
           fontWeight: '700',
         },
         subtitle: {
-          marginTop: 2,
           color: colors.textSecondary,
           fontSize: typography.sizes.base,
           fontWeight: '500',
         },
-        right: {
+        subtitleRow: {
+          marginTop: 2,
           flexDirection: 'row',
           alignItems: 'center',
           gap: metrics.sm,
+        },
+        right: {
+          flexDirection: 'row',
+          alignItems: 'center',
           marginLeft: metrics.sm,
-          position: 'relative',
         },
         activeBadge: {
-          position: 'absolute',
-          top: 0,
-          right: 30,
           flexDirection: 'row',
           alignItems: 'center',
           gap: metrics.xs,
-          backgroundColor: withAlpha(colors.success, 0.15),
+          backgroundColor: isEnded
+            ? colors.chatEndedBadgeBg
+            : withAlpha(colors.success, 0.15),
           borderRadius: metrics.radius.full,
+          borderWidth: 1,
+          borderColor: isEnded
+            ? colors.chatEndedBadgeBorder
+            : withAlpha(colors.success, 0.3),
           paddingHorizontal: metrics.sm,
           paddingVertical: 4,
         },
@@ -75,10 +89,10 @@ export function GroupChatHeader({ title, subtitle, onBack, onOpenMenu }: GroupCh
           width: 10,
           height: 10,
           borderRadius: metrics.radius.full,
-          backgroundColor: colors.success,
+          backgroundColor: isEnded ? colors.chatEndedBadgeText : colors.success,
         },
         badgeText: {
-          color: colors.success,
+          color: isEnded ? colors.chatEndedBadgeText : colors.success,
           fontSize: typography.sizes.xs,
           fontWeight: '600',
           letterSpacing: 0.4,
@@ -91,7 +105,7 @@ export function GroupChatHeader({ title, subtitle, onBack, onOpenMenu }: GroupCh
           justifyContent: 'center',
         },
       }),
-    [colors, metrics, typography],
+    [colors, isEnded, metrics, typography],
   );
 
   return (
@@ -105,19 +119,20 @@ export function GroupChatHeader({ title, subtitle, onBack, onOpenMenu }: GroupCh
           <Text numberOfLines={1} style={styles.title}>
             {title}
           </Text>
-          <Text numberOfLines={1} style={styles.subtitle}>
-            {subtitle}
-          </Text>
+          <View style={styles.subtitleRow}>
+            <Text numberOfLines={1} style={styles.subtitle}>
+              {subtitle}
+            </Text>
+            <View style={styles.activeBadge}>
+              <View style={styles.dot} />
+              <Text style={styles.badgeText}>{isEnded ? 'TRIP ENDED' : 'ACTIVE RIDE'}</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.right}>
-          <View style={styles.activeBadge}>
-            <View style={styles.dot} />
-            <Text style={styles.badgeText}>ACTIVE RIDE</Text>
-          </View>
-
-          <Pressable accessibilityLabel="Open menu" onPress={onOpenMenu} style={styles.menuTap}>
-            <Ionicons color={colors.textPrimary} name="ellipsis-vertical" size={22} />
+          <Pressable accessibilityLabel="Open menu" onPress={onOpenMenu} disabled={isEnded} style={styles.menuTap}>
+            <Ionicons color={isEnded ? colors.primary : colors.textPrimary} name={'ellipsis-vertical'} size={22} />
           </Pressable>
         </View>
       </View>

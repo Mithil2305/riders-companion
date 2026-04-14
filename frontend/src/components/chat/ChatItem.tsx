@@ -28,9 +28,9 @@ export function ChatItem({ item, onPress, onLongPress }: ChatItemProps) {
       StyleSheet.create({
         card: {
           marginHorizontal: metrics.md,
-          marginBottom: metrics.md,
+          marginBottom: metrics.xs,
           minHeight: 110,
-          borderRadius: 22,
+          borderRadius: 10,
           backgroundColor: colors.chatCardBackground,
           paddingHorizontal: metrics.md,
           paddingVertical: metrics.md,

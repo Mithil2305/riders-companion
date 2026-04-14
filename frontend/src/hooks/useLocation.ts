@@ -8,7 +8,12 @@ interface LocationData {
   accuracy: number | null;
 }
 
-export function useLocation() {
+interface UseLocationOptions {
+  autoRequest?: boolean;
+}
+
+export function useLocation(options: UseLocationOptions = {}) {
+  const { autoRequest = true } = options;
   const [location, setLocation] = useState<LocationData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -67,8 +72,12 @@ export function useLocation() {
   }, []);
 
   useEffect(() => {
+    if (!autoRequest) {
+      return;
+    }
+
     getCurrentLocation();
-  }, [getCurrentLocation]);
+  }, [autoRequest, getCurrentLocation]);
 
   return {
     location,

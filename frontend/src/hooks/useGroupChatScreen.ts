@@ -70,9 +70,13 @@ const toClockTime = (isoDate: string) => {
 	return `${hour}:${minute}`;
 };
 
-export function useGroupChatScreen(roomId: string) {
+const ENDED_ROOM_IDS = new Set(["3"]);
+
+export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 	const { user } = useAuth();
-	const { location, startWatching, getCurrentLocation } = useLocation();
+	const { location, startWatching, getCurrentLocation } = useLocation({
+		autoRequest: false,
+	});
 
 	const {
 		isConnected,
@@ -82,7 +86,12 @@ export function useGroupChatScreen(roomId: string) {
 
 	const [menuVisible, setMenuVisible] = React.useState(false);
 	const [inviteVisible, setInviteVisible] = React.useState(false);
-	const [locationEnabled, setLocationEnabled] = React.useState(true);
+	const [isRideEnded, setIsRideEnded] = React.useState(
+		initialStatus === "ended" || ENDED_ROOM_IDS.has(roomId),
+	);
+	const [locationEnabled, setLocationEnabled] = React.useState(
+		!(initialStatus === "ended" || ENDED_ROOM_IDS.has(roomId)),
+	);
 	const [isAdmin] = React.useState(true);
 	const [draft, setDraft] = React.useState("");
 	const [messages, setMessages] = React.useState<GroupChatItem[]>(INITIAL_CHAT);
@@ -93,6 +102,14 @@ export function useGroupChatScreen(roomId: string) {
 	const openMenu = React.useCallback(() => setMenuVisible(true), []);
 	const openInvite = React.useCallback(() => setInviteVisible(true), []);
 	const closeInvite = React.useCallback(() => setInviteVisible(false), []);
+
+	React.useEffect(() => {
+		const ended = initialStatus === "ended" || ENDED_ROOM_IDS.has(roomId);
+		setIsRideEnded(ended);
+		if (ended) {
+			setLocationEnabled(false);
+		}
+	}, [initialStatus, roomId]);
 
 	React.useEffect(() => {
 		if (!isConnected || roomId.length === 0) {
@@ -107,7 +124,7 @@ export function useGroupChatScreen(roomId: string) {
 	}, [isConnected, roomId, sendWsMessage]);
 
 	React.useEffect(() => {
-		if (!isConnected || roomId.length === 0 || !locationEnabled) {
+		if (!isConnected || roomId.length === 0 || !locationEnabled || isRideEnded) {
 			return;
 		}
 
@@ -116,10 +133,10 @@ export function useGroupChatScreen(roomId: string) {
 		return () => {
 			sendWsMessage("RIDE_LEAVE", { rideId: roomId });
 		};
-	}, [isConnected, roomId, locationEnabled, sendWsMessage]);
+	}, [isConnected, isRideEnded, roomId, locationEnabled, sendWsMessage]);
 
 	React.useEffect(() => {
-		if (!isConnected || !locationEnabled || roomId.length === 0) {
+		if (!isConnected || !locationEnabled || roomId.length === 0 || isRideEnded) {
 			return;
 		}
 
@@ -137,10 +154,16 @@ export function useGroupChatScreen(roomId: string) {
 		return () => {
 			watcher?.remove();
 		};
-	}, [getCurrentLocation, isConnected, locationEnabled, roomId, startWatching]);
+	}, [getCurrentLocation, isConnected, isRideEnded, locationEnabled, roomId, startWatching]);
 
 	React.useEffect(() => {
-		if (!locationEnabled || !location || !isConnected || roomId.length === 0) {
+		if (
+			!locationEnabled ||
+			!location ||
+			!isConnected ||
+			roomId.length === 0 ||
+			isRideEnded
+		) {
 			return;
 		}
 
@@ -150,7 +173,7 @@ export function useGroupChatScreen(roomId: string) {
 			longitude: location.longitude,
 			accuracy: location.accuracy,
 		});
-	}, [isConnected, location, locationEnabled, roomId, sendWsMessage]);
+	}, [isConnected, isRideEnded, location, locationEnabled, roomId, sendWsMessage]);
 
 	React.useEffect(() => {
 		if (!lastMessage || typeof lastMessage.type !== "string") {
@@ -255,10 +278,26 @@ export function useGroupChatScreen(roomId: string) {
 				},
 			]);
 		}
+
+		if (lastMessage.type === "RIDE_ENDED") {
+			const payload = (lastMessage.payload || {}) as Record<string, any>;
+			if (payload.rideId !== roomId) {
+				return;
+			}
+
+			setIsRideEnded(true);
+			setLocationEnabled(false);
+			setDraft("");
+			typingStateRef.current = false;
+		}
 	}, [lastMessage, roomId, user?.id]);
 
 	const setDraftWithTyping = React.useCallback(
 		(value: string) => {
+			if (isRideEnded) {
+				return;
+			}
+
 			setDraft(value);
 
 			const shouldType = value.trim().length > 0;
@@ -270,10 +309,14 @@ export function useGroupChatScreen(roomId: string) {
 				});
 			}
 		},
-		[roomId, sendWsMessage],
+		[isRideEnded, roomId, sendWsMessage],
 	);
 
 	const sendMessage = React.useCallback(() => {
+		if (isRideEnded) {
+			return;
+		}
+
 		const trimmed = draft.trim();
 		if (!trimmed) {
 			return;
@@ -306,17 +349,32 @@ export function useGroupChatScreen(roomId: string) {
 		});
 
 		setDraft("");
-	}, [draft, roomId, sendWsMessage]);
+	}, [draft, isRideEnded, roomId, sendWsMessage]);
+
+	const endRide = React.useCallback(() => {
+		setIsRideEnded(true);
+		setLocationEnabled(false);
+		setDraft("");
+		typingStateRef.current = false;
+		sendWsMessage("RIDE_END", { rideId: roomId });
+		setMenuVisible(false);
+	}, [roomId, sendWsMessage]);
 
 	const inviteFromMenu = React.useCallback(() => {
+		if (isRideEnded) {
+			closeMenu();
+			return;
+		}
+
 		closeMenu();
 		openInvite();
-	}, [closeMenu, openInvite]);
+	}, [closeMenu, isRideEnded, openInvite]);
 
 	return {
 		menuVisible,
 		inviteVisible,
 		locationEnabled,
+		isRideEnded,
 		isAdmin,
 		draft,
 		messages,
@@ -328,6 +386,7 @@ export function useGroupChatScreen(roomId: string) {
 		openInvite,
 		closeInvite,
 		inviteFromMenu,
+		endRide,
 		sendMessage,
 	};
 }
