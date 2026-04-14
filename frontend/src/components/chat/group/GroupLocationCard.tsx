@@ -56,7 +56,7 @@ export function GroupLocationCard({ label }: GroupLocationCardProps) {
         },
         labelText: {
           color: colors.textPrimary,
-          fontSize: typography.sizes.base,
+          fontSize: typography.sizes.sm,
           fontWeight: '500',
         },
       }),

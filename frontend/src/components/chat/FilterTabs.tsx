@@ -1,12 +1,13 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { ChatFilter } from '../../types/chat';
 
 const FILTERS: Array<{ key: ChatFilter; label: string }> = [
-  { key: 'mutual', label: 'Mutual' },
-  { key: 'new', label: 'New' },
+  { key: 'all', label: 'All' },
+  { key: 'personal', label: 'Personal' },
   { key: 'group', label: 'Group' },
+  { key: 'ended', label: 'Ended' },
 ];
 
 interface FilterTabsProps {
@@ -21,18 +22,21 @@ export function FilterTabs({ activeFilter, onChange }: FilterTabsProps) {
     () =>
       StyleSheet.create({
         root: {
-          flexDirection: 'row',
           paddingHorizontal: metrics.md,
+          marginBottom: metrics.md,
+        },
+        content: {
           gap: metrics.sm,
-          marginBottom: metrics.sm,
+          paddingRight: metrics.md,
         },
         tab: {
-          minHeight: 44,
+          minHeight: 40,
+          minWidth: 58,
           borderRadius: metrics.radius.full,
           borderWidth: 1,
           borderColor: colors.border,
           backgroundColor: colors.chatTabInactiveBg,
-          paddingHorizontal: metrics.lg,
+          paddingHorizontal: metrics.md,
           alignItems: 'center',
           justifyContent: 'center',
         },
@@ -41,7 +45,7 @@ export function FilterTabs({ activeFilter, onChange }: FilterTabsProps) {
           borderColor: colors.primary,
         },
         label: {
-          fontSize: typography.sizes.lg,
+          fontSize: typography.sizes.base,
           fontWeight: '500',
           color: colors.textPrimary,
         },
@@ -54,20 +58,22 @@ export function FilterTabs({ activeFilter, onChange }: FilterTabsProps) {
 
   return (
     <View style={styles.root}>
-      {FILTERS.map((item) => {
-        const isActive = item.key === activeFilter;
+      <ScrollView contentContainerStyle={styles.content} horizontal showsHorizontalScrollIndicator={false}>
+        {FILTERS.map((item) => {
+          const isActive = item.key === activeFilter;
 
-        return (
-          <Pressable
-            android_ripple={{ color: colors.overlayLight }}
-            key={item.key}
-            onPress={() => onChange(item.key)}
-            style={[styles.tab, isActive ? styles.tabActive : null]}
-          >
-            <Text style={[styles.label, isActive ? styles.labelActive : null]}>{item.label}</Text>
-          </Pressable>
-        );
-      })}
+          return (
+            <Pressable
+              android_ripple={{ color: colors.overlayLight }}
+              key={item.key}
+              onPress={() => onChange(item.key)}
+              style={[styles.tab, isActive ? styles.tabActive : null]}
+            >
+              <Text style={[styles.label, isActive ? styles.labelActive : null]}>{item.label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }

@@ -13,8 +13,8 @@ export function LiveMapSection() {
         wrap: {
           marginHorizontal: metrics.md,
           height: Math.min(metrics.screenHeight * 0.43, 390),
-          borderTopLeftRadius: 22,
-          borderTopRightRadius: 22,
+          borderTopLeftRadius: 0,
+          borderTopRightRadius: 0,
           borderBottomLeftRadius: 20,
           borderBottomRightRadius: 20,
           overflow: 'hidden',
@@ -26,7 +26,7 @@ export function LiveMapSection() {
           shadowOffset: { width: 0, height: 4 },
           shadowRadius: 12,
           elevation: 5,
-          marginBottom: metrics.md,
+          marginBottom: metrics.sm,
         },
         mapTexture: {
           ...StyleSheet.absoluteFillObject,

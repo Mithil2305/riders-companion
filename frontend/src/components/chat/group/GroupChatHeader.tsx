@@ -43,13 +43,13 @@ export function GroupChatHeader({ title, subtitle, onBack, onOpenMenu }: GroupCh
         },
         title: {
           color: colors.textPrimary,
-          fontSize: 22,
+          fontSize: typography.sizes.lg,
           fontWeight: '700',
         },
         subtitle: {
           marginTop: 2,
           color: colors.textSecondary,
-          fontSize: typography.sizes.lg,
+          fontSize: typography.sizes.base,
           fontWeight: '500',
         },
         right: {
@@ -57,14 +57,18 @@ export function GroupChatHeader({ title, subtitle, onBack, onOpenMenu }: GroupCh
           alignItems: 'center',
           gap: metrics.sm,
           marginLeft: metrics.sm,
+          position: 'relative',
         },
         activeBadge: {
+          position: 'absolute',
+          top: 0,
+          right: 30,
           flexDirection: 'row',
           alignItems: 'center',
           gap: metrics.xs,
           backgroundColor: withAlpha(colors.success, 0.15),
           borderRadius: metrics.radius.full,
-          paddingHorizontal: metrics.sm + 2,
+          paddingHorizontal: metrics.sm,
           paddingVertical: 4,
         },
         dot: {
@@ -75,7 +79,7 @@ export function GroupChatHeader({ title, subtitle, onBack, onOpenMenu }: GroupCh
         },
         badgeText: {
           color: colors.success,
-          fontSize: typography.sizes.sm,
+          fontSize: typography.sizes.xs,
           fontWeight: '600',
           letterSpacing: 0.4,
         },

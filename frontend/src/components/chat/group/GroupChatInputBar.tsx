@@ -46,11 +46,11 @@ export function GroupChatInputBar({ value, onChange, onSend }: GroupChatInputBar
         input: {
           flex: 1,
           color: colors.textPrimary,
-          fontSize: typography.sizes['2xl'] - 1,
+          fontSize: typography.sizes['base'],
         },
         sendTap: {
-          width: 60,
-          height: 60,
+          width: 48,
+          height: 48,
           borderRadius: 30,
           alignItems: 'center',
           justifyContent: 'center',
