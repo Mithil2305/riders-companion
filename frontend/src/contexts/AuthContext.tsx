@@ -55,10 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	};
 
 	const loginWithMobileOtp = async (mobileNumber: string, otpCode: string) => {
-		const data = await AuthService.loginWithMobileOtp(mobileNumber, otpCode);
-		setUser(data.user);
-		setIsAuthenticated(true);
-		return data.user;
+		await AuthService.loginWithMobileOtp(mobileNumber, otpCode);
+		throw new Error("Mobile OTP login is not configured yet.");
 	};
 
 	const loginWithGoogle = async () => {

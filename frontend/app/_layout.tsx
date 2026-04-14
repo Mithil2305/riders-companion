@@ -52,6 +52,8 @@ function RootNavigator() {
 				<Stack.Screen name="room/index" />
 				<Stack.Screen name="room/[id]" />
 				<Stack.Screen name="group-room/[id]" />
+				<Stack.Screen name="solo-ride/[id]" />
+				<Stack.Screen name="ride-details" />
 				<Stack.Screen
 					name="settings"
 					options={{
