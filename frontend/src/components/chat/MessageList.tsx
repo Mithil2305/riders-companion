@@ -1,18 +1,18 @@
 import React from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { ChatMessage } from '../../types/chat';
+import { PersonalChatListItem } from '../../types/chat';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 
 interface MessageListProps {
-  messages: ChatMessage[];
+  messages: PersonalChatListItem[];
   showTyping?: boolean;
 }
 
 export function MessageList({ messages, showTyping = false }: MessageListProps) {
   const { colors, metrics } = useTheme();
-  const listRef = React.useRef<FlatList<ChatMessage>>(null);
+  const listRef = React.useRef<FlatList<PersonalChatListItem>>(null);
 
   const styles = React.useMemo(
     () =>
@@ -26,13 +26,27 @@ export function MessageList({ messages, showTyping = false }: MessageListProps) 
           paddingTop: metrics.md,
           paddingBottom: metrics['2xl'],
         },
+        separatorWrap: {
+          alignItems: 'center',
+          marginVertical: metrics.sm,
+        },
+        separator: {
+          borderRadius: metrics.radius.full,
+          backgroundColor: colors.chatDateBadgeBg,
+          paddingHorizontal: metrics.md,
+          paddingVertical: metrics.xs + 2,
+        },
+        separatorText: {
+          color: colors.chatDateBadgeText,
+          fontSize: 12,
+          letterSpacing: 1,
+          fontWeight: '500',
+        },
         typingWrap: {
           alignSelf: 'flex-start',
-          marginLeft: 56,
+          marginLeft: metrics.sm,
           borderRadius: metrics.radius.xl,
           backgroundColor: colors.chatIncomingBubbleBg,
-          borderWidth: 1,
-          borderColor: colors.border,
           marginBottom: metrics.sm,
         },
       }),
@@ -58,7 +72,17 @@ export function MessageList({ messages, showTyping = false }: MessageListProps) 
       data={messages}
       keyExtractor={(item) => item.id}
       ref={listRef}
-      renderItem={({ item }) => <MessageBubble message={item} />}
+      renderItem={({ item }) =>
+        item.kind === 'date-separator' ? (
+          <View style={styles.separatorWrap}>
+            <View style={styles.separator}>
+              <Text style={styles.separatorText}>{item.label}</Text>
+            </View>
+          </View>
+        ) : (
+          <MessageBubble message={item} />
+        )
+      }
       showsVerticalScrollIndicator={false}
       style={styles.list}
     />

@@ -16,9 +16,8 @@ export function LiveLocationBanner({ enabled, onToggle }: LiveLocationBannerProp
     () =>
       StyleSheet.create({
         banner: {
-          marginHorizontal: metrics.md,
-          marginTop: metrics.md,
-          marginBottom: metrics.md,
+          marginHorizontal: metrics.sm,
+          marginTop: metrics.sm,
           borderRadius: 20,
           backgroundColor: colors.surface,
           paddingHorizontal: metrics.sm,
@@ -32,8 +31,8 @@ export function LiveLocationBanner({ enabled, onToggle }: LiveLocationBannerProp
           elevation: 3,
         },
         iconWrap: {
-          width: 58,
-          height: 58,
+          width: 48,
+          height: 48,
           borderRadius: 18,
           backgroundColor: withAlpha(colors.primary, 0.1),
           alignItems: 'center',
@@ -43,7 +42,7 @@ export function LiveLocationBanner({ enabled, onToggle }: LiveLocationBannerProp
           flex: 1,
           marginLeft: metrics.sm + 4,
           color: colors.textPrimary,
-          fontSize: typography.sizes['2xl'] - 1,
+          fontSize: typography.sizes['lg'],
           fontWeight: '500',
         },
       }),

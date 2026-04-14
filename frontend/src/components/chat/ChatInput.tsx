@@ -1,18 +1,17 @@
 import React from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useTheme } from '../../hooks/useTheme';
 
 interface ChatInputProps {
   value: string;
   onChangeText: (text: string) => void;
   onSend: () => void;
+  disabled?: boolean;
 }
 
-export function ChatInput({ value, onChangeText, onSend }: ChatInputProps) {
+export function ChatInput({ value, onChangeText, onSend, disabled = false }: ChatInputProps) {
   const { colors, metrics, typography } = useTheme();
-  const focusScale = useSharedValue(1);
 
   const styles = React.useMemo(
     () =>
@@ -20,28 +19,34 @@ export function ChatInput({ value, onChangeText, onSend }: ChatInputProps) {
         root: {
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          backgroundColor: colors.background,
+          backgroundColor: colors.chatHeaderBackground,
           paddingHorizontal: metrics.md,
-          paddingTop: metrics.sm,
+          paddingTop: metrics.sm + 2,
           paddingBottom: metrics.md,
           flexDirection: 'row',
           alignItems: 'center',
           gap: metrics.sm,
         },
+        plusTap: {
+          width: 44,
+          height: 44,
+          borderRadius: metrics.radius.full,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.chatComposerButtonBg,
+        },
         fieldWrap: {
           flex: 1,
-          minHeight: 48,
+          minHeight: 46,
           borderRadius: metrics.radius.full,
           backgroundColor: colors.chatComposerBg,
-          borderWidth: 1,
-          borderColor: colors.border,
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: metrics.sm,
+          paddingHorizontal: metrics.md,
         },
         iconTap: {
-          width: metrics.icon.lg,
-          height: metrics.icon.lg,
+          width: metrics.icon.md,
+          height: metrics.icon.md,
           borderRadius: metrics.radius.full,
           alignItems: 'center',
           justifyContent: 'center',
@@ -50,32 +55,36 @@ export function ChatInput({ value, onChangeText, onSend }: ChatInputProps) {
           flex: 1,
           color: colors.textPrimary,
           fontSize: typography.sizes.base,
-          marginHorizontal: metrics.xs,
-          paddingVertical: metrics.sm,
+          marginRight: metrics.sm,
+          paddingVertical: metrics.sm + 1,
+        },
+        sendTap: {
+          width: 42,
+          height: 42,
+          borderRadius: metrics.radius.full,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.primary,
+          shadowColor: colors.primary,
+          shadowOpacity: 0.24,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 8 },
+          elevation: 5,
         },
       }),
     [colors, metrics, typography],
   );
 
-  const fieldAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleX: focusScale.value }],
-  }));
-
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.fieldWrap, fieldAnimatedStyle]}>
-        <Pressable android_ripple={{ color: colors.overlayLight }} style={styles.iconTap}>
-          <Ionicons color={colors.icon} name="happy-outline" size={metrics.icon.lg} />
-        </Pressable>
+      <Pressable android_ripple={{ color: colors.overlayLight }} style={styles.plusTap}>
+        <Ionicons color={colors.icon} name="add" size={metrics.icon.md} />
+      </Pressable>
 
+      <View style={styles.fieldWrap}>
         <TextInput
-          onBlur={() => {
-            focusScale.value = withTiming(1, { duration: 180 });
-          }}
+          editable={!disabled}
           onChangeText={onChangeText}
-          onFocus={() => {
-            focusScale.value = withTiming(1.02, { duration: 180 });
-          }}
           onSubmitEditing={onSend}
           placeholder="Message..."
           placeholderTextColor={colors.textTertiary}
@@ -85,15 +94,13 @@ export function ChatInput({ value, onChangeText, onSend }: ChatInputProps) {
         />
 
         <Pressable android_ripple={{ color: colors.overlayLight }} style={styles.iconTap}>
-          <Ionicons color={colors.icon} name="images-outline" size={metrics.icon.lg} />
+          <Ionicons color={colors.icon} name="happy-outline" size={metrics.icon.md} />
         </Pressable>
-        <Pressable android_ripple={{ color: colors.overlayLight }} style={styles.iconTap}>
-          <Ionicons color={colors.icon} name="camera-outline" size={metrics.icon.lg} />
-        </Pressable>
-        <Pressable android_ripple={{ color: colors.overlayLight }} onPress={onSend} style={styles.iconTap}>
-          <Ionicons color={colors.primary} name={value.trim() ? 'send' : 'mic-outline'} size={metrics.icon.lg} />
-        </Pressable>
-      </Animated.View>
+      </View>
+
+      <Pressable android_ripple={{ color: colors.overlayLight }} disabled={disabled} onPress={onSend} style={styles.sendTap}>
+        <Ionicons color={colors.textInverse} name="send" size={metrics.icon.md} />
+      </Pressable>
     </View>
   );
 }

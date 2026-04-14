@@ -1,29 +1,41 @@
 import React from 'react';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChatHeader, ChatItem, FilterTabs, SearchBar } from '../../src/components/chat';
+import { ChatHeader, ChatItem, ChatsFab, FilterTabs, SearchBar } from '../../src/components/chat';
 import { useChatListData } from '../../src/hooks/useChatListData';
 import { useTheme } from '../../src/hooks/useTheme';
 
-export default function ChatListScreen() {
+export default function ChatsScreen() {
   const router = useRouter();
   const { colors, metrics } = useTheme();
   const { chats, searchQuery, setSearchQuery, activeFilter, setActiveFilter } = useChatListData();
+
+  const openChat = React.useCallback(
+    (chatId: string, roomType: 'personal' | 'group') => {
+      if (roomType === 'group') {
+        router.push(`/group-chat/${chatId}`);
+        return;
+      }
+
+      router.push(`/chats/${chatId}`);
+    },
+    [router],
+  );
 
   const styles = React.useMemo(
     () =>
       StyleSheet.create({
         safeArea: {
           flex: 1,
-          backgroundColor: colors.background,
+          backgroundColor: colors.chatListBackground,
         },
         container: {
           flex: 1,
-          backgroundColor: colors.background,
+          backgroundColor: colors.chatListBackground,
         },
         listContent: {
-          paddingBottom: metrics['2xl'],
+          paddingBottom: metrics['3xl'] * 2,
         },
       }),
     [colors, metrics],
@@ -32,7 +44,7 @@ export default function ChatListScreen() {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <View style={styles.container}>
-        <ChatHeader onBack={() => router.back()} title="Chats" />
+        <ChatHeader accentBack onBack={() => router.back()} rightMode="menu" title="CHATS" />
         <SearchBar onChangeText={setSearchQuery} value={searchQuery} />
         <FilterTabs activeFilter={activeFilter} onChange={setActiveFilter} />
 
@@ -40,17 +52,11 @@ export default function ChatListScreen() {
           contentContainerStyle={styles.listContent}
           data={chats}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ChatItem
-              item={item}
-              onLongPress={() => {
-                Alert.alert('Chat actions', `Actions for ${item.name} will be available soon.`);
-              }}
-              onPress={() => router.push(`/room/${item.id}`)}
-            />
-          )}
+          renderItem={({ item }) => <ChatItem item={item} onPress={() => openChat(item.id, item.roomType)} />}
           showsVerticalScrollIndicator={false}
         />
+
+        <ChatsFab />
       </View>
     </SafeAreaView>
   );

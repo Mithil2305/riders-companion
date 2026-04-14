@@ -29,7 +29,7 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
         },
         systemText: {
           color: colors.textTertiary,
-          fontSize: typography.sizes.lg,
+          fontSize: typography.sizes.sm - 2,
           letterSpacing: 1.3,
           fontWeight: '500',
         },
@@ -55,21 +55,21 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
         },
         senderName: {
           color: colors.primary,
-          fontSize: typography.sizes.lg - 2,
+          fontSize: typography.sizes.lg - 4,
           fontWeight: '600',
           letterSpacing: 0.8,
           textTransform: 'uppercase',
-          marginBottom: metrics.xs + 2,
+          marginBottom: metrics.xs,
         },
         incomingText: {
           color: colors.textPrimary,
-          fontSize: typography.sizes['2xl'] - 1,
-          lineHeight: 33,
+          fontSize: typography.sizes['base'],
+          lineHeight: 24,
           fontWeight: '500',
         },
         time: {
           color: colors.textTertiary,
-          fontSize: typography.sizes.sm,
+          fontSize: typography.sizes.xs,
           marginTop: metrics.sm,
         },
         outgoingWrap: {
@@ -90,8 +90,8 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
         },
         outgoingText: {
           color: colors.textInverse,
-          fontSize: typography.sizes['2xl'] - 1,
-          lineHeight: 33,
+          fontSize: typography.sizes['base'],
+          lineHeight: 24,
           fontWeight: '500',
         },
         outgoingMeta: {

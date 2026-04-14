@@ -113,7 +113,7 @@ export function HeaderBar({
 
 				<Pressable
 					android_ripple={{ color: colors.overlayLight }}
-					onPress={() => router.push("/room")}
+					onPress={() => router.push("/chats")}
 					style={styles.iconTap}
 				>
 					<Ionicons

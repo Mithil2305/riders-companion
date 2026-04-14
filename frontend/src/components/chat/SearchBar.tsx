@@ -6,9 +6,10 @@ import { useTheme } from '../../hooks/useTheme';
 interface SearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
+  placeholder?: string;
 }
 
-export function SearchBar({ value, onChangeText }: SearchBarProps) {
+export function SearchBar({ value, onChangeText, placeholder = 'Search riders or groups...' }: SearchBarProps) {
   const { colors, metrics, typography } = useTheme();
 
   const styles = React.useMemo(
@@ -17,21 +18,21 @@ export function SearchBar({ value, onChangeText }: SearchBarProps) {
         root: {
           marginHorizontal: metrics.md,
           marginTop: metrics.md,
-          marginBottom: metrics.md,
-          minHeight: 44,
-          borderRadius: 24,
+          marginBottom: metrics.lg,
+          minHeight: 46,
+          borderRadius: 30,
           backgroundColor: colors.chatSearchBg,
           borderWidth: 1,
           borderColor: colors.border,
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: metrics.md,
-          gap: metrics.sm,
+          paddingHorizontal: metrics.lg,
+          gap: metrics.md,
         },
         input: {
           flex: 1,
           color: colors.textPrimary,
-          fontSize: typography.sizes.base,
+          fontSize: typography.sizes.lg,
           paddingVertical: metrics.sm,
         },
       }),
@@ -43,7 +44,7 @@ export function SearchBar({ value, onChangeText }: SearchBarProps) {
       <Ionicons color={colors.icon} name="search" size={metrics.icon.md + 2} />
       <TextInput
         onChangeText={onChangeText}
-        placeholder="Search"
+        placeholder={placeholder}
         placeholderTextColor={colors.textTertiary}
         style={styles.input}
         value={value}
