@@ -6,4 +6,5 @@ export { GroupChatList } from './GroupChatList';
 export { GroupMessageBubble } from './GroupMessageBubble';
 export { GroupLocationCard } from './GroupLocationCard';
 export { GroupChatInputBar } from './GroupChatInputBar';
+export { GroupChatClosedState } from './GroupChatClosedState';
 export { InviteFriendsModal } from './InviteFriendsModal';

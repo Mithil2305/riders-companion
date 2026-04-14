@@ -1,19 +1,38 @@
-import React from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChatHeader, ChatItem, ChatsFab, FilterTabs, SearchBar } from '../../src/components/chat';
-import { useChatListData } from '../../src/hooks/useChatListData';
-import { useTheme } from '../../src/hooks/useTheme';
+import React from "react";
+import { FlatList, StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  ChatHeader,
+  ChatItem,
+  ChatsFab,
+  FilterTabs,
+  SearchBar,
+} from "../../src/components/chat";
+import { useChatListData } from "../../src/hooks/useChatListData";
+import { useTheme } from "../../src/hooks/useTheme";
 
 export default function ChatsScreen() {
   const router = useRouter();
   const { colors, metrics } = useTheme();
-  const { chats, searchQuery, setSearchQuery, activeFilter, setActiveFilter } = useChatListData();
+  const { chats, searchQuery, setSearchQuery, activeFilter, setActiveFilter } =
+    useChatListData();
 
   const openChat = React.useCallback(
-    (chatId: string, roomType: 'personal' | 'group') => {
-      if (roomType === 'group') {
+    (
+      chatId: string,
+      roomType: "personal" | "group",
+      status?: "active" | "ended",
+    ) => {
+      if (roomType === "group") {
+        if (status === "ended") {
+          router.push({
+            pathname: `/group-chat/${chatId}`,
+            params: { status: "ended" },
+          });
+          return;
+        }
+
         router.push(`/group-chat/${chatId}`);
         return;
       }
@@ -22,6 +41,13 @@ export default function ChatsScreen() {
     },
     [router],
   );
+
+  const createChat = () => {
+    router.push({
+      pathname: "/ride-details",
+      params: { rideType: "group" },
+    });
+  };
 
   const styles = React.useMemo(
     () =>
@@ -35,16 +61,21 @@ export default function ChatsScreen() {
           backgroundColor: colors.chatListBackground,
         },
         listContent: {
-          paddingBottom: metrics['3xl'] * 2,
+          paddingBottom: metrics["3xl"] * 2,
         },
       }),
     [colors, metrics],
   );
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
       <View style={styles.container}>
-        <ChatHeader accentBack onBack={() => router.back()} rightMode="menu" title="CHATS" />
+        <ChatHeader
+          accentBack
+          onBack={() => router.back()}
+          rightMode="menu"
+          title="CHATS"
+        />
         <SearchBar onChangeText={setSearchQuery} value={searchQuery} />
         <FilterTabs activeFilter={activeFilter} onChange={setActiveFilter} />
 
@@ -52,11 +83,16 @@ export default function ChatsScreen() {
           contentContainerStyle={styles.listContent}
           data={chats}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ChatItem item={item} onPress={() => openChat(item.id, item.roomType)} />}
+          renderItem={({ item }) => (
+            <ChatItem
+              item={item}
+              onPress={() => openChat(item.id, item.roomType, item.status)}
+            />
+          )}
           showsVerticalScrollIndicator={false}
         />
 
-        <ChatsFab />
+        <ChatsFab onPress={createChat} />
       </View>
     </SafeAreaView>
   );
