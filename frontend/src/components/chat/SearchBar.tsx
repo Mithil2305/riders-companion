@@ -19,7 +19,7 @@ export function SearchBar({ value, onChangeText, placeholder = 'Search riders or
           marginHorizontal: metrics.md,
           marginTop: metrics.sm,
           marginBottom: metrics.sm,
-          minHeight: 46,
+          minHeight: 40,
           borderRadius: 30,
           backgroundColor: colors.chatSearchBg,
           borderWidth: 1,
@@ -41,7 +41,7 @@ export function SearchBar({ value, onChangeText, placeholder = 'Search riders or
 
   return (
     <View style={styles.root}>
-      <Ionicons color={colors.icon} name="search" size={metrics.icon.md + 2} />
+      <Ionicons color={colors.icon} name="search" size={metrics.icon.md - 2} />
       <TextInput
         onChangeText={onChangeText}
         placeholder={placeholder}
