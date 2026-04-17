@@ -30,7 +30,7 @@ export function FilterTabs({ activeFilter, onChange }: FilterTabsProps) {
           paddingRight: metrics.md,
         },
         tab: {
-          minHeight: 40,
+          minHeight: 30,
           minWidth: 58,
           borderRadius: metrics.radius.full,
           borderWidth: 1,
@@ -45,7 +45,7 @@ export function FilterTabs({ activeFilter, onChange }: FilterTabsProps) {
           borderColor: colors.primary,
         },
         label: {
-          fontSize: typography.sizes.base,
+          fontSize: typography.sizes.sm,
           fontWeight: '500',
           color: colors.textPrimary,
         },
