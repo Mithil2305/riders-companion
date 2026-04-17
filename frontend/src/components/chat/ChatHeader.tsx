@@ -42,7 +42,7 @@ export function ChatHeader({
           borderBottomColor: colors.border,
         },
         row: {
-          minHeight: 46,
+          maxHeight: 46,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',

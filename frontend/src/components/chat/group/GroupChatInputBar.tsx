@@ -55,8 +55,8 @@ export function GroupChatInputBar({
           fontSize: typography.sizes['base'],
         },
         sendTap: {
-          width: 48,
-          height: 48,
+          width: 40,
+          height: 40,
           borderRadius: 30,
           alignItems: 'center',
           justifyContent: 'center',
@@ -93,7 +93,7 @@ export function GroupChatInputBar({
       </View>
 
       <Pressable accessibilityLabel="Send message" disabled={disabled} onPress={onSend} style={styles.sendTap}>
-        <Ionicons color={colors.textInverse} name="send" size={28} />
+        <Ionicons color={colors.textInverse} name="send" size={22} />
       </Pressable>
     </View>
   );

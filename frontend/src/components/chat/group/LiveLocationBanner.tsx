@@ -17,7 +17,8 @@ export function LiveLocationBanner({ enabled, onToggle }: LiveLocationBannerProp
       StyleSheet.create({
         banner: {
           marginHorizontal: metrics.sm,
-          marginTop: metrics.sm,
+          marginTop: metrics.xs,
+          marginBottom: metrics.xs,
           borderRadius: 20,
           backgroundColor: colors.surface,
           paddingHorizontal: metrics.sm,
