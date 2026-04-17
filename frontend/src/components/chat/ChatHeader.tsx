@@ -36,13 +36,13 @@ export function ChatHeader({
         root: {
           paddingHorizontal: metrics.md,
           paddingTop: metrics.xs,
-          paddingBottom: metrics.xs + 2,
+          paddingBottom: metrics.xs,
           backgroundColor: colors.chatHeaderBackground,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
         },
         row: {
-          minHeight: 56,
+          minHeight: 46,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',

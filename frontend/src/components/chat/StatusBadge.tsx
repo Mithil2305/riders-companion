@@ -15,7 +15,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     () =>
       StyleSheet.create({
         badge: {
-          minHeight: 20,
+          minHeight: 16,
           borderRadius: metrics.radius.md,
           borderWidth: 1,
           paddingHorizontal: metrics.sm,
