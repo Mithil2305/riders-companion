@@ -90,7 +90,7 @@ const seedPersonalMessages = (roomId: string): PersonalChatMessage[] => {
 		text: messageText,
 		avatar:
 			sender === "other"
-				? PERSONAL_CHAT_META[roomId]?.avatar ?? PERSONAL_CHAT_META["1"].avatar
+				? (PERSONAL_CHAT_META[roomId]?.avatar ?? PERSONAL_CHAT_META["1"].avatar)
 				: undefined,
 	});
 
@@ -111,7 +111,7 @@ const seedPersonalMessages = (roomId: string): PersonalChatMessage[] => {
 		text: messageText,
 		avatar:
 			sender === "other"
-				? PERSONAL_CHAT_META[roomId]?.avatar ?? PERSONAL_CHAT_META["1"].avatar
+				? (PERSONAL_CHAT_META[roomId]?.avatar ?? PERSONAL_CHAT_META["1"].avatar)
 				: undefined,
 	});
 
@@ -176,15 +176,15 @@ class ChatService {
 
 	async sendMessage(
 		roomId: string,
-		encryptedPayload: string,
-		iv: string,
+		message: string,
+		receiverId?: string,
 		attachmentUrl?: string,
 	) {
 		return apiRequest(`/chat/rooms/${roomId}/messages`, {
 			method: "POST",
 			body: {
-				encryptedPayload,
-				iv,
+				message,
+				receiverId,
 				attachmentUrl,
 			},
 		});
@@ -193,11 +193,10 @@ class ChatService {
 	async getPersonalConversation(
 		roomId: string,
 	): Promise<PersonalConversationResponse> {
-		const knownMeta =
-			PERSONAL_CHAT_META[roomId] ?? {
-				...PERSONAL_CHAT_META["1"],
-				roomId,
-			};
+		const knownMeta = PERSONAL_CHAT_META[roomId] ?? {
+			...PERSONAL_CHAT_META["1"],
+			roomId,
+		};
 
 		const seeded =
 			this.personalMessages[roomId] ?? seedPersonalMessages(roomId);

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
-import { ResizeMode, Video, type AVPlaybackStatus } from "expo-av";
+import { Animated, Easing, Image, StyleSheet, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -94,31 +93,10 @@ function RootNavigator() {
 			void hideNativeSplash();
 			setShowVideoSplash(false);
 			startAppEntryAnimation();
-		}, 7000);
+		}, 2400);
 
 		return () => clearTimeout(fallbackTimer);
 	}, [boomOpacity, boomScale, hideNativeSplash, startAppEntryAnimation]);
-
-	const onVideoReady = useCallback(() => {
-		void hideNativeSplash();
-	}, [hideNativeSplash]);
-
-	const onVideoError = useCallback(() => {
-		void hideNativeSplash();
-		setShowVideoSplash(false);
-		startAppEntryAnimation();
-	}, [hideNativeSplash, startAppEntryAnimation]);
-
-	const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-		if (!status.isLoaded) {
-			return;
-		}
-
-		if (status.didJustFinish) {
-			setShowVideoSplash(false);
-			startAppEntryAnimation();
-		}
-	}, [startAppEntryAnimation]);
 
 	return (
 		<>
@@ -184,17 +162,13 @@ function RootNavigator() {
 							},
 						]}
 					>
-						<Video
-							source={require("../assets/logo.mp4")}
+						<Image
+							source={require("../assets/logo.png")}
 							style={styles.video}
-							resizeMode={ResizeMode.COVER}
-							shouldPlay
-							isLooping={false}
-							isMuted
-							rate={1.06}
-							onReadyForDisplay={onVideoReady}
-							onError={onVideoError}
-							onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+							resizeMode="contain"
+							onLoad={() => {
+								void hideNativeSplash();
+							}}
 						/>
 					</Animated.View>
 				</View>
