@@ -1,4 +1,5 @@
 const { UserEncryptedChat } = require("../models");
+const chatCryptoService = require("../services/chatCryptoService");
 
 const CHAT_EVENTS = new Set([
 	"CHAT_JOIN_ROOM",
@@ -145,8 +146,10 @@ const handleTyping = ({ ws, payload, state, sendToSocket, sendError }) => {
 
 const sendMessage = async ({ ws, payload, state, sendToSocket, sendError }) => {
 	const roomId = payload?.roomId;
-	const encryptedPayload = payload?.encryptedPayload;
-	const iv = payload?.iv;
+	const messageText =
+		typeof payload?.message === "string"
+			? payload.message
+			: payload?.encryptedPayload;
 	const receiverId =
 		typeof payload?.receiverId === "string" ? payload.receiverId : null;
 	const attachmentUrl =
@@ -157,13 +160,8 @@ const sendMessage = async ({ ws, payload, state, sendToSocket, sendError }) => {
 		return true;
 	}
 
-	if (typeof encryptedPayload !== "string" || encryptedPayload.length === 0) {
-		sendError(ws, "CHAT_SEND_BAD_PAYLOAD", "encryptedPayload is required");
-		return true;
-	}
-
-	if (typeof iv !== "string" || iv.length === 0) {
-		sendError(ws, "CHAT_SEND_BAD_PAYLOAD", "iv is required");
+	if (typeof messageText !== "string" || messageText.trim().length === 0) {
+		sendError(ws, "CHAT_SEND_BAD_PAYLOAD", "message is required");
 		return true;
 	}
 
@@ -173,33 +171,80 @@ const sendMessage = async ({ ws, payload, state, sendToSocket, sendError }) => {
 		ws.chatRooms.add(roomId);
 	}
 
+	let encrypted;
+	try {
+		encrypted = chatCryptoService.encryptMessage({
+			plainText: messageText,
+			roomId,
+			senderId: ws.rider.id,
+			receiverId,
+		});
+	} catch (error) {
+		sendError(
+			ws,
+			"CHAT_CRYPTO_ERR",
+			error instanceof Error ? error.message : "Failed to encrypt message",
+		);
+		return true;
+	}
+
 	const saved = await UserEncryptedChat.create({
 		sender_id: ws.rider.id,
 		receiver_id: receiverId,
 		room_id: roomId,
-		encrypted_payload: encryptedPayload,
-		iv,
+		encrypted_payload: encrypted.encryptedPayload,
+		iv: encrypted.iv,
 	});
+
+	let decryptedText;
+	try {
+		decryptedText = chatCryptoService.decryptMessage({
+			encryptedPayload: saved.encrypted_payload,
+			iv: saved.iv,
+			roomId,
+			senderId: ws.rider.id,
+			receiverId,
+		});
+	} catch (_error) {
+		sendError(ws, "CHAT_CRYPTO_ERR", "Failed to decrypt message after save");
+		return true;
+	}
 
 	const messagePayload = {
 		id: saved.id,
 		roomId,
 		senderId: ws.rider.id,
 		senderName: ws.rider.name,
-		encryptedPayload,
-		iv,
+		encryptedPayload: saved.encrypted_payload,
+		iv: saved.iv,
+		message: decryptedText,
 		receiverId,
 		attachmentUrl,
 		createdAt: saved.created_at,
 	};
 
-	broadcastToRoom({
-		state,
-		roomId,
-		type: "CHAT_MESSAGE",
-		payload: messagePayload,
-		sendToSocket,
-	});
+	if (receiverId) {
+		const roomSockets = state.chatRooms.get(roomId);
+		if (roomSockets) {
+			for (const socket of roomSockets) {
+				if (!socket?.rider?.id) {
+					continue;
+				}
+
+				if (socket.rider.id === ws.rider.id || socket.rider.id === receiverId) {
+					sendToSocket(socket, "CHAT_MESSAGE", messagePayload);
+				}
+			}
+		}
+	} else {
+		broadcastToRoom({
+			state,
+			roomId,
+			type: "CHAT_MESSAGE",
+			payload: messagePayload,
+			sendToSocket,
+		});
+	}
 
 	sendToSocket(ws, "CHAT_MESSAGE_ACK", {
 		roomId,

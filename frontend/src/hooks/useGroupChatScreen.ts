@@ -124,7 +124,12 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 	}, [isConnected, roomId, sendWsMessage]);
 
 	React.useEffect(() => {
-		if (!isConnected || roomId.length === 0 || !locationEnabled || isRideEnded) {
+		if (
+			!isConnected ||
+			roomId.length === 0 ||
+			!locationEnabled ||
+			isRideEnded
+		) {
 			return;
 		}
 
@@ -136,7 +141,12 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 	}, [isConnected, isRideEnded, roomId, locationEnabled, sendWsMessage]);
 
 	React.useEffect(() => {
-		if (!isConnected || !locationEnabled || roomId.length === 0 || isRideEnded) {
+		if (
+			!isConnected ||
+			!locationEnabled ||
+			roomId.length === 0 ||
+			isRideEnded
+		) {
 			return;
 		}
 
@@ -154,7 +164,14 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		return () => {
 			watcher?.remove();
 		};
-	}, [getCurrentLocation, isConnected, isRideEnded, locationEnabled, roomId, startWatching]);
+	}, [
+		getCurrentLocation,
+		isConnected,
+		isRideEnded,
+		locationEnabled,
+		roomId,
+		startWatching,
+	]);
 
 	React.useEffect(() => {
 		if (
@@ -173,7 +190,14 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 			longitude: location.longitude,
 			accuracy: location.accuracy,
 		});
-	}, [isConnected, isRideEnded, location, locationEnabled, roomId, sendWsMessage]);
+	}, [
+		isConnected,
+		isRideEnded,
+		location,
+		locationEnabled,
+		roomId,
+		sendWsMessage,
+	]);
 
 	React.useEffect(() => {
 		if (!lastMessage || typeof lastMessage.type !== "string") {
@@ -197,10 +221,12 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 					: "RIDER";
 
 			const text =
-				typeof payload.encryptedPayload === "string" &&
-				payload.encryptedPayload.trim().length > 0
-					? payload.encryptedPayload
-					: "[encrypted]";
+				typeof payload.message === "string" && payload.message.trim().length > 0
+					? payload.message
+					: typeof payload.encryptedPayload === "string" &&
+						  payload.encryptedPayload.trim().length > 0
+						? payload.encryptedPayload
+						: "[encrypted]";
 
 			setMessages((prev) => [
 				...prev,
@@ -338,8 +364,7 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 
 		sendWsMessage("CHAT_SEND_MESSAGE", {
 			roomId,
-			encryptedPayload: trimmed,
-			iv: `iv-${Date.now()}`,
+			message: trimmed,
 		});
 
 		typingStateRef.current = false;
