@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   ActivityIndicator,
   Image,
@@ -7,8 +7,8 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   Extrapolation,
   FadeInDown,
@@ -20,9 +20,9 @@ import Animated, {
   useSharedValue,
   withSpring,
   withTiming,
-} from 'react-native-reanimated';
-import { useTheme } from '../../hooks/useTheme';
-import { FeedPostItem } from '../../types/feed';
+} from "react-native-reanimated";
+import { useTheme } from "../../hooks/useTheme";
+import { FeedPostItem } from "../../types/feed";
 
 interface FeedPostProps {
   item: FeedPostItem;
@@ -30,14 +30,25 @@ interface FeedPostProps {
   liked: boolean;
   onToggleLike: (postId: string) => void;
   scrollY: SharedValue<number>;
+  onPressComment?: () => void;
+  onPressShare?: () => void;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function FeedPost({ item, index, liked, onToggleLike, scrollY }: FeedPostProps) {
+export function FeedPost({
+  item,
+  index,
+  liked,
+  onToggleLike,
+  scrollY,
+  onPressComment,
+  onPressShare,
+}: FeedPostProps) {
   const { colors, metrics, typography, resolvedMode } = useTheme();
   const [imageLoading, setImageLoading] = React.useState(true);
   const [showBumpPulse, setShowBumpPulse] = React.useState(false);
+ 
   const lastTapRef = React.useRef(0);
 
   const imageScale = useSharedValue(1);
@@ -84,8 +95,18 @@ export function FeedPost({ item, index, liked, onToggleLike, scrollY }: FeedPost
   });
 
   const bumpPulseStyle = useAnimatedStyle(() => {
-    const scale = interpolate(bumpPulse.value, [0, 1], [0.85, 1.25], Extrapolation.CLAMP);
-    const opacity = interpolate(bumpPulse.value, [0, 0.4, 1], [0, 0.95, 0], Extrapolation.CLAMP);
+    const scale = interpolate(
+      bumpPulse.value,
+      [0, 1],
+      [0.85, 1.25],
+      Extrapolation.CLAMP,
+    );
+    const opacity = interpolate(
+      bumpPulse.value,
+      [0, 0.4, 1],
+      [0, 0.95, 0],
+      Extrapolation.CLAMP,
+    );
 
     return {
       opacity,
@@ -97,22 +118,23 @@ export function FeedPost({ item, index, liked, onToggleLike, scrollY }: FeedPost
     () =>
       StyleSheet.create({
         card: {
-          backgroundColor: colors.background === '#181515' ? colors.card : colors.surface,
+          backgroundColor:
+            colors.background === "#181515" ? colors.card : colors.surface,
           marginBottom: metrics.lg,
           paddingBottom: metrics.md,
           borderBottomWidth: 1,
           borderBottomColor: colors.borderDark,
         },
         header: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
           paddingHorizontal: metrics.md,
           paddingBottom: metrics.sm,
         },
         userInfo: {
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           gap: metrics.sm,
         },
         avatar: {
@@ -124,39 +146,39 @@ export function FeedPost({ item, index, liked, onToggleLike, scrollY }: FeedPost
         username: {
           color: colors.textPrimary,
           fontSize: typography.sizes.base,
-          fontWeight: '700',
+          fontWeight: "700",
         },
         time: {
           color: colors.textTertiary,
           fontSize: typography.sizes.xs,
         },
         mediaWrap: {
-          width: '100%',
+          width: "100%",
           height: metrics.screenWidth * 0.9,
           backgroundColor: colors.surface,
-          overflow: 'hidden',
+          overflow: "hidden",
           // borderRadius: colors.background === '#181515' ? 0 : metrics.radius.md,
         },
         media: {
-          width: '100%',
-          height: '100%',
+          width: "100%",
+          height: "100%",
         },
         imageLoading: {
           ...StyleSheet.absoluteFillObject,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
           backgroundColor: colors.surface,
         },
         actionsRow: {
           paddingHorizontal: metrics.md,
           paddingTop: metrics.sm,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
         },
         leftActions: {
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           gap: metrics.md,
         },
         passiveAction: {
@@ -170,7 +192,7 @@ export function FeedPost({ item, index, liked, onToggleLike, scrollY }: FeedPost
         likes: {
           color: colors.textPrimary,
           fontSize: typography.sizes.sm,
-          fontWeight: '700',
+          fontWeight: "700",
         },
         caption: {
           color: colors.textSecondary,
@@ -179,16 +201,16 @@ export function FeedPost({ item, index, liked, onToggleLike, scrollY }: FeedPost
         },
         captionUser: {
           color: colors.textPrimary,
-          fontWeight: '700',
+          fontWeight: "700",
         },
         comments: {
           color: colors.textTertiary,
           fontSize: typography.sizes.sm,
         },
         bumpPulse: {
-          position: 'absolute',
-          alignSelf: 'center',
-          top: '42%',
+          position: "absolute",
+          alignSelf: "center",
+          top: "42%",
         },
       }),
     [colors, metrics, typography],
@@ -197,12 +219,11 @@ export function FeedPost({ item, index, liked, onToggleLike, scrollY }: FeedPost
   const likeCount = liked ? item.likes + 1 : item.likes;
 
   const defaultFistBumpIcon: ImageSourcePropType =
-    resolvedMode === 'dark'
-      ? require('../../../assets/icons/fist-bump-white.png')
-      : require('../../../assets/icons/fist-bump.png');
+    resolvedMode === "dark"
+      ? require("../../../assets/icons/fist-bump-white.png")
+      : require("../../../assets/icons/fist-bump.png");
 
-  const activeFistBumpIcon: ImageSourcePropType =
-    require('../../../assets/icons/fist-bump-color.png');
+  const activeFistBumpIcon: ImageSourcePropType = require("../../../assets/icons/fist-bump-color.png");
 
   const runBumpPulse = React.useCallback(() => {
     setShowBumpPulse(true);
@@ -228,7 +249,10 @@ export function FeedPost({ item, index, liked, onToggleLike, scrollY }: FeedPost
   }, [item.id, liked, onToggleLike, runBumpPulse]);
 
   return (
-    <Animated.View entering={FadeInDown.delay(index * 90).duration(360)} style={styles.card}>
+    <Animated.View
+      entering={FadeInDown.delay(index * 90).duration(360)}
+      style={styles.card}
+    >
       <View style={styles.header}>
         <View style={styles.userInfo}>
           <Image source={{ uri: item.avatar }} style={styles.avatar} />
@@ -264,20 +288,43 @@ export function FeedPost({ item, index, liked, onToggleLike, scrollY }: FeedPost
         ) : null}
 
         {showBumpPulse ? (
-          <Animated.View pointerEvents="none" style={[styles.bumpPulse, bumpPulseStyle]}>
-            <Ionicons color={colors.primary} name="heart" size={metrics.icon.xl} />
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.bumpPulse, bumpPulseStyle]}
+          >
+            <Ionicons
+              color={colors.primary}
+              name="heart"
+              size={metrics.icon.xl}
+            />
           </Animated.View>
         ) : null}
       </AnimatedPressable>
 
       <View style={styles.actionsRow}>
         <View style={styles.leftActions}>
-          <Pressable android_ripple={{ color: colors.overlayLight }} style={styles.passiveAction}>
-            <Ionicons color={colors.icon} name="chatbubble-outline" size={metrics.icon.md - 2} />
+          <Pressable
+            android_ripple={{ color: colors.overlayLight }}
+            style={styles.passiveAction}
+            onPress={onPressComment}
+          >
+            <Ionicons
+              color={colors.icon}
+              name="chatbubble-outline"
+              size={metrics.icon.md - 2}
+            />
           </Pressable>
 
-          <Pressable android_ripple={{ color: colors.overlayLight }} style={styles.passiveAction}>
-            <Ionicons color={colors.icon} name="share-social-outline" size={metrics.icon.md - 2} />
+          <Pressable
+            android_ripple={{ color: colors.overlayLight }}
+            style={styles.passiveAction}
+            onPress={onPressShare}
+          >
+            <Ionicons
+              color={colors.icon}
+              name="share-social-outline"
+              size={metrics.icon.md - 2}
+            />
           </Pressable>
         </View>
 
@@ -302,12 +349,21 @@ export function FeedPost({ item, index, liked, onToggleLike, scrollY }: FeedPost
             likeScale.value = withSpring(0.82, { damping: 10, stiffness: 320 });
           }}
           onPressOut={() => {
-            likeScale.value = withSpring(1.05, { damping: 10, stiffness: 320 }, () => {
-              likeScale.value = withSpring(1, { damping: 12, stiffness: 260 });
-            });
+            likeScale.value = withSpring(
+              1.05,
+              { damping: 10, stiffness: 320 },
+              () => {
+                likeScale.value = withSpring(1, {
+                  damping: 12,
+                  stiffness: 260,
+                });
+              },
+            );
           }}
         >
-          <Animated.Text style={[styles.likes, bumpTextAnimatedStyle, likeAnimatedStyle]}>
+          <Animated.Text
+            style={[styles.likes, bumpTextAnimatedStyle, likeAnimatedStyle]}
+          >
             {likeCount} bumps
           </Animated.Text>
         </AnimatedPressable>

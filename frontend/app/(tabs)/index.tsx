@@ -1,22 +1,34 @@
-import React from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
-import { EmptyState } from '../../src/components/common';
+import React from "react";
+import { RefreshControl, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+} from "react-native-reanimated";
+import { EmptyState } from "../../src/components/common";
 import {
   EndOfFeed,
   FeedPost,
   FeedSkeleton,
   HeaderBar,
-} from '../../src/components/feed';
-import { useHomeFeed } from '../../src/hooks/useHomeFeed';
-import { useTheme } from '../../src/hooks/useTheme';
-import { FeedPostItem } from '../../src/types/feed';
+} from "../../src/components/feed";
+import { useHomeFeed } from "../../src/hooks/useHomeFeed";
+import { useTheme } from "../../src/hooks/useTheme";
+import { FeedPostItem } from "../../src/types/feed";
+import { CommentsSheet } from "@/src/components/comments";
+import { ShareSheet } from "@/src/components/share";
 
 export default function HomeScreen() {
   const { colors, metrics, typography } = useTheme();
-  const { loading, refreshing, posts, likedPostIds, onRefresh, toggleLike } = useHomeFeed();
+  const { loading, refreshing, posts, likedPostIds, onRefresh, toggleLike } =
+    useHomeFeed();
   const scrollY = useSharedValue(0);
+  const [activeCommentsPostId, setActiveCommentsPostId] = React.useState<
+    string | null
+  >(null);
+  const [activeSharePostId, setActiveSharePostId] = React.useState<
+    string | null
+  >(null);
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -32,6 +44,8 @@ export default function HomeScreen() {
         liked={Boolean(likedPostIds[item.id])}
         onToggleLike={toggleLike}
         scrollY={scrollY}
+        onPressComment={() => setActiveCommentsPostId(item.id)}
+        onPressShare={() => setActiveSharePostId(item.id)}
       />
     ),
     [likedPostIds, scrollY, toggleLike],
@@ -46,19 +60,19 @@ export default function HomeScreen() {
           gap: metrics.md,
         },
         feedContent: {
-          paddingBottom: metrics['3xl'],
+          paddingBottom: metrics["3xl"],
           backgroundColor: colors.background,
           paddingTop: metrics.md,
           // paddingHorizontal: metrics.md,
         },
         emptyWrap: {
           paddingHorizontal: metrics.md,
-          paddingTop: metrics['2xl'],
+          paddingTop: metrics["2xl"],
         },
         loadingTitle: {
           color: colors.textSecondary,
           fontSize: typography.sizes.sm,
-          textAlign: 'center',
+          textAlign: "center",
           marginTop: metrics.lg,
         },
       }),
@@ -67,7 +81,7 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView edges={['left', 'right' , 'top']} style={styles.container}>
+      <SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
         <HeaderBar showSpinner title="Moments" />
         <FeedSkeleton />
         <Text style={styles.loadingTitle}>Loading your latest moments...</Text>
@@ -76,11 +90,11 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView edges={['left', 'right' , 'top']} style={styles.container}>
+    <SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
       <HeaderBar
         showSpinner={refreshing}
         title="Moments"
-        titleIcon={require('../../assets/icons/feed-plus.png')}
+        titleIcon={require("../../assets/icons/feed-plus.png")}
       />
 
       <Animated.FlatList
@@ -110,6 +124,22 @@ export default function HomeScreen() {
         }
         renderItem={renderPost}
         showsVerticalScrollIndicator={false}
+      />
+
+      <CommentsSheet
+        onClose={() => {
+          setActiveCommentsPostId(null);
+        }}
+        postId={activeCommentsPostId ?? "home-post"}
+        visible={activeCommentsPostId !== null}
+      />
+
+      <ShareSheet
+        onClose={() => {
+          setActiveSharePostId(null);
+        }}
+        postId={activeSharePostId ?? "home-post"}
+        visible={activeSharePostId !== null}
       />
     </SafeAreaView>
   );

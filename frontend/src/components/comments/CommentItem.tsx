@@ -39,19 +39,19 @@ export function CommentItem({ comment, onLike, onReply }: CommentItemProps) {
         },
         username: {
           color: colors.textPrimary,
-          fontSize: typography.sizes['2xl'],
+          fontSize: typography.sizes['lg'],
           fontWeight: '700',
           marginRight: metrics.sm,
         },
         time: {
           color: colors.textSecondary,
-          fontSize: typography.sizes['2xl'],
+          fontSize: typography.sizes['xs'],
           fontWeight: '500',
         },
         body: {
           color: colors.textPrimary,
-          fontSize: typography.sizes['2xl'],
-          lineHeight: typography.sizes['2xl'] * 1.3,
+          fontSize: typography.sizes['base'],
+          lineHeight: typography.sizes['base'] * 1.3,
           marginBottom: metrics.sm,
         },
         actions: {
@@ -66,12 +66,12 @@ export function CommentItem({ comment, onLike, onReply }: CommentItemProps) {
         },
         likeCount: {
           color: colors.textSecondary,
-          fontSize: typography.sizes.xl,
+          fontSize: typography.sizes.sm,
           fontWeight: '500',
         },
         reply: {
           color: colors.primary,
-          fontSize: typography.sizes['2xl'],
+          fontSize: typography.sizes['sm'],
           fontWeight: '700',
         },
       }),
@@ -80,24 +80,24 @@ export function CommentItem({ comment, onLike, onReply }: CommentItemProps) {
 
   return (
     <View style={styles.container}>
-      <Image source={{ uri: comment.author.avatarUrl }} style={styles.avatar} />
+      <Image source={{ uri: comment?.author?.avatarUrl || "https://i.pravatar.cc/150?img=11" }} style={styles.avatar} />
       <View style={styles.contentWrap}>
         <View style={styles.titleRow}>
-          <Text style={styles.username}>{comment.author.username}</Text>
-          <Text style={styles.time}>{comment.timeLabel}</Text>
+          <Text style={styles.username}>{comment?.author?.username || 'Unknown User'}</Text>
+          <Text style={styles.time}>{comment?.timeLabel || 'Just now'}</Text>
         </View>
-        <Text style={styles.body}>{comment.content}</Text>
+        <Text style={styles.body}>{comment?.content || 'No content available.'}</Text>
         <View style={styles.actions}>
-          <Pressable onPress={() => onLike(comment.id)} style={styles.likeWrap}>
+          <Pressable onPress={() => onLike(comment?.id)} style={styles.likeWrap}>
             <Ionicons
-              color={comment.likedByMe ? colors.primary : colors.icon}
-              name={comment.likedByMe ? 'flash' : 'flash-outline'}
+              color={comment?.likedByMe ? colors.primary : colors.icon}
+              name={comment?.likedByMe ? 'flash' : 'flash-outline'}
               size={metrics.icon.md}
             />
-            <Text style={styles.likeCount}>{comment.likeCount}</Text>
+            <Text style={styles.likeCount}>{comment?.likeCount || 0}</Text>
           </Pressable>
 
-          <Pressable onPress={() => onReply(comment.id)}>
+          <Pressable onPress={() => onReply(comment?.id)}>
             <Text style={styles.reply}>Reply</Text>
           </Pressable>
         </View>

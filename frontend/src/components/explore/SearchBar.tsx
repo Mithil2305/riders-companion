@@ -3,6 +3,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 
+
 interface SearchBarProps {
   value: string;
   onChangeText: (value: string) => void;
@@ -36,7 +37,7 @@ export function SearchBar({ value, onChangeText }: SearchBarProps) {
 
   return (
     <View style={styles.searchWrap}>
-      <Ionicons color="rgba(112, 112, 112, 0.8)" name="search-outline" size={metrics.icon.md} />
+      <Ionicons color={colors.primary} name="search-outline" size={metrics.icon.md} />
       <TextInput
         onChangeText={onChangeText}
         placeholder="Search"

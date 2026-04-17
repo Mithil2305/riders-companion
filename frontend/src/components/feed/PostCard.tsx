@@ -179,13 +179,13 @@ export function PostCard({
           </Pressable>
         </View>
 
-        <Pressable onPress={onPressBookmark}>
+        {/* <Pressable onPress={onPressBookmark}>
           <Ionicons
             color={stats.isBookmarked ? colors.primary : colors.icon}
             name={stats.isBookmarked ? 'bookmark' : 'bookmark-outline'}
             size={metrics.icon.md + 2}
           />
-        </Pressable>
+        </Pressable> */}
       </View>
 
       <View style={styles.captionRow}>

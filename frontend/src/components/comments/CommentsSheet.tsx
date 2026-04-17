@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
+  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -111,7 +112,7 @@ export function CommentsSheet({
         },
         title: {
           color: colors.textPrimary,
-          fontSize: typography.sizes['3xl'],
+          fontSize: typography.sizes['lg'],
           fontWeight: '700',
         },
         list: {
@@ -147,7 +148,7 @@ export function CommentsSheet({
           backgroundColor: colors.chatComposerBg,
           color: colors.textPrimary,
           paddingHorizontal: metrics.md,
-          fontSize: typography.sizes['2xl'],
+          fontSize: typography.sizes['base'],
         },
         sendButton: {
           width: 44,
@@ -166,7 +167,7 @@ export function CommentsSheet({
         emptyText: {
           textAlign: 'center',
           color: colors.textSecondary,
-          fontSize: typography.sizes.lg,
+          fontSize: typography.sizes.base,
           marginTop: metrics.xl,
         },
       }),
@@ -190,7 +191,7 @@ export function CommentsSheet({
           <View style={styles.header}>
             <Text style={styles.title}>Comments</Text>
             <Pressable onPress={onClose}>
-              <Ionicons color={colors.textPrimary} name="close" size={metrics.icon.lg} />
+              <Ionicons color={colors.textPrimary} name="close" size={metrics.icon.md + 2} />
             </Pressable>
           </View>
 
@@ -208,10 +209,11 @@ export function CommentsSheet({
               removeClippedSubviews
               renderItem={({ item }) => (
                 <CommentItem
+                  key={item.id}
                   comment={item}
                   onLike={likeComment}
                   onReply={() => {
-                    setDraft(`@${item.author.username} `);
+                    setDraft(`@${item?.author?.username || 'Unknown-User'} `);
                   }}
                 />
               )}
@@ -223,7 +225,12 @@ export function CommentsSheet({
 
           <View style={[styles.composerWrap, { paddingBottom: Math.max(insets.bottom, metrics.sm) }]}>
             <View style={styles.composerRow}>
-              <View style={styles.composerAvatar} />
+              <View >
+                  <Image
+                    source={{ uri: "https://i.pravatar.cc/150?img=11" }}
+                    style={styles.composerAvatar} 
+                  />
+              </View>
               <TextInput
                 onChangeText={setDraft}
                 placeholder="Add a comment..."

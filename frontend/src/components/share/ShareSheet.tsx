@@ -119,7 +119,7 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
         },
         title: {
           color: colors.textPrimary,
-          fontSize: typography.sizes['3xl'],
+          fontSize: typography.sizes['lg'],
           fontWeight: '700',
         },
         separator: {
@@ -132,7 +132,7 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
           paddingBottom: metrics.lg,
         },
         searchWrap: {
-          height: 52,
+          height: 42,
           borderRadius: 26,
           backgroundColor: colors.chatComposerBg,
           flexDirection: 'row',
@@ -143,7 +143,7 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
         searchInput: {
           flex: 1,
           color: colors.textPrimary,
-          fontSize: typography.sizes['2xl'],
+          fontSize: typography.sizes['base'],
           marginLeft: metrics.sm,
         },
         usersWrap: {
@@ -165,8 +165,8 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
           paddingHorizontal: metrics.xs,
         },
         actionCircle: {
-          width: 74,
-          height: 74,
+          width: 44,
+          height: 44,
           borderRadius: metrics.radius.full,
           alignItems: 'center',
           justifyContent: 'center',
@@ -175,8 +175,7 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
         actionText: {
           color: colors.textPrimary,
           textAlign: 'center',
-          fontSize: typography.sizes.lg,
-          lineHeight: typography.sizes.lg * 1.3,
+          fontSize: typography.sizes['sm'],
           fontWeight: '500',
         },
         loading: {
