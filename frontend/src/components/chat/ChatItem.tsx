@@ -28,23 +28,12 @@ export function ChatItem({ item, onPress, onLongPress }: ChatItemProps) {
       StyleSheet.create({
         card: {
           marginHorizontal: metrics.md,
-          marginBottom: metrics.xs,
-          minHeight: 110,
-          borderRadius: 10,
-          backgroundColor: colors.chatCardBackground,
+          minHeight: 80,
           paddingHorizontal: metrics.md,
           paddingVertical: metrics.md,
           flexDirection: "row",
           alignItems: "center",
           opacity: isEnded ? 0.55 : 1,
-          shadowColor: colors.shadow,
-          shadowOpacity: resolvedMode === "dark" ? 0.18 : 0.06,
-          shadowRadius: 14,
-          shadowOffset: {
-            width: 0,
-            height: 6,
-          },
-          elevation: 3,
         },
         avatarWrap: {
           width: 62,
@@ -78,19 +67,19 @@ export function ChatItem({ item, onPress, onLongPress }: ChatItemProps) {
         },
         name: {
           color: colors.textPrimary,
-          fontSize: typography.sizes["lg"],
+          fontSize: typography.sizes["base"],
           fontWeight: "700",
           flexShrink: 1,
           marginRight: metrics.xs,
         },
         message: {
           color: colors.textSecondary,
-          fontSize: typography.sizes["base"],
+          fontSize: typography.sizes["sm"],
           fontWeight: "400",
         },
         senderInline: {
           color: colors.chatMetaRed,
-          fontSize: typography.sizes["base"],
+          fontSize: typography.sizes["sm"],
           fontWeight: "500",
         },
         messageInlineWrap: {
@@ -107,7 +96,7 @@ export function ChatItem({ item, onPress, onLongPress }: ChatItemProps) {
         },
         endedMessage: {
           color: colors.textTertiary,
-          fontSize: typography.sizes["base"],
+          fontSize: typography.sizes["sm"],
           fontStyle: "italic",
           fontWeight: "400",
         },
@@ -128,8 +117,8 @@ export function ChatItem({ item, onPress, onLongPress }: ChatItemProps) {
           textAlign: "right",
         },
         unreadBadge: {
-          minWidth: 26,
-          height: 26,
+          minWidth: 20,
+          height: 20,
           borderRadius: metrics.radius.full,
           backgroundColor: colors.primary,
           alignItems: "center",
@@ -138,7 +127,7 @@ export function ChatItem({ item, onPress, onLongPress }: ChatItemProps) {
         },
         unreadText: {
           color: colors.textInverse,
-          fontSize: typography.sizes.sm,
+          fontSize: typography.sizes.xs,
           fontWeight: "700",
         },
         hiddenMeta: {
@@ -150,6 +139,16 @@ export function ChatItem({ item, onPress, onLongPress }: ChatItemProps) {
           top: -20,
           left: 0,
           zIndex: 10,
+        },
+        divider: {
+          position: "absolute",
+          width: "80%",
+          bottom: 6,
+          left: 50,
+          right: 50,
+          height: 0.5,
+          opacity: 0.5,
+          backgroundColor: "grey",
         },
       }),
     [colors, isEnded, isGroup, metrics, resolvedMode, typography],
@@ -224,6 +223,8 @@ export function ChatItem({ item, onPress, onLongPress }: ChatItemProps) {
           <View style={styles.hiddenMeta} />
         )}
       </View>
+
+      <View style={styles.divider}/>
     </Pressable>
   );
 }
