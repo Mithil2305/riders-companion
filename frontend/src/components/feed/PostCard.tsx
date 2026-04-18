@@ -1,14 +1,13 @@
-import React from 'react';
+import React from "react";
+import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../hooks/useTheme";
 import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../hooks/useTheme';
-import { PostCardCaption, PostCardImage, PostCardStats, PostCardUser } from '../../types/interactions';
+  PostCardCaption,
+  PostCardImage,
+  PostCardStats,
+  PostCardUser,
+} from "../../types/interactions";
 
 type PostCardProps = {
   user: PostCardUser;
@@ -31,29 +30,29 @@ export function PostCard({
   onPressShare,
   onPressBookmark,
 }: PostCardProps) {
-  const { colors, metrics, typography } = useTheme();
+  const { colors, metrics, typography, resolvedMode } = useTheme();
 
   const styles = React.useMemo(
     () =>
       StyleSheet.create({
         container: {
           backgroundColor: colors.surface,
-          overflow: 'hidden',
+          overflow: "hidden",
           marginBottom: metrics.sm,
           borderBottomWidth: 0.5,
           borderBottomColor: "#5b5b5b28",
         },
         header: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
           paddingHorizontal: metrics.md,
           paddingTop: metrics.md,
           paddingBottom: metrics.sm,
         },
         userWrap: {
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           flex: 1,
           marginRight: metrics.md,
         },
@@ -67,76 +66,79 @@ export function PostCard({
         username: {
           color: colors.textPrimary,
           fontSize: typography.sizes.base,
-          fontWeight: '700',
+          fontWeight: "700",
         },
         location: {
           color: colors.textSecondary,
           fontSize: typography.sizes.sm,
-          fontWeight: '400',
+          fontWeight: "400",
           marginTop: 2,
         },
         time: {
           color: colors.textSecondary,
           fontSize: typography.sizes.sm,
-          fontWeight: '500',
+          fontWeight: "500",
         },
         media: {
-          width: '100%',
+          width: "100%",
           height: metrics.screenWidth * 0.9,
         },
         mediaWrap: {
           marginHorizontal: metrics.md,
-          overflow: 'hidden',
+          overflow: "hidden",
           backgroundColor: colors.chatComposerBg,
         },
         actionsRow: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
           paddingHorizontal: metrics.md,
           paddingTop: metrics.md,
           paddingBottom: metrics.sm,
         },
         leftActions: {
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           gap: metrics.md,
         },
         actionButton: {
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           gap: metrics.xs,
         },
         actionText: {
           color: colors.textSecondary,
-          fontSize: typography.sizes['base'],
-          fontWeight: '500',
+          fontSize: typography.sizes["base"],
+          fontWeight: "500",
         },
         captionRow: {
           paddingHorizontal: metrics.md,
           paddingBottom: metrics.md,
-          flexDirection: 'row',
-          flexWrap: 'wrap',
+          flexDirection: "row",
+          flexWrap: "wrap",
         },
         captionUser: {
           color: colors.textPrimary,
-          fontSize: typography.sizes['base'],
-          fontWeight: '700',
+          fontSize: typography.sizes["base"],
+          fontWeight: "700",
           marginRight: metrics.xs,
         },
         captionText: {
           color: colors.textPrimary,
-          fontSize: typography.sizes['base'],
-          fontWeight: '400',
+          fontSize: typography.sizes["base"],
+          fontWeight: "400",
           flexShrink: 1,
         },
       }),
     [colors, metrics, typography],
   );
 
-  const likeIconSource = stats.isLiked
-    ? require('../../../assets/icons/fist-bump-color.png')
-    : require('../../../assets/icons/fist-bump.png');
+  const defaultFistBumpIcon: ImageSourcePropType =
+    resolvedMode === "dark"
+      ? require("../../../assets/icons/fist-bump-white.png")
+      : require("../../../assets/icons/fist-bump.png");
+
+  const activeFistBumpIcon: ImageSourcePropType = require("../../../assets/icons/fist-bump-color.png");
 
   return (
     <View style={styles.container}>
@@ -158,17 +160,31 @@ export function PostCard({
       <View style={styles.actionsRow}>
         <View style={styles.leftActions}>
           <Pressable onPress={onPressLike} style={styles.actionButton}>
-            <Image source={likeIconSource} style={{ width: 30, height: 30 }} />
+            <Image
+              source={stats.isLiked ? activeFistBumpIcon : defaultFistBumpIcon}
+              style={{
+                width: metrics.icon.md + 6,
+                height: metrics.icon.md + 6,
+              }}
+            />
             <Text style={styles.actionText}>{stats.likeCount}</Text>
           </Pressable>
 
           <Pressable onPress={onPressComment} style={styles.actionButton}>
-            <Ionicons color={colors.icon} name="chatbubble-outline" size={metrics.icon.md + 2} />
+            <Ionicons
+              color={colors.icon}
+              name="chatbubble-outline"
+              size={metrics.icon.md + 2}
+            />
             <Text style={styles.actionText}>{stats.commentCount}</Text>
           </Pressable>
 
           <Pressable onPress={onPressShare}>
-            <Ionicons color={colors.icon} name="arrow-redo-outline" size={metrics.icon.md + 2} />
+            <Ionicons
+              color={colors.icon}
+              name="arrow-redo-outline"
+              size={metrics.icon.md + 2}
+            />
           </Pressable>
         </View>
 

@@ -14,6 +14,8 @@ export interface TrendingClip {
   id: string;
   title: string;
   thumbnail: string;
+  mediaType: 'image' | 'video';
+  videoUri?: string;
 }
 
 export interface ExploreGridSection {

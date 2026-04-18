@@ -116,6 +116,7 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
           justifyContent: 'space-between',
           paddingHorizontal: metrics.md,
           paddingVertical: metrics.md,
+          
         },
         title: {
           color: colors.textPrimary,
@@ -139,12 +140,15 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
           alignItems: 'center',
           paddingHorizontal: metrics.md,
           marginBottom: metrics.md,
+          borderColor: colors.border,
+          borderWidth: 1,
         },
         searchInput: {
           flex: 1,
           color: colors.textPrimary,
           fontSize: typography.sizes['base'],
           marginLeft: metrics.sm,
+          
         },
         usersWrap: {
           flexDirection: 'row',

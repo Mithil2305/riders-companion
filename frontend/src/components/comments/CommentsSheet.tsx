@@ -146,6 +146,8 @@ export function CommentsSheet({
           height: 48,
           borderRadius: 24,
           backgroundColor: colors.chatComposerBg,
+          borderColor: colors.border,
+          borderWidth: 1,
           color: colors.textPrimary,
           paddingHorizontal: metrics.md,
           fontSize: typography.sizes['base'],

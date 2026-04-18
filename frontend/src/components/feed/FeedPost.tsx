@@ -48,7 +48,7 @@ export function FeedPost({
   const { colors, metrics, typography, resolvedMode } = useTheme();
   const [imageLoading, setImageLoading] = React.useState(true);
   const [showBumpPulse, setShowBumpPulse] = React.useState(false);
- 
+
   const lastTapRef = React.useRef(0);
 
   const imageScale = useSharedValue(1);
@@ -371,7 +371,9 @@ export function FeedPost({
           <Text style={styles.captionUser}>{item.user} </Text>
           {item.caption}
         </Text>
-        <Text style={styles.comments}>View all {item.comments} comments</Text>
+        <Pressable onPress={onPressComment}>
+          <Text style={styles.comments}>View all {item.comments} comments</Text>
+        </Pressable>
       </View>
     </Animated.View>
   );

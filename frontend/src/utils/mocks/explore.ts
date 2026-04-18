@@ -68,8 +68,13 @@ export const mockExplorePosts: PostCardModel[] = explorePostSeeds.map((title, in
   };
 });
 
-export const mockTrendingClips: TrendingClip[] = mockExplorePosts.map((post) => ({
-  id: post.id,
-  title: post.caption.text,
-  thumbnail: post.image.uri,
-}));
+export const mockTrendingClips: TrendingClip[] = mockExplorePosts.map((post, index) => {
+  const isVideo = index % 4 === 1 || index % 7 === 0;
+
+  return {
+    id: post.id,
+    title: post.caption.text,
+    thumbnail: post.image.uri,
+    mediaType: isVideo ? 'video' : 'image',
+  };
+});
