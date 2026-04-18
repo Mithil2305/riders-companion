@@ -201,7 +201,7 @@ export function ExploreGrid({ clips, onEndReached, hasMore, isLoadingMore, onPre
 
   const renderBlock = React.useCallback(
     ({ item, index }: { item: MosaicBlock; index: number }) => {
-      const gap = 2;
+      const gap = 1;
       const heroHeight = 258;
       const rowHeight = 186;
       const stackTallHeight = 236;

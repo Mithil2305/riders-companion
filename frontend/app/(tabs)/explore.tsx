@@ -27,7 +27,7 @@ export default function ExploreScreen() {
   );
 
   return (
-    <SafeAreaView edges={['left', 'right', 'top']} style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       {/* <ExploreHeader isLoading={isLoadingMore || isSearching} /> */}
       <View style={styles.searchWrap}>
         <SearchBar onChangeText={setQuery} value={query} />

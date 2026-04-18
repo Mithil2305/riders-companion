@@ -94,7 +94,7 @@ export default function ExplorePostsScreen() {
   );
 
   return (
-    <SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
+    <SafeAreaView edges={["top"]} style={styles.container}>
       <View style={styles.header}>
         <Pressable
           onPress={() => {

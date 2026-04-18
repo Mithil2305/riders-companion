@@ -46,7 +46,7 @@ export function PostCard({
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
-          paddingHorizontal: metrics.md,
+          paddingHorizontal: metrics.sm,
           paddingTop: metrics.md,
           paddingBottom: metrics.sm,
         },
@@ -84,7 +84,6 @@ export function PostCard({
           height: metrics.screenWidth * 0.9,
         },
         mediaWrap: {
-          marginHorizontal: metrics.md,
           overflow: "hidden",
           backgroundColor: colors.chatComposerBg,
         },
