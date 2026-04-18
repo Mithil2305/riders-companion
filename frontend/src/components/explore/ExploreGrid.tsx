@@ -1,20 +1,24 @@
 import React from 'react';
-import { ActivityIndicator, FlatList, Image, StyleSheet, View } from 'react-native';
-import { ExploreGridSection } from '../../types/explore';
+import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, View } from 'react-native';
+import { TrendingClip } from '../../types/explore';
 import { useTheme } from '../../hooks/useTheme';
-import { LargeImageCard } from './LargeImageCard';
-import { SmallImageGrid } from './SmallImageGrid';
 
 interface ExploreGridProps {
-  sections: ExploreGridSection[];
+  clips: TrendingClip[];
   onEndReached: () => void;
   hasMore: boolean;
   isLoadingMore: boolean;
+  onPressClip: (clipId: string) => void;
 }
 
 const PREFETCH_AHEAD = 2;
 
-export function ExploreGrid({ sections, onEndReached, hasMore, isLoadingMore }: ExploreGridProps) {
+function getItemHeight(index: number) {
+  const pattern = [132, 168, 204, 156, 184, 148];
+  return pattern[index % pattern.length];
+}
+
+export function ExploreGrid({ clips, onEndReached, hasMore, isLoadingMore, onPressClip }: ExploreGridProps) {
   const { colors, metrics } = useTheme();
   const prefetched = React.useRef(new Set<string>());
 
@@ -37,70 +41,53 @@ export function ExploreGrid({ sections, onEndReached, hasMore, isLoadingMore }: 
     [colors.background, metrics.md],
   );
 
-  const prefetchSectionImages = React.useCallback((startIndex: number) => {
-    for (let i = startIndex; i <= startIndex + PREFETCH_AHEAD; i += 1) {
-      const section = sections[i];
-      if (!section) {
+  const prefetchClipImages = React.useCallback((startIndex: number) => {
+    for (let i = startIndex; i <= startIndex + PREFETCH_AHEAD * 6; i += 1) {
+      const clip = clips[i];
+      if (!clip) {
         continue;
       }
 
-      [
-        section.heroTop.thumbnail,
-        section.smallLeft.thumbnail,
-        section.smallRight.thumbnail,
-        section.heroBottom?.thumbnail,
-      ].forEach(
-        (uri) => {
-          if (!uri) {
-            return;
-          }
-          if (prefetched.current.has(uri)) {
-            return;
-          }
-          prefetched.current.add(uri);
-          void Image.prefetch(uri);
-        },
-      );
+      const uri = clip.thumbnail;
+      if (prefetched.current.has(uri)) {
+        continue;
+      }
+
+      prefetched.current.add(uri);
+      void Image.prefetch(uri);
     }
-  }, [sections]);
+  }, [clips]);
 
   React.useEffect(() => {
-    prefetchSectionImages(0);
-  }, [prefetchSectionImages]);
+    prefetchClipImages(0);
+  }, [prefetchClipImages]);
 
-  const renderSection = React.useCallback(
-    ({ item, index }: { item: ExploreGridSection; index: number }) => {
-      prefetchSectionImages(index + 1);
+  const renderClip = React.useCallback(
+    ({ item, index }: { item: TrendingClip; index: number }) => {
+      prefetchClipImages(index + 1);
 
       return (
-        <View>
-          {item.layout === 'small-large-small' ? (
-            <>
-              <SmallImageGrid
-                leftUri={item.smallLeft.thumbnail}
-                rightUri={item.smallRight.thumbnail}
-              />
-              <LargeImageCard index={index * 3 + 1} uri={item.heroTop.thumbnail} />
-              {item.heroBottom ? (
-                <SmallImageGrid
-                  leftUri={item.heroBottom.thumbnail}
-                  rightUri={item.smallLeft.thumbnail}
-                />
-              ) : null}
-            </>
-          ) : (
-            <>
-              <LargeImageCard index={index * 3} uri={item.heroTop.thumbnail} />
-              <SmallImageGrid leftUri={item.smallLeft.thumbnail} rightUri={item.smallRight.thumbnail} />
-              {item.heroBottom ? (
-                <LargeImageCard index={index * 3 + 2} uri={item.heroBottom.thumbnail} />
-              ) : null}
-            </>
-          )}
-        </View>
+        <Pressable
+          onPress={() => onPressClip(item.id)}
+          style={{
+            width: '33.333%',
+            paddingHorizontal: 2,
+            paddingVertical: 2,
+          }}
+        >
+          <Image
+            source={{ uri: item.thumbnail }}
+            style={{
+              width: '100%',
+              height: getItemHeight(index),
+              borderRadius: metrics.radius.md,
+              backgroundColor: colors.surface,
+            }}
+          />
+        </Pressable>
       );
     },
-    [prefetchSectionImages],
+    [colors.surface, metrics.radius.md, onPressClip, prefetchClipImages],
   );
 
   const footer = isLoadingMore ? (
@@ -114,16 +101,17 @@ export function ExploreGrid({ sections, onEndReached, hasMore, isLoadingMore }: 
   return (
     <FlatList
       contentContainerStyle={styles.list}
-      data={sections}
+      data={clips}
       keyExtractor={(item) => item.id}
       ListFooterComponent={footer}
+      numColumns={3}
       onEndReached={() => {
         if (hasMore && !isLoadingMore) {
           onEndReached();
         }
       }}
       onEndReachedThreshold={0.5}
-      renderItem={renderSection}
+      renderItem={renderClip}
       showsVerticalScrollIndicator={false}
       windowSize={5}
     />

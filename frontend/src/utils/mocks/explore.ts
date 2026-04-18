@@ -1,3 +1,4 @@
+import { PostCardModel } from '../../types/interactions';
 import { SuggestedRoom, SuggestedUser, TrendingClip } from '../../types/explore';
 
 export const mockSuggestedUsers: SuggestedUser[] = [
@@ -13,29 +14,62 @@ export const mockSuggestedRooms: SuggestedRoom[] = [
   { id: '3', name: 'Mountain Pulse', members: 64 },
 ];
 
-export const mockTrendingClips: TrendingClip[] = [
-  { id: '1', title: 'Dawn canyon sprint', thumbnail: 'https://picsum.photos/seed/explore-rider-1/1200/1200' },
-  { id: '2', title: 'City lane split', thumbnail: 'https://picsum.photos/seed/explore-rider-2/1200/1200' },
-  { id: '3', title: 'Track apex practice', thumbnail: 'https://picsum.photos/seed/explore-rider-3/1200/1200' },
-  { id: '4', title: 'Weekend highway push', thumbnail: 'https://picsum.photos/seed/explore-rider-4/1200/1200' },
-  { id: '5', title: 'Helmet cam rain ride', thumbnail: 'https://picsum.photos/seed/explore-rider-5/1200/1200' },
-  { id: '6', title: 'Tunnel rev check', thumbnail: 'https://picsum.photos/seed/explore-rider-6/1200/1200' },
-  { id: '7', title: 'Midnight fuel stop', thumbnail: 'https://picsum.photos/seed/explore-rider-7/1200/1200' },
-  { id: '8', title: 'Mountain switchbacks', thumbnail: 'https://picsum.photos/seed/explore-rider-8/1200/1200' },
-  { id: '9', title: 'Solo commute run', thumbnail: 'https://picsum.photos/seed/explore-rider-9/1200/1200' },
-  { id: '10', title: 'New tires first ride', thumbnail: 'https://picsum.photos/seed/explore-rider-10/1200/1200' },
-  { id: '11', title: 'Group ride meetup', thumbnail: 'https://picsum.photos/seed/explore-rider-11/1200/1200' },
-  { id: '12', title: 'Street cafe pit stop', thumbnail: 'https://picsum.photos/seed/explore-rider-12/1200/1200' },
-  { id: '13', title: 'Ridge line cruise', thumbnail: 'https://picsum.photos/seed/explore-rider-13/1200/1200' },
-  { id: '14', title: 'Sharp turn warmup', thumbnail: 'https://picsum.photos/seed/explore-rider-14/1200/1200' },
-  { id: '15', title: 'Fast lane night ride', thumbnail: 'https://picsum.photos/seed/explore-rider-15/1200/1200' },
-  { id: '16', title: 'Open road horizon', thumbnail: 'https://picsum.photos/seed/explore-rider-16/1200/1200' },
-  { id: '17', title: 'Sunday service check', thumbnail: 'https://picsum.photos/seed/explore-rider-17/1200/1200' },
-  { id: '18', title: 'Wheel control drill', thumbnail: 'https://picsum.photos/seed/explore-rider-18/1200/1200' },
-  { id: '19', title: 'Bridge crossing reel', thumbnail: 'https://picsum.photos/seed/explore-rider-19/1200/1200' },
-  { id: '20', title: 'Backroad sunset line', thumbnail: 'https://picsum.photos/seed/explore-rider-20/1200/1200' },
-  { id: '21', title: 'Touring setup check', thumbnail: 'https://picsum.photos/seed/explore-rider-21/1200/1200' },
-  { id: '22', title: 'City traffic escapes', thumbnail: 'https://picsum.photos/seed/explore-rider-22/1200/1200' },
-  { id: '23', title: 'Helmet reflection shot', thumbnail: 'https://picsum.photos/seed/explore-rider-23/1200/1200' },
-  { id: '24', title: 'Throttle control tips', thumbnail: 'https://picsum.photos/seed/explore-rider-24/1200/1200' },
+const explorePostSeeds = [
+  'Dawn canyon sprint',
+  'City lane split',
+  'Track apex practice',
+  'Weekend highway push',
+  'Helmet cam rain ride',
+  'Tunnel rev check',
+  'Midnight fuel stop',
+  'Mountain switchbacks',
+  'Solo commute run',
+  'New tires first ride',
+  'Group ride meetup',
+  'Street cafe pit stop',
+  'Ridge line cruise',
+  'Sharp turn warmup',
+  'Fast lane night ride',
+  'Open road horizon',
+  'Sunday service check',
+  'Wheel control drill',
+  'Bridge crossing reel',
+  'Backroad sunset line',
+  'Touring setup check',
+  'City traffic escapes',
+  'Helmet reflection shot',
+  'Throttle control tips',
 ];
+
+export const mockExplorePosts: PostCardModel[] = explorePostSeeds.map((title, index) => {
+  const id = String(index + 1);
+
+  return {
+    id,
+    user: {
+      id: `rider-${id}`,
+      username: `rider_${id}`,
+      avatarUrl: `https://i.pravatar.cc/300?img=${(index % 60) + 1}`,
+      location: ['Chennai', 'Bengaluru', 'Hyderabad', 'Mumbai'][index % 4],
+      timeLabel: `${(index % 9) + 1}h`,
+    },
+    image: {
+      uri: `https://picsum.photos/seed/explore-rider-${id}/1200/1200`,
+    },
+    caption: {
+      username: `rider_${id}`,
+      text: `${title}. Rolling with the crew and keeping lines smooth.`,
+    },
+    stats: {
+      likeCount: 80 + index * 7,
+      commentCount: 6 + (index % 12),
+      isLiked: false,
+    },
+  };
+});
+
+export const mockTrendingClips: TrendingClip[] = mockExplorePosts.map((post) => ({
+  id: post.id,
+  title: post.caption.text,
+  thumbnail: post.image.uri,
+}));

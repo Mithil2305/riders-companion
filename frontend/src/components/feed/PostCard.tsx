@@ -38,14 +38,10 @@ export function PostCard({
       StyleSheet.create({
         container: {
           backgroundColor: colors.surface,
-          borderRadius: metrics.radius.xl,
           overflow: 'hidden',
-          marginBottom: metrics.md,
-          shadowColor: colors.shadow,
-          shadowOpacity: 0.08,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 6 },
-          elevation: 4,
+          marginBottom: metrics.sm,
+          borderBottomWidth: 0.5,
+          borderBottomColor: "#5b5b5b28",
         },
         header: {
           flexDirection: 'row',
@@ -70,28 +66,26 @@ export function PostCard({
         },
         username: {
           color: colors.textPrimary,
-          fontSize: typography.sizes.lg,
+          fontSize: typography.sizes.base,
           fontWeight: '700',
         },
         location: {
           color: colors.textSecondary,
-          fontSize: typography.sizes.base,
+          fontSize: typography.sizes.sm,
           fontWeight: '400',
           marginTop: 2,
         },
         time: {
           color: colors.textSecondary,
-          fontSize: typography.sizes.lg,
+          fontSize: typography.sizes.sm,
           fontWeight: '500',
         },
         media: {
           width: '100%',
           height: metrics.screenWidth * 0.9,
-          borderRadius: metrics.radius.xl,
         },
         mediaWrap: {
           marginHorizontal: metrics.md,
-          borderRadius: metrics.radius.xl,
           overflow: 'hidden',
           backgroundColor: colors.chatComposerBg,
         },
@@ -115,7 +109,7 @@ export function PostCard({
         },
         actionText: {
           color: colors.textSecondary,
-          fontSize: typography.sizes['2xl'],
+          fontSize: typography.sizes['base'],
           fontWeight: '500',
         },
         captionRow: {
@@ -126,16 +120,15 @@ export function PostCard({
         },
         captionUser: {
           color: colors.textPrimary,
-          fontSize: typography.sizes['2xl'],
+          fontSize: typography.sizes['base'],
           fontWeight: '700',
           marginRight: metrics.xs,
         },
         captionText: {
           color: colors.textPrimary,
-          fontSize: typography.sizes['2xl'],
+          fontSize: typography.sizes['base'],
           fontWeight: '400',
           flexShrink: 1,
-          lineHeight: typography.sizes['2xl'] * 1.3,
         },
       }),
     [colors, metrics, typography],

@@ -11,6 +11,7 @@ interface UseExploreDataResult {
   users: SuggestedUser[];
   rooms: SuggestedRoom[];
   clips: TrendingClip[];
+  visibleClips: TrendingClip[];
   gridSections: ExploreGridSection[];
   hasMoreClips: boolean;
   isLoadingMore: boolean;
@@ -19,13 +20,22 @@ interface UseExploreDataResult {
   setQuery: (value: string) => void;
 }
 
-const INITIAL_SECTIONS = 2;
-const SECTIONS_PER_PAGE = 2;
+const INITIAL_CLIPS = 18;
+const CLIPS_PER_PAGE = 12;
 const CLIPS_PER_SECTION = 4;
+
+function shuffleArray<T>(input: T[]): T[] {
+  const items = [...input];
+  for (let index = items.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [items[index], items[randomIndex]] = [items[randomIndex], items[index]];
+  }
+  return items;
+}
 
 export function useExploreData(): UseExploreDataResult {
   const [query, setQuery] = React.useState('');
-  const [visibleSections, setVisibleSections] = React.useState(INITIAL_SECTIONS);
+  const [visibleClipCount, setVisibleClipCount] = React.useState(INITIAL_CLIPS);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [isSearching, setIsSearching] = React.useState(false);
 
@@ -53,7 +63,7 @@ export function useExploreData(): UseExploreDataResult {
     );
   }, [normalizedQuery]);
 
-  const clips = React.useMemo(() => {
+  const filteredClips = React.useMemo(() => {
     if (!normalizedQuery) {
       return clipPool;
     }
@@ -63,34 +73,43 @@ export function useExploreData(): UseExploreDataResult {
     );
   }, [clipPool, normalizedQuery]);
 
+  const clips = React.useMemo(
+    () => shuffleArray(filteredClips),
+    [filteredClips],
+  );
+
+  const visibleClips = React.useMemo(
+    () => clips.slice(0, visibleClipCount),
+    [clips, visibleClipCount],
+  );
+
   const gridSections = React.useMemo<ExploreGridSection[]>(() => {
-    if (clips.length === 0) {
+    if (visibleClips.length === 0) {
       return [];
     }
 
-    const maxSectionsFromResults = Math.ceil(clips.length / CLIPS_PER_SECTION);
-    const sectionCount = Math.min(visibleSections, maxSectionsFromResults);
+    const maxSectionsFromResults = Math.ceil(visibleClips.length / CLIPS_PER_SECTION);
+    const sectionCount = maxSectionsFromResults;
 
     return Array.from({ length: sectionCount }, (_, index) => {
       const sectionStart = index * CLIPS_PER_SECTION;
-      const first = clips[sectionStart];
-      const second = clips[sectionStart + 1] ?? clips[sectionStart];
-      const third = clips[sectionStart + 2] ?? clips[sectionStart + 1] ?? clips[sectionStart];
-      const fourth = clips[sectionStart + 3];
+      const first = visibleClips[sectionStart];
+      const second = visibleClips[sectionStart + 1] ?? visibleClips[sectionStart];
+      const third = visibleClips[sectionStart + 2] ?? visibleClips[sectionStart + 1] ?? visibleClips[sectionStart];
+      const fourth = visibleClips[sectionStart + 3];
 
       return {
         id: `section-${index}-${normalizedQuery || 'all'}`,
-        layout: normalizedQuery ? (index % 2 === 0 ? 'large-small-large' : 'small-large-small') : 'large-small-large',
+        layout: Math.random() > 0.5 ? 'large-small-large' : 'small-large-small',
         heroTop: first,
         smallLeft: second,
         smallRight: third,
         heroBottom: fourth,
       };
     });
-  }, [clips, normalizedQuery, visibleSections]);
+  }, [normalizedQuery, visibleClips]);
 
-  const totalSections = Math.ceil(clips.length / CLIPS_PER_SECTION);
-  const hasMoreClips = gridSections.length < totalSections;
+  const hasMoreClips = visibleClipCount < clips.length;
 
   const loadMoreClips = React.useCallback(() => {
     if (isLoadingMore || !hasMoreClips) {
@@ -100,10 +119,10 @@ export function useExploreData(): UseExploreDataResult {
     setIsLoadingMore(true);
 
     requestAnimationFrame(() => {
-      setVisibleSections((current) => Math.min(current + SECTIONS_PER_PAGE, totalSections));
+      setVisibleClipCount((current) => Math.min(current + CLIPS_PER_PAGE, clips.length));
       setIsLoadingMore(false);
     });
-  }, [hasMoreClips, isLoadingMore, totalSections]);
+  }, [clips.length, hasMoreClips, isLoadingMore]);
 
   React.useEffect(() => {
     if (!normalizedQuery) {
@@ -120,7 +139,7 @@ export function useExploreData(): UseExploreDataResult {
   }, [normalizedQuery]);
 
   React.useEffect(() => {
-    setVisibleSections(INITIAL_SECTIONS);
+    setVisibleClipCount(INITIAL_CLIPS);
     setIsLoadingMore(false);
   }, [normalizedQuery]);
 
@@ -129,6 +148,7 @@ export function useExploreData(): UseExploreDataResult {
     users,
     rooms,
     clips,
+    visibleClips,
     gridSections,
     hasMoreClips,
     isLoadingMore,

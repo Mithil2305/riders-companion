@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ExploreGrid, ExploreHeader, SearchBar } from '../../src/components/explore';
 import { useExploreData } from '../../src/hooks/useExploreData';
@@ -7,7 +8,7 @@ import { useTheme } from '../../src/hooks/useTheme';
 
 export default function ExploreScreen() {
   const { colors, metrics } = useTheme();
-  const { query, setQuery, gridSections, hasMoreClips, isLoadingMore, isSearching, loadMoreClips } =
+  const { query, setQuery, visibleClips, hasMoreClips, isLoadingMore, isSearching, loadMoreClips } =
     useExploreData();
 
   const styles = React.useMemo(
@@ -33,10 +34,13 @@ export default function ExploreScreen() {
       </View>
 
       <ExploreGrid
+        clips={visibleClips}
         hasMore={hasMoreClips}
         isLoadingMore={isLoadingMore}
         onEndReached={loadMoreClips}
-        sections={gridSections}
+        onPressClip={(clipId) => {
+          router.push({ pathname: '/explore-posts', params: { postId: clipId } });
+        }}
       />
     </SafeAreaView>
   );

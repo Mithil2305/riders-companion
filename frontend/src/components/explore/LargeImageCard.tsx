@@ -13,12 +13,13 @@ import { useTheme } from '../../hooks/useTheme';
 interface LargeImageCardProps {
   uri: string;
   index: number;
+  onPress?: () => void;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
-export function LargeImageCard({ uri, index }: LargeImageCardProps) {
+export function LargeImageCard({ uri, index, onPress }: LargeImageCardProps) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
   const imageOpacity = useSharedValue(0);
@@ -57,6 +58,7 @@ export function LargeImageCard({ uri, index }: LargeImageCardProps) {
   return (
     <AnimatedPressable
       entering={FadeIn.delay(index * 40).duration(260)}
+      onPress={onPress}
       onPressIn={() => {
         scale.value = withSpring(0.97, { damping: 16, stiffness: 220 });
       }}

@@ -12,6 +12,8 @@ import { useTheme } from '../../hooks/useTheme';
 interface SmallImageGridProps {
   leftUri: string;
   rightUri: string;
+  onPressLeft?: () => void;
+  onPressRight?: () => void;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -19,9 +21,10 @@ const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 interface TileProps {
   uri: string;
+  onPress?: () => void;
 }
 
-function SmallTile({ uri }: TileProps) {
+function SmallTile({ uri, onPress }: TileProps) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
   const imageOpacity = useSharedValue(0);
@@ -59,6 +62,7 @@ function SmallTile({ uri }: TileProps) {
 
   return (
     <AnimatedPressable
+      onPress={onPress}
       onPressIn={() => {
         scale.value = withSpring(0.97, { damping: 16, stiffness: 220 });
       }}
@@ -82,7 +86,12 @@ function SmallTile({ uri }: TileProps) {
   );
 }
 
-export function SmallImageGrid({ leftUri, rightUri }: SmallImageGridProps) {
+export function SmallImageGrid({
+  leftUri,
+  rightUri,
+  onPressLeft,
+  onPressRight,
+}: SmallImageGridProps) {
   const styles = React.useMemo(
     () =>
       StyleSheet.create({
@@ -98,8 +107,8 @@ export function SmallImageGrid({ leftUri, rightUri }: SmallImageGridProps) {
 
   return (
     <View style={styles.row}>
-      <SmallTile uri={leftUri} />
-      <SmallTile uri={rightUri} />
+      <SmallTile onPress={onPressLeft} uri={leftUri} />
+      <SmallTile onPress={onPressRight} uri={rightUri} />
     </View>
   );
 }
