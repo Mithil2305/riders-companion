@@ -9,13 +9,17 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import Animated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "../../src/components/common";
+import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { useTheme } from "../../src/hooks/useTheme";
 
 export default function RideScreen() {
 	const router = useRouter();
 	const { colors, metrics, typography } = useTheme();
+	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
+		useTabSwipeNavigation("ride");
 	const [selectedType, setSelectedType] = React.useState<"solo" | "group">(
 		"solo",
 	);
@@ -82,72 +86,79 @@ export default function RideScreen() {
 	);
 
 	return (
-		<SafeAreaView edges={["left", "right"]} style={styles.container}>
-			<ScrollView
-				contentContainerStyle={styles.content}
-				showsVerticalScrollIndicator={false}
-				style={styles.container}
-			>
-				<View style={styles.content}>
-					<View style={styles.header}>
-						<Ionicons
-							color={colors.primary}
-							name="navigate-outline"
-							size={24}
-						/>
-						<View>
-							<Text style={styles.title}>Choose your ride</Text>
-							<Text style={styles.subtitle}>
-								Select a mode to continue to ride details
-							</Text>
+		<Animated.View
+			style={[styles.container, swipeAnimatedStyle]}
+			{...swipeHandlers}
+		>
+			<SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
+				<ScrollView
+					contentContainerStyle={styles.content}
+					showsVerticalScrollIndicator={false}
+					style={styles.container}
+				>
+					<View style={styles.content}>
+						<View style={styles.header}>
+							<Ionicons
+								color={colors.primary}
+								name="navigate-outline"
+								size={24}
+							/>
+							<View>
+								<Text style={styles.title}>Choose your ride</Text>
+								<Text style={styles.subtitle}>
+									Select a mode to continue to ride details
+								</Text>
+							</View>
 						</View>
+
+						<Pressable
+							hitSlop={6}
+							onPress={() => setSelectedType("solo")}
+							style={[
+								styles.card,
+								selectedType === "solo" && styles.selectedCard,
+							]}
+						>
+							<Image
+								source={require("../../assets/images/solo_ride.png")}
+								style={styles.rideImage}
+							/>
+							<Text style={styles.rideLabel}>Solo ride</Text>
+							<Text style={styles.rideMeta}>
+								Freedom ride with your own pace
+							</Text>
+						</Pressable>
+
+						<Pressable
+							hitSlop={6}
+							onPress={() => setSelectedType("group")}
+							style={[
+								styles.card,
+								selectedType === "group" && styles.selectedCard,
+							]}
+						>
+							<Image
+								source={require("../../assets/images/group_ride.png")}
+								style={styles.rideImage}
+							/>
+							<Text style={styles.rideLabel}>Group ride</Text>
+							<Text style={styles.rideMeta}>
+								Ride with community and route sync
+							</Text>
+						</Pressable>
+
+						<PrimaryButton
+							onPress={() => {
+								router.push({
+									pathname: "/ride-details",
+									params: { rideType: selectedType },
+								});
+							}}
+							title={`Start ${selectedType === "solo" ? "Solo" : "Group"} Ride`}
+						/>
 					</View>
-
-					<Pressable
-						hitSlop={6}
-						onPress={() => setSelectedType("solo")}
-						style={[
-							styles.card,
-							selectedType === "solo" && styles.selectedCard,
-						]}
-					>
-						<Image
-							source={require("../../assets/images/solo_ride.png")}
-							style={styles.rideImage}
-						/>
-						<Text style={styles.rideLabel}>Solo ride</Text>
-						<Text style={styles.rideMeta}>Freedom ride with your own pace</Text>
-					</Pressable>
-
-					<Pressable
-						hitSlop={6}
-						onPress={() => setSelectedType("group")}
-						style={[
-							styles.card,
-							selectedType === "group" && styles.selectedCard,
-						]}
-					>
-						<Image
-							source={require("../../assets/images/group_ride.png")}
-							style={styles.rideImage}
-						/>
-						<Text style={styles.rideLabel}>Group ride</Text>
-						<Text style={styles.rideMeta}>
-							Ride with community and route sync
-						</Text>
-					</Pressable>
-
-					<PrimaryButton
-						onPress={() => {
-							router.push({
-								pathname: "/ride-details",
-								params: { rideType: selectedType },
-							});
-						}}
-						title={`Start ${selectedType === "solo" ? "Solo" : "Group"} Ride`}
-					/>
-				</View>
-			</ScrollView>
-		</SafeAreaView>
+				</ScrollView>
+			</SafeAreaView>
+		</Animated.View>
 	);
 }

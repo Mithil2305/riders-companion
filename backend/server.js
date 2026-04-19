@@ -9,9 +9,30 @@ const { assertCryptoReady } = require("./src/services/chatCryptoService");
 const app = express();
 const server = http.createServer(app);
 const port = process.env.PORT || 3000;
+const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || "150mb";
 
-app.use(express.json());
+app.use(express.json({ limit: requestBodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
 app.use("/api", apiRoutes);
+
+app.use((error, _req, res, next) => {
+	if (error?.type === "entity.too.large") {
+		return res.status(413).json({
+			success: false,
+			message:
+				"Upload payload is too large. Please choose shorter media or compress it before uploading.",
+		});
+	}
+
+	if (error instanceof SyntaxError && "body" in error) {
+		return res.status(400).json({
+			success: false,
+			message: "Invalid JSON payload.",
+		});
+	}
+
+	return next(error);
+});
 
 try {
 	assertCryptoReady();

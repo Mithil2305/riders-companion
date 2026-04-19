@@ -1,5 +1,13 @@
 import React from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import {
+	Animated,
+	Easing,
+	Image,
+	Pressable,
+	StyleSheet,
+	Text,
+	View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import { withAlpha } from "../../../utils/color";
@@ -13,11 +21,17 @@ interface LiveMapSectionProps {
 	riders: RiderLocation[];
 	lastUpdatedAt?: string | null;
 	refreshIntervalMinutes?: number;
+	leaderRiderId?: string | null;
+	isRideEnded?: boolean;
 }
 
-const normalizeRiders = (riders: RiderLocation[]) => {
+const normalizeRiders = (
+	riders: RiderLocation[],
+	leaderRiderId?: string | null,
+	followLeader = false,
+) => {
 	if (riders.length === 0) {
-		return [] as Array<RiderLocation & { x: number; y: number }>;
+		return [] as (RiderLocation & { x: number; y: number })[];
 	}
 
 	const latitudes = riders.map((item) => item.latitude);
@@ -31,7 +45,7 @@ const normalizeRiders = (riders: RiderLocation[]) => {
 	const latSpan = Math.max(maxLat - minLat, 0.01);
 	const lonSpan = Math.max(maxLon - minLon, 0.01);
 
-	return riders.map((item) => {
+	const projected = riders.map((item) => {
 		const x = ((item.longitude - minLon) / lonSpan) * 74 + 13;
 		const y = 86 - ((item.latitude - minLat) / latSpan) * 72;
 		return {
@@ -40,6 +54,24 @@ const normalizeRiders = (riders: RiderLocation[]) => {
 			y,
 		};
 	});
+
+	if (!followLeader) {
+		return projected;
+	}
+
+	const leader = projected.find((item) => item.riderId === leaderRiderId);
+	if (!leader) {
+		return projected;
+	}
+
+	const shiftX = 50 - leader.x;
+	const shiftY = 50 - leader.y;
+
+	return projected.map((item) => ({
+		...item,
+		x: Math.max(8, Math.min(92, item.x + shiftX)),
+		y: Math.max(8, Math.min(92, item.y + shiftY)),
+	}));
 };
 
 const toUpdatedLabel = (iso?: string | null) => {
@@ -62,9 +94,47 @@ export function LiveMapSection({
 	riders,
 	lastUpdatedAt,
 	refreshIntervalMinutes = 15,
+	leaderRiderId,
+	isRideEnded = false,
 }: LiveMapSectionProps) {
 	const { colors, metrics, typography } = useTheme();
-	const projected = React.useMemo(() => normalizeRiders(riders), [riders]);
+	const [followLeader, setFollowLeader] = React.useState(true);
+	const markerPulse = React.useRef(new Animated.Value(0.7)).current;
+	const statusFade = React.useRef(new Animated.Value(0)).current;
+
+	const projected = React.useMemo(
+		() => normalizeRiders(riders, leaderRiderId, followLeader),
+		[followLeader, leaderRiderId, riders],
+	);
+
+	React.useEffect(() => {
+		Animated.loop(
+			Animated.sequence([
+				Animated.timing(markerPulse, {
+					toValue: 1,
+					duration: 700,
+					easing: Easing.out(Easing.quad),
+					useNativeDriver: true,
+				}),
+				Animated.timing(markerPulse, {
+					toValue: 0.7,
+					duration: 700,
+					easing: Easing.in(Easing.quad),
+					useNativeDriver: true,
+				}),
+			]),
+		).start();
+	}, [markerPulse]);
+
+	React.useEffect(() => {
+		statusFade.setValue(0);
+		Animated.timing(statusFade, {
+			toValue: 1,
+			duration: 280,
+			easing: Easing.out(Easing.cubic),
+			useNativeDriver: true,
+		}).start();
+	}, [isRideEnded, statusFade]);
 
 	const styles = React.useMemo(
 		() =>
@@ -219,8 +289,47 @@ export function LiveMapSection({
 					fontSize: typography.sizes.xs,
 					fontWeight: "600",
 				},
+				controlsRow: {
+					position: "absolute",
+					top: metrics.sm,
+					right: metrics.sm,
+					gap: metrics.xs,
+				},
+				controlButton: {
+					width: 34,
+					height: 34,
+					borderRadius: 999,
+					alignItems: "center",
+					justifyContent: "center",
+					backgroundColor: withAlpha(colors.surface, 0.95),
+					borderWidth: 1,
+					borderColor: colors.border,
+				},
+				statusChip: {
+					position: "absolute",
+					top: metrics.sm,
+					left: metrics.sm,
+					borderRadius: metrics.radius.full,
+					paddingHorizontal: metrics.sm,
+					paddingVertical: metrics.xs,
+					backgroundColor: withAlpha(
+						isRideEnded ? colors.error : colors.success,
+						0.18,
+					),
+					borderWidth: 1,
+					borderColor: withAlpha(
+						isRideEnded ? colors.error : colors.success,
+						0.42,
+					),
+				},
+				statusText: {
+					color: isRideEnded ? colors.error : colors.success,
+					fontSize: typography.sizes.xs,
+					fontWeight: "700",
+					letterSpacing: 0.3,
+				},
 			}),
-		[colors, metrics, typography],
+		[colors, isRideEnded, metrics, typography],
 	);
 
 	return (
@@ -260,12 +369,46 @@ export function LiveMapSection({
 									},
 								]}
 							>
-								<View style={styles.markerPulse} />
+								<Animated.View
+									style={[
+										styles.markerPulse,
+										{ transform: [{ scale: markerPulse }] },
+									]}
+								/>
 								<Image source={RIDER_MARKER_ICON} style={styles.markerIcon} />
 							</View>
 						))}
 					</View>
 				)}
+
+				<Animated.View style={[styles.statusChip, { opacity: statusFade }]}>
+					<Text style={styles.statusText}>
+						{isRideEnded ? "RIDE ENDED" : "RIDE LIVE"}
+					</Text>
+				</Animated.View>
+
+				<View style={styles.controlsRow}>
+					<Pressable
+						onPress={() => {
+							setFollowLeader((prev) => !prev);
+						}}
+						style={styles.controlButton}
+					>
+						<Ionicons
+							color={followLeader ? colors.primary : colors.textSecondary}
+							name="locate"
+							size={16}
+						/>
+					</Pressable>
+					<Pressable
+						onPress={() => {
+							setFollowLeader(true);
+						}}
+						style={styles.controlButton}
+					>
+						<Ionicons color={colors.primary} name="compass" size={16} />
+					</Pressable>
+				</View>
 
 				<View style={styles.chipsRow}>
 					<View style={styles.chip}>

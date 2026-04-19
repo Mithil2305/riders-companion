@@ -4,15 +4,133 @@ const {
 	uploadMediaFromBody,
 } = require("../utils/mediaUpload");
 const { canCreateContentOrRide } = require("../utils/profileAccess");
+const {
+	FeedPost,
+	FeedPostComment,
+	FeedPostLike,
+	RiderAccount,
+} = require("../models");
+const {
+	createNotifications,
+	notifyFollowersAboutPost,
+} = require("../services/notificationService");
 
-exports.getHomeFeed = async (_req, res) => {
-	return res.status(200).json({ success: true, data: { posts: [] } });
+const detectMediaType = (mimeType = "") => {
+	if (typeof mimeType !== "string") {
+		return "TEXT";
+	}
+
+	if (/^video\//i.test(mimeType)) {
+		return "VIDEO";
+	}
+
+	if (/^image\//i.test(mimeType)) {
+		return "IMAGE";
+	}
+
+	return "TEXT";
+};
+
+const toFeedPostPayload = async (post, viewerId) => {
+	const [likesCount, commentsCount, likedRecord] = await Promise.all([
+		FeedPostLike.count({ where: { feed_post_id: post.id } }),
+		FeedPostComment.count({ where: { feed_post_id: post.id } }),
+		FeedPostLike.findOne({
+			where: { feed_post_id: post.id, rider_id: viewerId },
+			attributes: ["id"],
+		}),
+	]);
+
+	return {
+		id: post.id,
+		caption: post.caption,
+		mediaUrl: post.media_url,
+		mediaType: post.media_type,
+		createdAt: post.created_at,
+		rider: {
+			id: post.RiderAccount?.id,
+			name: post.RiderAccount?.name,
+			username: post.RiderAccount?.username,
+			profileImageUrl: post.RiderAccount?.profile_image_url,
+		},
+		likesCount,
+		commentsCount,
+		likedByMe: Boolean(likedRecord),
+	};
+};
+
+const validateCommentText = (value) => {
+	if (typeof value !== "string") {
+		return null;
+	}
+
+	const trimmed = value.trim();
+	if (trimmed.length === 0) {
+		return null;
+	}
+
+	if (trimmed.length > 2000) {
+		return null;
+	}
+
+	return trimmed;
+};
+
+const normalizeCaption = (value) => {
+	if (typeof value !== "string") {
+		return null;
+	}
+
+	const trimmed = value.trim();
+	if (trimmed.length > 2000) {
+		return null;
+	}
+
+	return trimmed.length === 0 ? "" : trimmed;
+};
+
+exports.getHomeFeed = async (req, res) => {
+	try {
+		const posts = await FeedPost.findAll({
+			include: [
+				{
+					model: RiderAccount,
+					attributes: ["id", "name", "username", "profile_image_url"],
+				},
+			],
+			order: [["created_at", "DESC"]],
+			limit: 100,
+		});
+
+		const payloadPosts = await Promise.all(
+			posts.map((post) => toFeedPostPayload(post, req.user.id)),
+		);
+
+		return res.status(200).json({
+			success: true,
+			data: { posts: payloadPosts },
+		});
+	} catch (_error) {
+		return formatError(res, 500, "Failed to load home feed", "FEED_FETCH_ERR");
+	}
 };
 
 exports.getPostById = async (req, res) => {
-	return res
-		.status(200)
-		.json({ success: true, data: { postId: req.params.postId } });
+	const post = await FeedPost.findByPk(req.params.postId, {
+		include: [
+			{
+				model: RiderAccount,
+				attributes: ["id", "name", "username", "profile_image_url"],
+			},
+		],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	const payloadPost = await toFeedPostPayload(post, req.user.id);
+	return res.status(200).json({ success: true, data: { post: payloadPost } });
 };
 
 exports.createPost = async (req, res) => {
@@ -35,7 +153,8 @@ exports.createPost = async (req, res) => {
 				"imageUrl",
 			],
 			mimeTypeKey: "mediaMimeType",
-			folder: "feed",
+			folder: ({ mimeType }) =>
+				`feed/${req.user.id}/${/^video\//i.test(mimeType || "") ? "videos" : "photos"}`,
 			fallbackMimeType: "application/octet-stream",
 		});
 
@@ -44,10 +163,24 @@ exports.createPost = async (req, res) => {
 			mediaUrl: uploadedMedia?.url || req.body.mediaUrl || null,
 		};
 
+		const createdPost = await FeedPost.create({
+			rider_id: req.user.id,
+			caption: typeof req.body.caption === "string" ? req.body.caption : null,
+			media_url: payload.mediaUrl,
+			media_type: detectMediaType(req.body.mediaMimeType),
+		});
+
+		await notifyFollowersAboutPost({
+			actorId: req.user.id,
+			postId: createdPost.id,
+			caption: createdPost.caption,
+		});
+
 		return res.status(201).json({
 			success: true,
 			data: {
-				message: "Feed post route created",
+				message: "Feed post created",
+				post: createdPost,
 				payload,
 			},
 		});
@@ -61,29 +194,238 @@ exports.createPost = async (req, res) => {
 };
 
 exports.getComments = async (req, res) => {
-	return res
-		.status(200)
-		.json({ success: true, data: { postId: req.params.postId, comments: [] } });
+	const post = await FeedPost.findByPk(req.params.postId, {
+		attributes: ["id"],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	const comments = await FeedPostComment.findAll({
+		where: { feed_post_id: post.id },
+		include: [
+			{
+				model: RiderAccount,
+				attributes: ["id", "name", "username", "profile_image_url"],
+			},
+		],
+		order: [["created_at", "DESC"]],
+		limit: 100,
+	});
+
+	return res.status(200).json({
+		success: true,
+		data: {
+			postId: post.id,
+			comments: comments.map((comment) => ({
+				id: comment.id,
+				commentText: comment.comment_text,
+				createdAt: comment.created_at,
+				rider: {
+					id: comment.RiderAccount?.id,
+					name: comment.RiderAccount?.name,
+					username: comment.RiderAccount?.username,
+					profileImageUrl: comment.RiderAccount?.profile_image_url,
+				},
+			})),
+		},
+	});
 };
 
 exports.addComment = async (req, res) => {
+	const post = await FeedPost.findByPk(req.params.postId, {
+		attributes: ["id", "rider_id", "caption"],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	const commentText = validateCommentText(req.body.commentText);
+	if (!commentText) {
+		return formatError(
+			res,
+			400,
+			"commentText must be 1-2000 characters",
+			"FEED_COMMENT_INVALID",
+		);
+	}
+
+	const createdComment = await FeedPostComment.create({
+		feed_post_id: post.id,
+		rider_id: req.user.id,
+		comment_text: commentText,
+	});
+
+	if (post.rider_id && post.rider_id !== req.user.id) {
+		const actor = await RiderAccount.findByPk(req.user.id, {
+			attributes: ["name", "username"],
+		});
+
+		const actorName = actor?.username
+			? `@${actor.username}`
+			: actor?.name || "A rider";
+
+		await createNotifications({
+			recipientIds: [post.rider_id],
+			actorId: req.user.id,
+			type: "POST_COMMENTED",
+			title: `${actorName} commented on your post`,
+			body: commentText,
+			entityType: "feed_post",
+			entityId: post.id,
+			metadata: {
+				postId: post.id,
+				commentId: createdComment.id,
+			},
+		});
+	}
+
+	const commentsCount = await FeedPostComment.count({
+		where: { feed_post_id: post.id },
+	});
+
 	return res.status(201).json({
 		success: true,
 		data: {
-			postId: req.params.postId,
-			commentText: req.body.commentText,
+			postId: post.id,
+			comment: {
+				id: createdComment.id,
+				commentText: createdComment.comment_text,
+				createdAt: createdComment.created_at,
+			},
+			commentsCount,
 		},
 	});
 };
 
 exports.likePost = async (req, res) => {
-	return res
-		.status(200)
-		.json({ success: true, data: { postId: req.params.postId, liked: true } });
+	const post = await FeedPost.findByPk(req.params.postId, {
+		attributes: ["id"],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	await FeedPostLike.findOrCreate({
+		where: {
+			feed_post_id: post.id,
+			rider_id: req.user.id,
+		},
+		defaults: {
+			feed_post_id: post.id,
+			rider_id: req.user.id,
+		},
+	});
+
+	const likesCount = await FeedPostLike.count({
+		where: { feed_post_id: post.id },
+	});
+
+	return res.status(200).json({
+		success: true,
+		data: { postId: post.id, liked: true, likesCount },
+	});
 };
 
 exports.unlikePost = async (req, res) => {
-	return res
-		.status(200)
-		.json({ success: true, data: { postId: req.params.postId, liked: false } });
+	const post = await FeedPost.findByPk(req.params.postId, {
+		attributes: ["id"],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	await FeedPostLike.destroy({
+		where: {
+			feed_post_id: post.id,
+			rider_id: req.user.id,
+		},
+	});
+
+	const likesCount = await FeedPostLike.count({
+		where: { feed_post_id: post.id },
+	});
+
+	return res.status(200).json({
+		success: true,
+		data: { postId: post.id, liked: false, likesCount },
+	});
+};
+
+exports.updatePost = async (req, res) => {
+	const post = await FeedPost.findByPk(req.params.postId, {
+		include: [
+			{
+				model: RiderAccount,
+				attributes: ["id", "name", "username", "profile_image_url"],
+			},
+		],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	if (post.rider_id !== req.user.id) {
+		return formatError(
+			res,
+			403,
+			"You can only edit your own posts",
+			"FEED_POST_EDIT_FORBIDDEN",
+		);
+	}
+
+	const nextCaption = normalizeCaption(req.body.caption);
+	if (nextCaption === null) {
+		return formatError(
+			res,
+			400,
+			"caption must be a string up to 2000 characters",
+			"FEED_CAPTION_INVALID",
+		);
+	}
+
+	post.caption = nextCaption.length > 0 ? nextCaption : null;
+	await post.save();
+
+	const payloadPost = await toFeedPostPayload(post, req.user.id);
+	return res.status(200).json({
+		success: true,
+		data: { message: "Post updated", post: payloadPost },
+	});
+};
+
+exports.deletePost = async (req, res) => {
+	const post = await FeedPost.findByPk(req.params.postId, {
+		attributes: ["id", "rider_id"],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	if (post.rider_id !== req.user.id) {
+		return formatError(
+			res,
+			403,
+			"You can only delete your own posts",
+			"FEED_POST_DELETE_FORBIDDEN",
+		);
+	}
+
+	await Promise.all([
+		FeedPostLike.destroy({ where: { feed_post_id: post.id } }),
+		FeedPostComment.destroy({ where: { feed_post_id: post.id } }),
+	]);
+
+	await post.destroy();
+
+	return res.status(200).json({
+		success: true,
+		data: { message: "Post deleted", postId: req.params.postId },
+	});
 };

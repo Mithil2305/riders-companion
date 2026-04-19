@@ -109,14 +109,14 @@ exports.updateMyProfile = async (req, res) => {
 				"avatarUrl",
 			],
 			mimeTypeKey: "profileImageMimeType",
-			folder: "profiles",
+			folder: `feed/${req.user.id}/profile-picture`,
 			fallbackMimeType: "image/jpeg",
 		});
 
 		const bannerImage = await uploadMediaFromBody(req.body, {
 			inputKeys: ["bannerImageData", "bannerImageBase64", "bannerImageUrl"],
 			mimeTypeKey: "bannerImageMimeType",
-			folder: "profiles",
+			folder: `feed/${req.user.id}/profile-picture`,
 			fallbackMimeType: "image/jpeg",
 		});
 
