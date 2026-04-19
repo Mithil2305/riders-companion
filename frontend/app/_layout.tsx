@@ -4,9 +4,11 @@ import * as SplashScreen from "expo-splash-screen";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "../src/contexts/ThemeContext";
-import { AuthProvider } from "../src/contexts/AuthContext";
+import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
 import { useTheme } from "../src/hooks/useTheme";
+import { initializePushNotifications } from "../src/services/PushNotificationService";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Ignore if splash is already controlled by Expo runtime.
@@ -15,17 +17,20 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 export default function RootLayout() {
 	return (
 		<GestureHandlerRootView style={{ flex: 1 }}>
-			<ThemeProvider>
-				<AuthProvider>
-					<RootNavigator />
-				</AuthProvider>
-			</ThemeProvider>
+			<SafeAreaProvider>
+				<ThemeProvider>
+					<AuthProvider>
+						<RootNavigator />
+					</AuthProvider>
+				</ThemeProvider>
+			</SafeAreaProvider>
 		</GestureHandlerRootView>
 	);
 }
 
 function RootNavigator() {
 	const { colors, resolvedMode } = useTheme();
+	const { isAuthenticated } = useAuth();
 	const [showVideoSplash, setShowVideoSplash] = useState(true);
 	const boomScale = useRef(new Animated.Value(1.24)).current;
 	const boomOpacity = useRef(new Animated.Value(0.9)).current;
@@ -74,6 +79,14 @@ function RootNavigator() {
 	}, [appEntryOpacity, appEntryY]);
 
 	useEffect(() => {
+		if (!isAuthenticated) {
+			return;
+		}
+
+		void initializePushNotifications();
+	}, [isAuthenticated]);
+
+	useEffect(() => {
 		Animated.parallel([
 			Animated.timing(boomScale, {
 				toValue: 1,
@@ -115,6 +128,13 @@ function RootNavigator() {
 					<Stack.Screen name="index" />
 					<Stack.Screen name="onboarding" />
 					<Stack.Screen name="(tabs)" />
+					<Stack.Screen
+						name="create"
+						options={{
+							animation: "slide_from_bottom",
+							presentation: "fullScreenModal",
+						}}
+					/>
 					<Stack.Screen
 						name="auth"
 						options={{

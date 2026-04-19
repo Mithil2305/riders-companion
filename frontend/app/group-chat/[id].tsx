@@ -103,6 +103,8 @@ export default function GroupChatScreen() {
 								lastUpdatedAt={locationsLastUpdatedAt}
 								refreshIntervalMinutes={locationsRefreshMinutes}
 								riders={riderLocations}
+								leaderRiderId={organizerProfile?.id}
+								isRideEnded={isRideEnded}
 							/>
 						</View>
 						<View style={styles.chatHalf}>

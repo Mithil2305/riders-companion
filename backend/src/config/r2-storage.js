@@ -53,8 +53,50 @@ const extensionFromMime = (mimeType) => {
 const normalizeFolder = (folder) =>
 	String(folder || "general").replace(/^\/+|\/+$/g, "");
 
-const uploadBufferToR2 = async ({ buffer, mimeType, folder = "general" }) => {
+const sanitizeMetadata = (metadata) => {
+	if (!metadata || typeof metadata !== "object") {
+		return undefined;
+	}
+
+	const entries = Object.entries(metadata)
+		.filter(([, value]) => value != null)
+		.map(([key, value]) => [
+			String(key)
+				.toLowerCase()
+				.replace(/[^a-z0-9-]/g, "-"),
+			String(value),
+		]);
+
+	if (entries.length === 0) {
+		return undefined;
+	}
+
+	return Object.fromEntries(entries);
+};
+
+const resolveExpiresAt = (expiresAt, expiresInDays) => {
+	if (expiresAt instanceof Date) {
+		return expiresAt;
+	}
+
+	if (typeof expiresInDays === "number" && Number.isFinite(expiresInDays)) {
+		const days = Math.max(0, expiresInDays);
+		return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+	}
+
+	return undefined;
+};
+
+const uploadBufferToR2 = async ({
+	buffer,
+	mimeType,
+	folder = "general",
+	metadata,
+	expiresAt,
+	expiresInDays,
+}) => {
 	const key = `${normalizeFolder(folder)}/${randomUUID()}.${extensionFromMime(mimeType)}`;
+	const resolvedExpiresAt = resolveExpiresAt(expiresAt, expiresInDays);
 
 	await getClient().send(
 		new PutObjectCommand({
@@ -62,6 +104,8 @@ const uploadBufferToR2 = async ({ buffer, mimeType, folder = "general" }) => {
 			Key: key,
 			Body: buffer,
 			ContentType: mimeType || "application/octet-stream",
+			Expires: resolvedExpiresAt,
+			Metadata: sanitizeMetadata(metadata),
 		}),
 	);
 
