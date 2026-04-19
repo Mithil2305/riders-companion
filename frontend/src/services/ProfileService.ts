@@ -13,6 +13,14 @@ type ProfilePayload = {
 	profileSetupCompletedAt: string | null;
 };
 
+type PublicProfilePayload = {
+	id: string;
+	username: string;
+	name: string;
+	bio: string | null;
+	profileImageUrl: string | null;
+};
+
 type BikePayload = {
 	id: string;
 	brand: string;
@@ -26,6 +34,12 @@ class ProfileService {
 	async getMyProfile() {
 		return apiRequest<{ profile: ProfilePayload; bikes: BikePayload[] }>(
 			"/profile/me",
+		);
+	}
+
+	async getRiderProfile(riderId: string) {
+		return apiRequest<{ profile: PublicProfilePayload }>(
+			`/profile/riders/${riderId}`,
 		);
 	}
 

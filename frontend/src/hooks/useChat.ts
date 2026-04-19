@@ -1,201 +1,332 @@
 import React from "react";
 import ChatService from "../services/ChatService";
+import { useAuth } from "../contexts/AuthContext";
+import ProfileService from "../services/ProfileService";
 import {
-  PersonalChatListItem,
-  PersonalChatMenuAction,
-  PersonalChatMessage,
-  PersonalChatMeta,
+	PersonalChatListItem,
+	PersonalChatMenuAction,
+	PersonalChatMessage,
+	PersonalChatMeta,
 } from "../types/chat";
 
 const FALLBACK_META: PersonalChatMeta = {
-  roomId: "1",
-  name: "Ride Buddy",
-  avatar: "https://i.pravatar.cc/120?img=68",
-  isOnline: true,
-  rideTogetherLabel: "YOU RODE TOGETHER ON: CHENNAI → OOTY",
+	roomId: "1",
+	name: "Ride Buddy",
+	avatar:
+		"https://ui-avatars.com/api/?name=Ride%20Buddy&background=0D8ABC&color=fff",
+	isOnline: false,
+	rideTogetherLabel: "YOU RODE TOGETHER ON: CHENNAI → OOTY",
+};
+
+const avatarForName = (name: string) =>
+	`https://ui-avatars.com/api/?name=${encodeURIComponent(
+		name,
+	)}&background=0D8ABC&color=fff`;
+
+const resolvePeerRiderId = (
+	messages: Array<{ senderId?: string; receiverId?: string }>,
+	currentUserId?: string,
+) => {
+	for (const item of messages) {
+		const senderId = typeof item.senderId === "string" ? item.senderId : null;
+		const receiverId =
+			typeof item.receiverId === "string" ? item.receiverId : null;
+
+		if (senderId && senderId !== currentUserId) {
+			return senderId;
+		}
+
+		if (receiverId && receiverId !== currentUserId) {
+			return receiverId;
+		}
+	}
+
+	return null;
 };
 
 const toDayKey = (isoDate: string) => {
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) {
-    return "unknown";
-  }
+	const date = new Date(isoDate);
+	if (Number.isNaN(date.getTime())) {
+		return "unknown";
+	}
 
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+	return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 };
 
 const toDayLabel = (isoDate: string) => {
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) {
-    return "TODAY";
-  }
+	const date = new Date(isoDate);
+	if (Number.isNaN(date.getTime())) {
+		return "TODAY";
+	}
 
-  const now = new Date();
-  const nowKey = toDayKey(now.toISOString());
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const yesterdayKey = toDayKey(yesterday.toISOString());
-  const dateKey = toDayKey(isoDate);
+	const now = new Date();
+	const nowKey = toDayKey(now.toISOString());
+	const yesterday = new Date(now);
+	yesterday.setDate(now.getDate() - 1);
+	const yesterdayKey = toDayKey(yesterday.toISOString());
+	const dateKey = toDayKey(isoDate);
 
-  if (dateKey === nowKey) {
-    return "TODAY";
-  }
+	if (dateKey === nowKey) {
+		return "TODAY";
+	}
 
-  if (dateKey === yesterdayKey) {
-    return "YESTERDAY";
-  }
+	if (dateKey === yesterdayKey) {
+		return "YESTERDAY";
+	}
 
-  return date.toLocaleDateString([], {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-  });
+	return date.toLocaleDateString([], {
+		month: "short",
+		day: "2-digit",
+		year: "numeric",
+	});
 };
 
-const toListItems = (messages: PersonalChatMessage[]): PersonalChatListItem[] => {
-  const grouped: PersonalChatListItem[] = [];
-  let lastDay = "";
+const toListItems = (
+	messages: PersonalChatMessage[],
+): PersonalChatListItem[] => {
+	const grouped: PersonalChatListItem[] = [];
+	let lastDay = "";
 
-  for (const message of messages) {
-    const dayKey = toDayKey(message.createdAt);
-    if (dayKey !== lastDay) {
-      grouped.push({
-        id: `sep-${dayKey}-${message.id}`,
-        kind: "date-separator",
-        label: toDayLabel(message.createdAt),
-      });
-      lastDay = dayKey;
-    }
+	for (const message of messages) {
+		const dayKey = toDayKey(message.createdAt);
+		if (dayKey !== lastDay) {
+			grouped.push({
+				id: `sep-${dayKey}-${message.id}`,
+				kind: "date-separator",
+				label: toDayLabel(message.createdAt),
+			});
+			lastDay = dayKey;
+		}
 
-    grouped.push(message);
-  }
+		grouped.push(message);
+	}
 
-  return grouped;
+	return grouped;
 };
 
 export function useChat(roomId: string) {
-  const [meta, setMeta] = React.useState<PersonalChatMeta>(() => ({
-    ...FALLBACK_META,
-    roomId,
-  }));
-  const [messages, setMessages] = React.useState<PersonalChatMessage[]>([]);
-  const [draft, setDraft] = React.useState("");
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [isMenuVisible, setIsMenuVisible] = React.useState(false);
-  const [isMuted, setIsMuted] = React.useState(false);
-  const [isBlocked, setIsBlocked] = React.useState(false);
+	const { user } = useAuth();
+	const [meta, setMeta] = React.useState<PersonalChatMeta>(() => ({
+		...FALLBACK_META,
+		roomId,
+	}));
+	const [messages, setMessages] = React.useState<PersonalChatMessage[]>([]);
+	const [draft, setDraft] = React.useState("");
+	const [isLoading, setIsLoading] = React.useState(true);
+	const [isMenuVisible, setIsMenuVisible] = React.useState(false);
+	const [isMuted, setIsMuted] = React.useState(false);
+	const [isBlocked, setIsBlocked] = React.useState(false);
 
-  React.useEffect(() => {
-    let isMounted = true;
+	const toTimeLabel = React.useCallback((isoDate: string) => {
+		const date = new Date(isoDate);
+		if (Number.isNaN(date.getTime())) {
+			return "";
+		}
 
-    setIsLoading(true);
-    setDraft("");
+		return date.toLocaleTimeString([], {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: true,
+		});
+	}, []);
 
-    ChatService.getPersonalConversation(roomId)
-      .then((response) => {
-        if (!isMounted) {
-          return;
-        }
+	React.useEffect(() => {
+		let isMounted = true;
 
-        setMeta(response.meta);
-        setMessages(response.messages);
-      })
-      .catch(() => {
-        if (!isMounted) {
-          return;
-        }
+		setIsLoading(true);
+		setDraft("");
 
-        setMeta({ ...FALLBACK_META, roomId });
-        setMessages([]);
-      })
-      .finally(() => {
-        if (!isMounted) {
-          return;
-        }
+		ChatService.getRoomMessages(roomId)
+			.then(async (response) => {
+				if (!isMounted) {
+					return;
+				}
 
-        setIsLoading(false);
-      });
+				const rawMessages = Array.isArray(response.messages)
+					? response.messages
+					: [];
 
-    return () => {
-      isMounted = false;
-    };
-  }, [roomId]);
+				const mapped = rawMessages
+					.map((entry: any) => {
+						const message =
+							typeof entry?.message === "string" &&
+							entry.message.trim().length > 0
+								? entry.message
+								: null;
 
-  const sendMessage = React.useCallback(async () => {
-    const trimmed = draft.trim();
-    if (!trimmed || isBlocked) {
-      return;
-    }
+						if (!message) {
+							return null;
+						}
 
-    const next = await ChatService.sendPersonalMessage(roomId, {
-      kind: "text",
-      text: trimmed,
-    });
+						const createdAt =
+							typeof entry?.createdAt === "string"
+								? entry.createdAt
+								: new Date().toISOString();
 
-    setMessages((prev) => [...prev, next]);
-    setDraft("");
-  }, [draft, isBlocked, roomId]);
+						return {
+							id: String(entry?.id ?? `msg-${Date.now()}-${Math.random()}`),
+							kind: "text",
+							sender:
+								typeof entry?.senderId === "string" &&
+								entry.senderId === user?.id
+									? "me"
+									: "other",
+							createdAt,
+							timeLabel: toTimeLabel(createdAt),
+							delivery: "read",
+							text: message,
+						} satisfies PersonalChatMessage;
+					})
+					.filter(Boolean) as PersonalChatMessage[];
 
-  const clearChat = React.useCallback(async () => {
-    await ChatService.clearPersonalConversation(roomId);
-    setMessages([]);
-    setIsMenuVisible(false);
-  }, [roomId]);
+				const peerRiderId = resolvePeerRiderId(rawMessages, user?.id);
+				let nextMeta: PersonalChatMeta = {
+					...FALLBACK_META,
+					roomId,
+					name: `Chat ${roomId}`,
+				};
 
-  const muteNotifications = React.useCallback(async () => {
-    const nextMuted = !isMuted;
-    const response = await ChatService.mutePersonalConversation(roomId, nextMuted);
-    setIsMuted(response.muted);
-    setIsMenuVisible(false);
-  }, [isMuted, roomId]);
+				if (peerRiderId) {
+					try {
+						const peerProfile =
+							await ProfileService.getRiderProfile(peerRiderId);
+						const profile = peerProfile.profile;
+						nextMeta = {
+							roomId,
+							name:
+								typeof profile.name === "string" &&
+								profile.name.trim().length > 0
+									? profile.name
+									: nextMeta.name,
+							avatar:
+								typeof profile.profileImageUrl === "string" &&
+								profile.profileImageUrl.trim().length > 0
+									? profile.profileImageUrl
+									: avatarForName(
+											typeof profile.name === "string" &&
+												profile.name.trim().length > 0
+												? profile.name
+												: nextMeta.name,
+										),
+							isOnline: false,
+							rideTogetherLabel: `RIDER: ${
+								typeof profile.username === "string"
+									? profile.username
+									: "unknown"
+							}`,
+						};
+					} catch {
+						// Keep fallback metadata if peer profile is unavailable.
+					}
+				}
 
-  const blockUser = React.useCallback(async () => {
-    const response = await ChatService.blockPersonalUser(roomId);
-    setIsBlocked(response.blocked);
-    setIsMenuVisible(false);
-  }, [roomId]);
+				setMeta(nextMeta);
+				setMessages(mapped);
+			})
+			.catch(() => {
+				if (!isMounted) {
+					return;
+				}
 
-  const runMenuAction = React.useCallback(
-    async (action: PersonalChatMenuAction) => {
-      if (action === "voice-call" || action === "video-call") {
-        setIsMenuVisible(false);
-        return;
-      }
+				setMeta({ ...FALLBACK_META, roomId });
+				setMessages([]);
+			})
+			.finally(() => {
+				if (!isMounted) {
+					return;
+				}
 
-      if (action === "clear-chat") {
-        await clearChat();
-        return;
-      }
+				setIsLoading(false);
+			});
 
-      if (action === "mute-notifications") {
-        await muteNotifications();
-        return;
-      }
+		return () => {
+			isMounted = false;
+		};
+	}, [roomId, toTimeLabel, user?.id]);
 
-      if (action === "block-user") {
-        await blockUser();
-      }
-    },
-    [blockUser, clearChat, muteNotifications],
-  );
+	const sendMessage = React.useCallback(async () => {
+		const trimmed = draft.trim();
+		if (!trimmed || isBlocked) {
+			return;
+		}
 
-  const listData = React.useMemo(() => toListItems(messages), [messages]);
+		const response = await ChatService.sendMessage(roomId, trimmed);
+		const createdAt =
+			typeof response?.createdAt === "string"
+				? response.createdAt
+				: new Date().toISOString();
 
-  const openMenu = React.useCallback(() => setIsMenuVisible(true), []);
-  const closeMenu = React.useCallback(() => setIsMenuVisible(false), []);
+		const next: PersonalChatMessage = {
+			id: String(response?.id ?? `out-${Date.now()}`),
+			kind: "text",
+			sender: "me",
+			createdAt,
+			timeLabel: toTimeLabel(createdAt),
+			delivery: "sent",
+			text: trimmed,
+		};
 
-  return {
-    meta,
-    listData,
-    draft,
-    setDraft,
-    sendMessage,
-    isLoading,
-    isMenuVisible,
-    openMenu,
-    closeMenu,
-    runMenuAction,
-    isMuted,
-    isBlocked,
-  };
+		setMessages((prev) => [...prev, next]);
+		setDraft("");
+	}, [draft, isBlocked, roomId, toTimeLabel]);
+
+	const clearChat = React.useCallback(async () => {
+		setMessages([]);
+		setIsMenuVisible(false);
+	}, []);
+
+	const muteNotifications = React.useCallback(async () => {
+		const nextMuted = !isMuted;
+		setIsMuted(nextMuted);
+		setIsMenuVisible(false);
+	}, [isMuted]);
+
+	const blockUser = React.useCallback(async () => {
+		setIsBlocked(true);
+		setIsMenuVisible(false);
+	}, []);
+
+	const runMenuAction = React.useCallback(
+		async (action: PersonalChatMenuAction) => {
+			if (action === "voice-call" || action === "video-call") {
+				setIsMenuVisible(false);
+				return;
+			}
+
+			if (action === "clear-chat") {
+				await clearChat();
+				return;
+			}
+
+			if (action === "mute-notifications") {
+				await muteNotifications();
+				return;
+			}
+
+			if (action === "block-user") {
+				await blockUser();
+			}
+		},
+		[blockUser, clearChat, muteNotifications],
+	);
+
+	const listData = React.useMemo(() => toListItems(messages), [messages]);
+
+	const openMenu = React.useCallback(() => setIsMenuVisible(true), []);
+	const closeMenu = React.useCallback(() => setIsMenuVisible(false), []);
+
+	return {
+		meta,
+		listData,
+		draft,
+		setDraft,
+		sendMessage,
+		isLoading,
+		isMenuVisible,
+		openMenu,
+		closeMenu,
+		runMenuAction,
+		isMuted,
+		isBlocked,
+	};
 }

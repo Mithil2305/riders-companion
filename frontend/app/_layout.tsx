@@ -125,6 +125,7 @@ function RootNavigator() {
 					<Stack.Screen name="chats/index" />
 					<Stack.Screen name="chats/[id]" />
 					<Stack.Screen name="group-chat/[id]" />
+					<Stack.Screen name="rider/[id]" />
 					<Stack.Screen name="solo-ride/[id]" />
 					<Stack.Screen name="ride-details" />
 					<Stack.Screen
