@@ -59,10 +59,41 @@ type RideDetails = {
 
 export type CommunityRide = {
 	id: string;
+	communityId?: string;
 	status: string;
 	details: RideDetails;
 	joinedCount: number;
 	invitedCount: number;
+	organizerId?: string | null;
+	isOrganizer?: boolean;
+};
+
+type RideByIdResponse = {
+	ride: {
+		id: string;
+		communityId: string;
+		status: string;
+		details: RideDetails;
+		organizerId?: string | null;
+		isOrganizer?: boolean;
+		communityName?: string | null;
+		organizerProfile?: {
+			id: string;
+			name: string;
+			username?: string | null;
+			avatar?: string | null;
+			bio?: string | null;
+		} | null;
+		riderProfiles?: {
+			id: string;
+			name: string;
+			username?: string | null;
+			avatar?: string | null;
+			bio?: string | null;
+			status?: string;
+			isOrganizer?: boolean;
+		}[];
+	};
 };
 
 type CommunityRidesResponse = {
@@ -141,6 +172,19 @@ class RideService {
 				method: "POST",
 			},
 		);
+	}
+
+	async endRide(rideId: string) {
+		return apiRequest<{ rideId: string; status: string }>(
+			`/rides/${rideId}/end`,
+			{
+				method: "POST",
+			},
+		);
+	}
+
+	async getRideById(rideId: string) {
+		return apiRequest<RideByIdResponse>(`/rides/${rideId}`);
 	}
 
 	async updateLocation(rideId: string, latitude: number, longitude: number) {

@@ -115,7 +115,16 @@ export function CommunityScreen() {
 								item={ride}
 								key={ride.id}
 								mode="myRides"
-								onPrimaryAction={() => {}}
+								onPrimaryAction={(rideId) => {
+									router.push(
+										ride.status === "completed"
+											? {
+													pathname: `/group-chat/${rideId}`,
+													params: { status: "ended" },
+												}
+											: `/group-chat/${rideId}`,
+									);
+								}}
 							/>
 						))}
 					</View>
@@ -134,10 +143,12 @@ export function CommunityScreen() {
 
 			<FlatList
 				ListHeaderComponent={
-					<ActiveRideCard
-						data={activeRide}
-						onOpenRide={() => router.push("/tracking")}
-					/>
+					activeRide ? (
+						<ActiveRideCard
+							data={activeRide}
+							onOpenRide={() => router.push(`/group-chat/${activeRide.id}`)}
+						/>
+					) : null
 				}
 				contentContainerStyle={styles.listContent}
 				data={sectionOrder}
