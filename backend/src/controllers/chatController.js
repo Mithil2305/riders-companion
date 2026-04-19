@@ -3,8 +3,9 @@ const {
 	mediaUploadError,
 	uploadMediaFromBody,
 } = require("../utils/mediaUpload");
-const { UserEncryptedChat } = require("../models");
+const { RiderAccount, UserEncryptedChat } = require("../models");
 const chatCryptoService = require("../services/chatCryptoService");
+const { createNotifications } = require("../services/notificationService");
 
 const toClientMessage = (record, currentUserId) => {
 	const senderId = record.sender_id;
@@ -121,7 +122,12 @@ exports.sendRoomMessage = async (req, res) => {
 				"videoUrl",
 			],
 			mimeTypeKey: "attachmentMimeType",
-			folder: "chat",
+			folder: `feed/${req.user.id}/message-photos`,
+			expiresInDays: 60,
+			metadata: {
+				autoDeleteAfterDays: 60,
+				purpose: "chat-message-media",
+			},
 			fallbackMimeType: "application/octet-stream",
 		});
 
@@ -139,6 +145,30 @@ exports.sendRoomMessage = async (req, res) => {
 			encrypted_payload: encrypted.encryptedPayload,
 			iv: encrypted.iv,
 		});
+
+		if (receiverId && receiverId !== senderId) {
+			const sender = await RiderAccount.findByPk(senderId, {
+				attributes: ["name", "username"],
+			});
+
+			const senderName = sender?.username
+				? `@${sender.username}`
+				: sender?.name || "A rider";
+
+			await createNotifications({
+				recipientIds: [receiverId],
+				actorId: senderId,
+				type: "MESSAGE_RECEIVED",
+				title: `${senderName} sent you a message`,
+				body: plainTextInput.trim().slice(0, 160),
+				entityType: "chat_room",
+				entityId: roomId,
+				metadata: {
+					roomId,
+					messageId: saved.id,
+				},
+			});
+		}
 
 		return res.status(201).json({
 			success: true,

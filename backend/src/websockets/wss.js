@@ -3,6 +3,7 @@ const admin = require("../config/firebaseAdmin");
 const { RiderAccount } = require("../models");
 const chatHandler = require("./chatHandler");
 const locationHandler = require("./locationHandler");
+const websocketHub = require("./hub");
 
 const WS_PATH = "/ws";
 const HEARTBEAT_INTERVAL_MS = 30000;
@@ -168,6 +169,17 @@ module.exports = (server) => {
 		chatRooms: new Map(),
 		latestRideLocations: new Map(),
 	};
+
+	websocketHub.setSendToRiderHandler((riderId, type, payload) => {
+		const sockets = state.connectionsByRider.get(riderId);
+		if (!sockets || sockets.size === 0) {
+			return;
+		}
+
+		for (const socket of sockets) {
+			sendToSocket(socket, type, payload);
+		}
+	});
 
 	const heartbeat = setInterval(() => {
 		for (const socket of wss.clients) {

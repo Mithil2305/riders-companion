@@ -1,22 +1,23 @@
-import React from 'react';
-import { ExploreGridSection, SuggestedRoom, SuggestedUser, TrendingClip } from '../types/explore';
+import React from "react";
 import {
-  mockSuggestedRooms,
-  mockSuggestedUsers,
-  mockTrendingClips,
-} from '../utils/mocks/explore';
+	ExploreGridSection,
+	SuggestedRoom,
+	SuggestedUser,
+	TrendingClip,
+} from "../types/explore";
+import ClipService from "../services/ClipService";
 
 interface UseExploreDataResult {
-  query: string;
-  users: SuggestedUser[];
-  rooms: SuggestedRoom[];
-  clips: TrendingClip[];
-  gridSections: ExploreGridSection[];
-  hasMoreClips: boolean;
-  isLoadingMore: boolean;
-  isSearching: boolean;
-  loadMoreClips: () => void;
-  setQuery: (value: string) => void;
+	query: string;
+	users: SuggestedUser[];
+	rooms: SuggestedRoom[];
+	clips: TrendingClip[];
+	gridSections: ExploreGridSection[];
+	hasMoreClips: boolean;
+	isLoadingMore: boolean;
+	isSearching: boolean;
+	loadMoreClips: () => void;
+	setQuery: (value: string) => void;
 }
 
 const INITIAL_SECTIONS = 2;
@@ -24,116 +25,191 @@ const SECTIONS_PER_PAGE = 2;
 const CLIPS_PER_SECTION = 4;
 
 export function useExploreData(): UseExploreDataResult {
-  const [query, setQuery] = React.useState('');
-  const [visibleSections, setVisibleSections] = React.useState(INITIAL_SECTIONS);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [isSearching, setIsSearching] = React.useState(false);
+	const [query, setQuery] = React.useState("");
+	const [visibleSections, setVisibleSections] =
+		React.useState(INITIAL_SECTIONS);
+	const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+	const [isSearching, setIsSearching] = React.useState(false);
+	const [clipPool, setClipPool] = React.useState<TrendingClip[]>([]);
 
-  const normalizedQuery = query.trim().toLowerCase();
+	const normalizedQuery = query.trim().toLowerCase();
 
-  const clipPool = React.useMemo(() => mockTrendingClips, []);
+	React.useEffect(() => {
+		let mounted = true;
 
-  const users = React.useMemo(() => {
-    if (!normalizedQuery) {
-      return mockSuggestedUsers;
-    }
+		const load = async () => {
+			try {
+				const data = await ClipService.getClips();
+				if (!mounted) {
+					return;
+				}
 
-    return mockSuggestedUsers.filter((user) =>
-      user.name.toLowerCase().includes(normalizedQuery),
-    );
-  }, [normalizedQuery]);
+				setClipPool(
+					data.clips.map((clip) => ({
+						id: clip.id,
+						title: clip.songId ?? "Ride Clip",
+						creatorName: clip.rider?.name ?? "Rider",
+						creatorUsername: clip.rider?.username ?? "rider",
+						thumbnail: clip.videoUrl,
+						likes: Number(clip.likesCount ?? 0),
+						comments: Number(clip.commentsCount ?? 0),
+						shares: Number(clip.sharesCount ?? 0),
+						createdAt: clip.createdAt,
+						likedByMe: Boolean(clip.likedByMe),
+					})),
+				);
+			} catch {
+				if (mounted) {
+					setClipPool([]);
+				}
+			}
+		};
 
-  const rooms = React.useMemo(() => {
-    if (!normalizedQuery) {
-      return mockSuggestedRooms;
-    }
+		void load();
 
-    return mockSuggestedRooms.filter((room) =>
-      room.name.toLowerCase().includes(normalizedQuery),
-    );
-  }, [normalizedQuery]);
+		return () => {
+			mounted = false;
+		};
+	}, []);
 
-  const clips = React.useMemo(() => {
-    if (!normalizedQuery) {
-      return clipPool;
-    }
+	const users = React.useMemo(() => {
+		const map = new Map<string, SuggestedUser>();
+		clipPool.forEach((clip) => {
+			const key = clip.creatorUsername;
+			if (!key || map.has(key)) {
+				return;
+			}
 
-    return clipPool.filter((clip) =>
-      clip.title.toLowerCase().includes(normalizedQuery),
-    );
-  }, [clipPool, normalizedQuery]);
+			map.set(key, {
+				id: key,
+				name: clip.creatorName,
+				avatar: clip.thumbnail,
+			});
+		});
 
-  const gridSections = React.useMemo<ExploreGridSection[]>(() => {
-    if (clips.length === 0) {
-      return [];
-    }
+		const list = Array.from(map.values());
+		if (!normalizedQuery) {
+			return list;
+		}
 
-    const maxSectionsFromResults = Math.ceil(clips.length / CLIPS_PER_SECTION);
-    const sectionCount = Math.min(visibleSections, maxSectionsFromResults);
+		return list.filter((user) =>
+			user.name.toLowerCase().includes(normalizedQuery),
+		);
+	}, [clipPool, normalizedQuery]);
 
-    return Array.from({ length: sectionCount }, (_, index) => {
-      const sectionStart = index * CLIPS_PER_SECTION;
-      const first = clips[sectionStart];
-      const second = clips[sectionStart + 1] ?? clips[sectionStart];
-      const third = clips[sectionStart + 2] ?? clips[sectionStart + 1] ?? clips[sectionStart];
-      const fourth = clips[sectionStart + 3];
+	const rooms = React.useMemo(() => {
+		const derivedRooms: SuggestedRoom[] = [
+			{
+				id: "all-rides",
+				name: "All Rides",
+				members: clipPool.length,
+			},
+			{
+				id: "trending",
+				name: "Trending Clips",
+				members: clipPool.filter((clip) => clip.likes > 0).length,
+			},
+		];
 
-      return {
-        id: `section-${index}-${normalizedQuery || 'all'}`,
-        layout: normalizedQuery ? (index % 2 === 0 ? 'large-small-large' : 'small-large-small') : 'large-small-large',
-        heroTop: first,
-        smallLeft: second,
-        smallRight: third,
-        heroBottom: fourth,
-      };
-    });
-  }, [clips, normalizedQuery, visibleSections]);
+		if (!normalizedQuery) {
+			return derivedRooms;
+		}
 
-  const totalSections = Math.ceil(clips.length / CLIPS_PER_SECTION);
-  const hasMoreClips = gridSections.length < totalSections;
+		return derivedRooms.filter((room) =>
+			room.name.toLowerCase().includes(normalizedQuery),
+		);
+	}, [clipPool, normalizedQuery]);
 
-  const loadMoreClips = React.useCallback(() => {
-    if (isLoadingMore || !hasMoreClips) {
-      return;
-    }
+	const clips = React.useMemo(() => {
+		if (!normalizedQuery) {
+			return clipPool;
+		}
 
-    setIsLoadingMore(true);
+		return clipPool.filter((clip) =>
+			clip.title.toLowerCase().includes(normalizedQuery),
+		);
+	}, [clipPool, normalizedQuery]);
 
-    requestAnimationFrame(() => {
-      setVisibleSections((current) => Math.min(current + SECTIONS_PER_PAGE, totalSections));
-      setIsLoadingMore(false);
-    });
-  }, [hasMoreClips, isLoadingMore, totalSections]);
+	const gridSections = React.useMemo<ExploreGridSection[]>(() => {
+		if (clips.length === 0) {
+			return [];
+		}
 
-  React.useEffect(() => {
-    if (!normalizedQuery) {
-      setIsSearching(false);
-      return;
-    }
+		const maxSectionsFromResults = Math.ceil(clips.length / CLIPS_PER_SECTION);
+		const sectionCount = Math.min(visibleSections, maxSectionsFromResults);
 
-    setIsSearching(true);
-    const timer = setTimeout(() => {
-      setIsSearching(false);
-    }, 180);
+		return Array.from({ length: sectionCount }, (_, index) => {
+			const sectionStart = index * CLIPS_PER_SECTION;
+			const first = clips[sectionStart];
+			const second = clips[sectionStart + 1] ?? clips[sectionStart];
+			const third =
+				clips[sectionStart + 2] ??
+				clips[sectionStart + 1] ??
+				clips[sectionStart];
+			const fourth = clips[sectionStart + 3];
 
-    return () => clearTimeout(timer);
-  }, [normalizedQuery]);
+			return {
+				id: `section-${index}-${normalizedQuery || "all"}`,
+				layout: normalizedQuery
+					? index % 2 === 0
+						? "large-small-large"
+						: "small-large-small"
+					: "large-small-large",
+				heroTop: first,
+				smallLeft: second,
+				smallRight: third,
+				heroBottom: fourth,
+			};
+		});
+	}, [clips, normalizedQuery, visibleSections]);
 
-  React.useEffect(() => {
-    setVisibleSections(INITIAL_SECTIONS);
-    setIsLoadingMore(false);
-  }, [normalizedQuery]);
+	const totalSections = Math.ceil(clips.length / CLIPS_PER_SECTION);
+	const hasMoreClips = gridSections.length < totalSections;
 
-  return {
-    query,
-    users,
-    rooms,
-    clips,
-    gridSections,
-    hasMoreClips,
-    isLoadingMore,
-    isSearching,
-    loadMoreClips,
-    setQuery,
-  };
+	const loadMoreClips = React.useCallback(() => {
+		if (isLoadingMore || !hasMoreClips) {
+			return;
+		}
+
+		setIsLoadingMore(true);
+
+		requestAnimationFrame(() => {
+			setVisibleSections((current) =>
+				Math.min(current + SECTIONS_PER_PAGE, totalSections),
+			);
+			setIsLoadingMore(false);
+		});
+	}, [hasMoreClips, isLoadingMore, totalSections]);
+
+	React.useEffect(() => {
+		if (!normalizedQuery) {
+			setIsSearching(false);
+			return;
+		}
+
+		setIsSearching(true);
+		const timer = setTimeout(() => {
+			setIsSearching(false);
+		}, 180);
+
+		return () => clearTimeout(timer);
+	}, [normalizedQuery]);
+
+	React.useEffect(() => {
+		setVisibleSections(INITIAL_SECTIONS);
+		setIsLoadingMore(false);
+	}, [normalizedQuery]);
+
+	return {
+		query,
+		users,
+		rooms,
+		clips,
+		gridSections,
+		hasMoreClips,
+		isLoadingMore,
+		isSearching,
+		loadMoreClips,
+		setQuery,
+	};
 }

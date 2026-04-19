@@ -101,6 +101,20 @@ export function HeaderBar({
 			<View style={styles.right}>
 				<Pressable
 					android_ripple={{ color: colors.overlayLight }}
+					onPress={() => router.push("/create")}
+					style={styles.iconTap}
+				>
+					<View style={styles.addCircle}>
+						<Ionicons
+							color={colors.icon}
+							name="add"
+							size={metrics.icon.sm + 1}
+						/>
+					</View>
+				</Pressable>
+
+				<Pressable
+					android_ripple={{ color: colors.overlayLight }}
 					onPress={() => router.push("/community")}
 					style={styles.iconTap}
 				>

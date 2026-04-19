@@ -1,8 +1,12 @@
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getReactNativePersistence } from "@firebase/auth/dist/rn/index.js";
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, initializeAuth, type Auth } from "firebase/auth";
+import {
+	getAuth,
+	getReactNativePersistence,
+	initializeAuth,
+	type Auth,
+} from "firebase/auth";
 
 const projectId =
 	process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? "riders-companion-8e4f8";

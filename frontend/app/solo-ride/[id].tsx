@@ -212,7 +212,7 @@ export default function SoloRideLiveScreen() {
 	);
 
 	return (
-		<SafeAreaView edges={["left", "right"]} style={styles.container}>
+		<SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
 			<ScrollView
 				contentContainerStyle={styles.content}
 				style={styles.container}
