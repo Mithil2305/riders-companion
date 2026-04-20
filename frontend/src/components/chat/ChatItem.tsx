@@ -1,230 +1,193 @@
 import React from "react";
 import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type ImageStyle,
+	Image,
+	Pressable,
+	StyleSheet,
+	Text,
+	View,
+	type ImageStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
 import { ChatPreview } from "../../types/chat";
-import { StatusBadge } from "./StatusBadge";
 
 interface ChatItemProps {
-  item: ChatPreview;
-  onPress: () => void;
-  onLongPress?: () => void;
+	item: ChatPreview;
+	onPress: () => void;
+	onLongPress?: () => void;
 }
 
+const toPreviewText = (value: string, maxLength = 15) => {
+	if (value.length <= maxLength) {
+		return value;
+	}
+
+	return `${value.slice(0, maxLength)}...`;
+};
+
 export function ChatItem({ item, onPress, onLongPress }: ChatItemProps) {
-  const { colors, metrics, typography, resolvedMode } = useTheme();
-  const isEnded = item.status === "ended";
-  const isGroup = item.roomType === "group";
+	const { colors, metrics, typography } = useTheme();
+	const isEnded = item.status === "ended";
+	const isActive = item.isOnline || item.status === "active";
+	const normalizedMessage = item.message.toLowerCase();
+	const isTypingMessage = normalizedMessage.includes("typing");
+	const previewMessage = toPreviewText(item.message, 15);
 
-  const styles = React.useMemo(
-    () =>
-      StyleSheet.create({
-        card: {
-          marginHorizontal: metrics.md,
-          minHeight: 80,
-          paddingHorizontal: metrics.md,
-          paddingVertical: metrics.md,
-          flexDirection: "row",
-          alignItems: "center",
-          opacity: isEnded ? 0.55 : 1,
-        },
-        avatarWrap: {
-          width: 62,
-          height: 62,
-          borderRadius: 22,
-          marginRight: metrics.md,
-          position: "relative",
-          backgroundColor: colors.chatSearchBg,
-        },
-        dot: {
-          position: "absolute",
-          right: -2,
-          bottom: -2,
-          zIndex: 10,
-          width: 18,
-          height: 18,
-          borderRadius: metrics.radius.full,
-          backgroundColor: colors.chatOnline,
-          borderWidth: 2,
-          borderColor: colors.chatCardBackground,
-        },
-        center: {
-          flex: 1,
-          gap: metrics.xs,
-          position: "relative",
-        },
-        topRow: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: metrics.sm,
-        },
-        name: {
-          color: colors.textPrimary,
-          fontSize: typography.sizes["base"],
-          fontWeight: "700",
-          flexShrink: 1,
-          marginRight: metrics.xs,
-        },
-        message: {
-          color: colors.textSecondary,
-          fontSize: typography.sizes["sm"],
-          fontWeight: "400",
-        },
-        senderInline: {
-          color: colors.chatMetaRed,
-          fontSize: typography.sizes["sm"],
-          fontWeight: "500",
-        },
-        messageInlineWrap: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: metrics.xs,
-          marginTop: 2,
-        },
-        endedMessageWrap: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: metrics.xs,
-          marginTop: metrics.xs,
-        },
-        endedMessage: {
-          color: colors.textTertiary,
-          fontSize: typography.sizes["sm"],
-          fontStyle: "italic",
-          fontWeight: "400",
-        },
-        right: {
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          alignSelf: "stretch",
-          minWidth: 82,
-          paddingVertical: metrics.xs,
-          gap: metrics.md,
-        },
-        time: {
-          color: isGroup ? colors.textTertiary : colors.chatMetaRed,
-          fontSize: typography.sizes.xs,
-          fontWeight: "500",
-          textTransform: "uppercase",
-          lineHeight: typography.sizes.xl,
-          textAlign: "right",
-        },
-        unreadBadge: {
-          minWidth: 20,
-          height: 20,
-          borderRadius: metrics.radius.full,
-          backgroundColor: colors.primary,
-          alignItems: "center",
-          justifyContent: "center",
-          paddingHorizontal: metrics.sm,
-        },
-        unreadText: {
-          color: colors.textInverse,
-          fontSize: typography.sizes.xs,
-          fontWeight: "700",
-        },
-        hiddenMeta: {
-          width: 1,
-          height: 1,
-        },
-        badgeDiv: {
-          position: "absolute",
-          top: -20,
-          left: 0,
-          zIndex: 10,
-        },
-        divider: {
-          position: "absolute",
-          width: "80%",
-          bottom: 6,
-          left: 50,
-          right: 50,
-          height: 0.5,
-          opacity: 0.5,
-          backgroundColor: "grey",
-        },
-      }),
-    [colors, isEnded, isGroup, metrics, resolvedMode, typography],
-  );
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				card: {
+					marginHorizontal: metrics.sm,
+					minHeight: 74,
+					paddingHorizontal: metrics.md,
+					paddingVertical: metrics.sm + 1,
+					flexDirection: "row",
+					alignItems: "flex-start",
+					opacity: isEnded ? 0.55 : 1,
+					backgroundColor: "transparent",
+					borderBottomWidth: StyleSheet.hairlineWidth,
+					borderBottomColor: colors.border,
+				},
+				avatarWrap: {
+					width: 52,
+					height: 52,
+					borderRadius: metrics.radius.full,
+					marginRight: metrics.sm + 2,
+					position: "relative",
+					backgroundColor: colors.chatSearchBg,
+					overflow: "visible",
+				},
+				dot: {
+					position: "absolute",
+					right: -1,
+					bottom: -1,
+					zIndex: 10,
+					width: 11,
+					height: 11,
+					borderRadius: metrics.radius.full,
+					backgroundColor: colors.chatOnline,
+					borderWidth: 2,
+					borderColor: colors.chatListBackground,
+				},
+				center: {
+					flex: 1,
+					paddingRight: metrics.sm,
+				},
+				topRow: {
+					flexDirection: "row",
+					alignItems: "flex-start",
+					justifyContent: "space-between",
+				},
+				name: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.base,
+					fontWeight: "600",
+					flexShrink: 1,
+					marginTop: 1,
+				},
+				message: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "400",
+					marginTop: 2,
+				},
+				senderInline: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "500",
+				},
+				messageInlineWrap: {
+					flexDirection: "row",
+					alignItems: "center",
+					gap: 2,
+					marginTop: 1,
+				},
+				endedMessageWrap: {
+					flexDirection: "row",
+					alignItems: "center",
+					gap: metrics.xs,
+					marginTop: 2,
+				},
+				endedMessage: {
+					color: colors.textTertiary,
+					fontSize: typography.sizes.sm,
+					fontStyle: "italic",
+					fontWeight: "400",
+				},
+				time: {
+					color: colors.textTertiary,
+					fontSize: typography.sizes.xs,
+					fontWeight: "400",
+					textAlign: "right",
+				},
+				typingText: {
+					color: colors.chatOnline,
+					fontSize: typography.sizes.sm,
+					fontWeight: "500",
+				},
+			}),
+		[colors, isEnded, metrics, typography],
+	);
 
-  const avatarStyle = React.useMemo<ImageStyle>(
-    () => ({
-      width: 62,
-      height: 62,
-      borderRadius: 22,
-    }),
-    [],
-  );
+	const avatarStyle = React.useMemo<ImageStyle>(
+		() => ({
+			width: 52,
+			height: 52,
+			borderRadius: metrics.radius.full,
+		}),
+		[metrics.radius.full],
+	);
 
-  return (
-    <Pressable
-      android_ripple={{ color: colors.overlayLight }}
-      delayLongPress={240}
-      onLongPress={onLongPress}
-      onPress={onPress}
-      style={styles.card}
-    >
-      <View style={styles.avatarWrap}>
-        <Image source={{ uri: item.avatar }} style={avatarStyle} />
-        {item.isOnline ? <View style={styles.dot} /> : null}
-      </View>
+	return (
+		<Pressable
+			android_ripple={{ color: colors.overlayLight }}
+			delayLongPress={240}
+			onLongPress={onLongPress}
+			onPress={onPress}
+			style={styles.card}
+		>
+			<View style={styles.avatarWrap}>
+				<Image source={{ uri: item.avatar }} style={avatarStyle} />
+				{isActive ? <View style={styles.dot} /> : null}
+			</View>
 
-      <View style={styles.center}>
-        <View style={styles.topRow}>
-          <Text numberOfLines={1} style={styles.name}>
-            {item.name}
-          </Text>
-          <View style={styles.badgeDiv}>
-            {item.status ? <StatusBadge status={item.status} /> : null}
-          </View>
-        </View>
+			<View style={styles.center}>
+				<View style={styles.topRow}>
+					<Text numberOfLines={1} style={styles.name}>
+						{item.name}
+					</Text>
+					<Text style={styles.time}>{item.time}</Text>
+				</View>
 
-        {item.senderName ? (
-          <View style={styles.messageInlineWrap}>
-            <Text numberOfLines={1} style={styles.senderInline}>
-              {item.senderName}:
-            </Text>
-            <Text numberOfLines={1} style={styles.message}>
-              {item.message}
-            </Text>
-          </View>
-        ) : isEnded ? (
-          <View style={styles.endedMessageWrap}>
-            <Ionicons
-              color={colors.textTertiary}
-              name="checkmark-done-outline"
-              size={metrics.icon.md}
-            />
-            <Text numberOfLines={1} style={styles.endedMessage}>
-              {item.message}
-            </Text>
-          </View>
-        ) : (
-          <Text numberOfLines={1} style={styles.message}>
-            {item.message}
-          </Text>
-        )}
-      </View>
-
-      <View style={styles.right}>
-        <Text style={styles.time}>{item.time}</Text>
-        {item.unreadCount ? (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadText}>{item.unreadCount}</Text>
-          </View>
-        ) : (
-          <View style={styles.hiddenMeta} />
-        )}
-      </View>
-
-      <View style={styles.divider}/>
-    </Pressable>
-  );
+				{item.senderName ? (
+					<View style={styles.messageInlineWrap}>
+						<Text numberOfLines={1} style={styles.senderInline}>
+							{item.senderName}:
+						</Text>
+						<Text
+							numberOfLines={1}
+							style={isTypingMessage ? styles.typingText : styles.message}
+						>
+							{previewMessage}
+						</Text>
+					</View>
+				) : isEnded ? (
+					<View style={styles.endedMessageWrap}>
+						<Ionicons
+							color={colors.textTertiary}
+							name="checkmark-done-outline"
+							size={metrics.icon.md}
+						/>
+						<Text numberOfLines={1} style={styles.endedMessage}>
+							{previewMessage}
+						</Text>
+					</View>
+				) : (
+					<Text numberOfLines={1} style={styles.message}>
+						{previewMessage}
+					</Text>
+				)}
+			</View>
+		</Pressable>
+	);
 }

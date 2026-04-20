@@ -79,6 +79,11 @@ export function useCommunityData() {
 					return;
 				}
 
+				const fallbackAvatars =
+					prev.activeRide?.avatars ||
+					communityMockData.activeRide?.avatars ||
+					[];
+
 				setData((prev) => ({
 					...prev,
 					activeRide: payload.activeRide
@@ -88,10 +93,10 @@ export function useCommunityData() {
 								title: `${payload.activeRide.details.source || "Source"} -> ${payload.activeRide.details.destination || "Destination"}`,
 								subtitle: "Live group ride",
 								actionIcon: "navigate",
-								avatars: prev.activeRide.avatars,
+								avatars: fallbackAvatars,
 								extraCount: payload.activeRide.joinedCount,
 							}
-						: prev.activeRide,
+						: null,
 					nearbyRides: payload.nearbyRides.map((ride) =>
 						toRideItem(ride, "nearby"),
 					),

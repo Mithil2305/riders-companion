@@ -11,6 +11,17 @@ type ProfilePayload = {
 	profileImageUrl: string | null;
 	bannerImageUrl: string | null;
 	profileSetupCompletedAt: string | null;
+	totalMiles?: string | number;
+	createdAt?: string;
+	updatedAt?: string;
+};
+
+type PublicProfilePayload = {
+	id: string;
+	username: string;
+	name: string;
+	bio: string | null;
+	profileImageUrl: string | null;
 };
 
 type BikePayload = {
@@ -29,6 +40,12 @@ class ProfileService {
 		);
 	}
 
+	async getRiderProfile(riderId: string) {
+		return apiRequest<{ profile: PublicProfilePayload }>(
+			`/profile/riders/${riderId}`,
+		);
+	}
+
 	async updateMyProfile(payload: {
 		name: string;
 		username: string;
@@ -36,6 +53,11 @@ class ProfileService {
 		mobileNumber?: string;
 		driverLicenseNumber?: string;
 		profileImageUrl?: string;
+		profileImageData?: string;
+		profileImageMimeType?: string;
+		bannerImageUrl?: string;
+		bannerImageData?: string;
+		bannerImageMimeType?: string;
 	}) {
 		return apiRequest<{ profile: ProfilePayload }>("/profile/me", {
 			method: "PATCH",

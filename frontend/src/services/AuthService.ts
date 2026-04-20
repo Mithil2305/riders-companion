@@ -16,7 +16,7 @@ import {
 	isFirebaseConfigured,
 } from "../config/firebase";
 
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 30000;
 
 const isLocalOrPrivateHost = (host: string) => {
 	if (host === "localhost" || host === "127.0.0.1") {
@@ -118,43 +118,54 @@ class AuthService {
 		path: "/auth/login" | "/auth/signup",
 		payload: object,
 	): Promise<AuthPayload> {
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+		const execute = async (allowRetry: boolean): Promise<AuthPayload> => {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(
+				() => controller.abort(),
+				REQUEST_TIMEOUT_MS,
+			);
 
-		try {
-			const response = await fetch(`${API_URL}${path}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(payload),
-				signal: controller.signal,
-			});
+			try {
+				const response = await fetch(`${API_URL}${path}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(payload),
+					signal: controller.signal,
+				});
 
-			const data = (await response.json()) as AuthApiResponse;
+				const data = (await response.json()) as AuthApiResponse;
 
-			if (!response.ok || !data.success || data.data == null) {
-				throw new Error(data.message ?? "Authentication failed");
+				if (!response.ok || !data.success || data.data == null) {
+					throw new Error(data.message ?? "Authentication failed");
+				}
+
+				return data.data;
+			} catch (error) {
+				if (error instanceof Error && error.name === "AbortError") {
+					if (allowRetry) {
+						return execute(false);
+					}
+
+					throw new Error(
+						`Request timed out while contacting backend (${API_URL}). Ensure backend is running and EXPO_PUBLIC_API_URL points to your machine IP for physical devices.`,
+					);
+				}
+
+				if (error instanceof TypeError) {
+					throw new Error(
+						`Cannot reach backend at ${API_URL}. Set EXPO_PUBLIC_API_URL to your backend URL (example: http://192.168.1.20:3000) and make sure backend server is running.`,
+					);
+				}
+
+				throw error;
+			} finally {
+				clearTimeout(timeoutId);
 			}
+		};
 
-			return data.data;
-		} catch (error) {
-			if (error instanceof Error && error.name === "AbortError") {
-				throw new Error(
-					`Request timed out while contacting backend (${API_URL}). Ensure backend is running and EXPO_PUBLIC_API_URL points to your machine IP for physical devices.`,
-				);
-			}
-
-			if (error instanceof TypeError) {
-				throw new Error(
-					`Cannot reach backend at ${API_URL}. Set EXPO_PUBLIC_API_URL to your backend URL (example: http://192.168.1.20:3000) and make sure backend server is running.`,
-				);
-			}
-
-			throw error;
-		} finally {
-			clearTimeout(timeoutId);
-		}
+		return execute(true);
 	}
 
 	async login(email: string, password: string) {

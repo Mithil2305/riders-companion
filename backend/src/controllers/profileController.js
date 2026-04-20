@@ -32,6 +32,47 @@ const toBikePayload = (bike) => ({
 	isPrimary: bike.is_primary,
 });
 
+const toPublicProfilePayload = (user) => ({
+	id: user.id,
+	username: user.username,
+	name: user.name,
+	bio: user.bio,
+	profileImageUrl: user.profile_image_url,
+});
+
+exports.getRiderProfile = async (req, res) => {
+	const riderId = req.params.riderId;
+
+	if (typeof riderId !== "string" || riderId.trim().length === 0) {
+		return formatError(
+			res,
+			400,
+			"riderId is required",
+			"PROFILE_RIDER_ID_REQUIRED",
+		);
+	}
+
+	const rider = await RiderAccount.findByPk(riderId, {
+		attributes: ["id", "username", "name", "bio", "profile_image_url"],
+	});
+
+	if (!rider) {
+		return formatError(
+			res,
+			404,
+			"Rider profile not found",
+			"PROFILE_NOT_FOUND",
+		);
+	}
+
+	return res.status(200).json({
+		success: true,
+		data: {
+			profile: toPublicProfilePayload(rider),
+		},
+	});
+};
+
 exports.getMyProfile = async (req, res) => {
 	const freshUser = await RiderAccount.findByPk(req.user.id);
 
@@ -68,14 +109,14 @@ exports.updateMyProfile = async (req, res) => {
 				"avatarUrl",
 			],
 			mimeTypeKey: "profileImageMimeType",
-			folder: "profiles",
+			folder: `feed/${req.user.id}/profile-picture`,
 			fallbackMimeType: "image/jpeg",
 		});
 
 		const bannerImage = await uploadMediaFromBody(req.body, {
 			inputKeys: ["bannerImageData", "bannerImageBase64", "bannerImageUrl"],
 			mimeTypeKey: "bannerImageMimeType",
-			folder: "profiles",
+			folder: `feed/${req.user.id}/profile-picture`,
 			fallbackMimeType: "image/jpeg",
 		});
 

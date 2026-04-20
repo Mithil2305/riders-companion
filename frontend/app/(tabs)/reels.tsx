@@ -16,8 +16,10 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import Animated from "react-native-reanimated";
 import { useTheme } from "../../src/hooks/useTheme";
 import { useReelsFeed } from "../../src/hooks/useReelsFeed";
+import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { ReelItem } from "../../src/types/reels";
 import { CommentsSheet } from "@/src/components/comments";
 import { ShareSheet } from "@/src/components/share";
@@ -34,8 +36,11 @@ export default function ReelsScreen() {
   const { colors, metrics, typography } = useTheme();
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
-  const { reels, setActiveIndex } = useReelsFeed();
+  const { reels, setActiveIndex, toggleLike } = useReelsFeed();
+  const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
+    useTabSwipeNavigation("reels");
   const [reelHeight, setReelHeight] = React.useState(height);
+
   const [likedReelIds, setLikedReelIds] = React.useState<
     Record<string, boolean>
   >({});
@@ -147,7 +152,7 @@ export default function ReelsScreen() {
           textShadowRadius: 3,
         },
       }),
-    [colors, insets.bottom, insets.top, metrics, reelHeight, typography, width],
+    [colors, insets.bottom, metrics, reelHeight, typography, width],
   );
 
   const handleMomentumEnd = React.useCallback(
@@ -162,12 +167,12 @@ export default function ReelsScreen() {
 
   const renderReel = React.useCallback(
     ({ item }: { item: ReelItem }) => {
-      const liked = Boolean(likedReelIds[item.id]);
+      const liked = Boolean(item.likedByMe);
       const likeIcon = liked
         ? require("../../assets/icons/fist-bump-color.png")
         : require("../../assets/icons/fist-bump-white.png");
 
-      const likeCount = liked ? item.likes + 1 : item.likes;
+      const likeCount = item.likes;
 
       return (
         <View style={styles.reelContainer}>
@@ -252,57 +257,54 @@ export default function ReelsScreen() {
         </View>
       );
     },
-    [
-      colors.primary,
-      colors.textInverse,
-      likedReelIds,
-      metrics.icon.md,
-      metrics.icon.sm,
-      styles,
-      toggleLike,
-    ],
+    [colors.textInverse, metrics.icon.md, metrics.icon.sm, styles, toggleLike],
   );
 
   return (
-    <SafeAreaView edges={["left", "right"]} style={styles.container}>
-      <FlatList
-        data={reels}
-        decelerationRate="fast"
-        disableIntervalMomentum
-        getItemLayout={(_, index) => ({
-          length: reelHeight,
-          offset: reelHeight * index,
-          index,
-        })}
-        keyExtractor={(item) => item.id}
-        onLayout={(event) => {
-          const nextHeight = event.nativeEvent.layout.height;
-          if (nextHeight > 0 && nextHeight !== reelHeight) {
-            setReelHeight(nextHeight);
-          }
-        }}
-        onMomentumScrollEnd={handleMomentumEnd}
-        pagingEnabled
-        renderItem={renderReel}
-        snapToInterval={reelHeight}
-        showsVerticalScrollIndicator={false}
-      />
+    <Animated.View
+      style={[styles.container, swipeAnimatedStyle]}
+      {...swipeHandlers}
+    >
+      <SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
+        <FlatList
+          data={reels}
+          decelerationRate="fast"
+          disableIntervalMomentum
+          getItemLayout={(_, index) => ({
+            length: reelHeight,
+            offset: reelHeight * index,
+            index,
+          })}
+          keyExtractor={(item) => item.id}
+          onLayout={(event) => {
+            const nextHeight = event.nativeEvent.layout.height;
+            if (nextHeight > 0 && nextHeight !== reelHeight) {
+              setReelHeight(nextHeight);
+            }
+          }}
+          onMomentumScrollEnd={handleMomentumEnd}
+          pagingEnabled
+          renderItem={renderReel}
+          snapToInterval={reelHeight}
+          showsVerticalScrollIndicator={false}
+        />
 
-      <CommentsSheet
-        onClose={() => {
-          setActiveCommentsPostId(null);
-        }}
-        postId={activeCommentsPostId ?? "reel-post"}
-        visible={activeCommentsPostId !== null}
-      />
+        <CommentsSheet
+          onClose={() => {
+            setActiveCommentsPostId(null);
+          }}
+          postId={activeCommentsPostId ?? "reel-post"}
+          visible={activeCommentsPostId !== null}
+        />
 
-      <ShareSheet
-        onClose={() => {
-          setActiveSharePostId(null);
-        }}
-        postId={activeSharePostId ?? "reel-post"}
-        visible={activeSharePostId !== null}
-      />
-    </SafeAreaView>
+        <ShareSheet
+          onClose={() => {
+            setActiveSharePostId(null);
+          }}
+          postId={activeSharePostId ?? "reel-post"}
+          visible={activeSharePostId !== null}
+        />
+      </SafeAreaView>
+    </Animated.View>
   );
 }

@@ -11,15 +11,33 @@ const { canCreateContentOrRide } = require("../utils/profileAccess");
 
 const liveLocationsByRide = new Map();
 
-const toRidePayload = (ride, participants = []) => ({
+const toRidePayload = (ride, participants = [], options = {}) => ({
 	id: ride.id,
 	communityId: ride.community_id,
 	status: ride.status,
 	details: ride.route_polygon || {},
 	participants,
+	organizerId: options.organizerId || null,
+	isOrganizer:
+		typeof options.currentUserId === "string" &&
+		typeof options.organizerId === "string"
+			? options.currentUserId === options.organizerId
+			: false,
 	createdAt: ride.created_at,
 	updatedAt: ride.updated_at,
 });
+
+const getOrganizerIdByCommunity = async (communityId) => {
+	if (!communityId) {
+		return null;
+	}
+
+	const community = await Community.findByPk(communityId, {
+		attributes: ["id", "creator_id"],
+	});
+
+	return community?.creator_id || null;
+};
 
 const getOrCreateCommunityId = async (user, communityId) => {
 	if (communityId) {
@@ -248,17 +266,78 @@ exports.getRideById = async (req, res) => {
 		where: { ride_id: ride.id },
 		attributes: ["rider_id", "status"],
 	});
+	const community = await Community.findByPk(ride.community_id, {
+		attributes: ["id", "name", "creator_id"],
+	});
+	const organizerId = community?.creator_id || null;
+
+	const participantIds = participants.map((entry) => entry.rider_id);
+	const profiles = participantIds.length
+		? await RiderAccount.findAll({
+				where: { id: { [Op.in]: participantIds } },
+				attributes: ["id", "name", "username", "profile_image_url", "bio"],
+			})
+		: [];
+
+	const profileById = profiles.reduce((acc, profile) => {
+		acc[profile.id] = profile;
+		return acc;
+	}, {});
+
+	const riderProfiles = participants.map((entry) => {
+		const profile = profileById[entry.rider_id];
+		return {
+			id: entry.rider_id,
+			name: profile?.name || "Rider",
+			username: profile?.username || null,
+			avatar: profile?.profile_image_url || null,
+			bio: profile?.bio || null,
+			status: entry.status,
+			isOrganizer: organizerId === entry.rider_id,
+		};
+	});
+
+	const organizerProfile =
+		organizerId && profileById[organizerId]
+			? {
+					id: organizerId,
+					name: profileById[organizerId].name || "Organizer",
+					username: profileById[organizerId].username || null,
+					avatar: profileById[organizerId].profile_image_url || null,
+					bio: profileById[organizerId].bio || null,
+				}
+			: organizerId
+				? await RiderAccount.findByPk(organizerId, {
+						attributes: ["id", "name", "username", "profile_image_url", "bio"],
+					}).then((profile) =>
+						profile
+							? {
+									id: profile.id,
+									name: profile.name || "Organizer",
+									username: profile.username || null,
+									avatar: profile.profile_image_url || null,
+									bio: profile.bio || null,
+								}
+							: null,
+					)
+				: null;
 
 	return res.status(200).json({
 		success: true,
 		data: {
-			ride: toRidePayload(
-				ride,
-				participants.map((entry) => ({
-					riderId: entry.rider_id,
-					status: entry.status,
-				})),
-			),
+			ride: {
+				...toRidePayload(
+					ride,
+					participants.map((entry) => ({
+						riderId: entry.rider_id,
+						status: entry.status,
+					})),
+					{ organizerId, currentUserId: req.user.id },
+				),
+				communityName: community?.name || null,
+				organizerProfile,
+				riderProfiles,
+			},
 		},
 	});
 };
@@ -288,6 +367,7 @@ exports.getCommunityRides = async (req, res) => {
 	const groupRides = rides
 		.filter((ride) => (ride.route_polygon || {}).rideType === "group")
 		.map((ride) => ({
+			communityId: ride.community_id,
 			id: ride.id,
 			status: ride.status,
 			details: ride.route_polygon || {},
@@ -299,7 +379,30 @@ exports.getCommunityRides = async (req, res) => {
 			).length,
 		}));
 
-	const myRides = groupRides.filter((ride) =>
+	const communityIds = Array.from(
+		new Set(groupRides.map((ride) => ride.communityId).filter(Boolean)),
+	);
+	const communities = communityIds.length
+		? await Community.findAll({
+				where: { id: { [Op.in]: communityIds } },
+				attributes: ["id", "creator_id"],
+			})
+		: [];
+	const organizerByCommunity = communities.reduce((acc, community) => {
+		acc[community.id] = community.creator_id;
+		return acc;
+	}, {});
+
+	const enrichedGroupRides = groupRides.map((ride) => {
+		const organizerId = organizerByCommunity[ride.communityId] || null;
+		return {
+			...ride,
+			organizerId,
+			isOrganizer: organizerId === req.user.id,
+		};
+	});
+
+	const myRides = enrichedGroupRides.filter((ride) =>
 		(byRide[ride.id] || []).some((item) => item.rider_id === req.user.id),
 	);
 
@@ -309,7 +412,9 @@ exports.getCommunityRides = async (req, res) => {
 		success: true,
 		data: {
 			activeRide,
-			nearbyRides: groupRides.filter((ride) => ride.status !== "COMPLETED"),
+			nearbyRides: enrichedGroupRides.filter(
+				(ride) => ride.status !== "COMPLETED",
+			),
 			myRides,
 		},
 	});
@@ -428,6 +533,16 @@ exports.endRide = async (req, res) => {
 
 	if (!ride) {
 		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
+	}
+
+	const organizerId = await getOrganizerIdByCommunity(ride.community_id);
+	if (!organizerId || organizerId !== req.user.id) {
+		return formatError(
+			res,
+			403,
+			"Only the ride organizer can end this ride",
+			"RIDE_END_FORBIDDEN",
+		);
 	}
 
 	ride.status = "COMPLETED";

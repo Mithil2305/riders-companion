@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
-import { ResizeMode, Video, type AVPlaybackStatus } from "expo-av";
+import { Animated, Easing, Image, StyleSheet, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "../src/contexts/ThemeContext";
-import { AuthProvider } from "../src/contexts/AuthContext";
+import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
 import { useTheme } from "../src/hooks/useTheme";
+import { initializePushNotifications } from "../src/services/PushNotificationService";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Ignore if splash is already controlled by Expo runtime.
@@ -16,17 +17,20 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 export default function RootLayout() {
 	return (
 		<GestureHandlerRootView style={{ flex: 1 }}>
-			<ThemeProvider>
-				<AuthProvider>
-					<RootNavigator />
-				</AuthProvider>
-			</ThemeProvider>
+			<SafeAreaProvider>
+				<ThemeProvider>
+					<AuthProvider>
+						<RootNavigator />
+					</AuthProvider>
+				</ThemeProvider>
+			</SafeAreaProvider>
 		</GestureHandlerRootView>
 	);
 }
 
 function RootNavigator() {
 	const { colors, resolvedMode } = useTheme();
+	const { isAuthenticated } = useAuth();
 	const [showVideoSplash, setShowVideoSplash] = useState(true);
 	const boomScale = useRef(new Animated.Value(1.24)).current;
 	const boomOpacity = useRef(new Animated.Value(0.9)).current;
@@ -75,6 +79,14 @@ function RootNavigator() {
 	}, [appEntryOpacity, appEntryY]);
 
 	useEffect(() => {
+		if (!isAuthenticated) {
+			return;
+		}
+
+		void initializePushNotifications();
+	}, [isAuthenticated]);
+
+	useEffect(() => {
 		Animated.parallel([
 			Animated.timing(boomScale, {
 				toValue: 1,
@@ -94,31 +106,10 @@ function RootNavigator() {
 			void hideNativeSplash();
 			setShowVideoSplash(false);
 			startAppEntryAnimation();
-		}, 7000);
+		}, 2400);
 
 		return () => clearTimeout(fallbackTimer);
 	}, [boomOpacity, boomScale, hideNativeSplash, startAppEntryAnimation]);
-
-	const onVideoReady = useCallback(() => {
-		void hideNativeSplash();
-	}, [hideNativeSplash]);
-
-	const onVideoError = useCallback(() => {
-		void hideNativeSplash();
-		setShowVideoSplash(false);
-		startAppEntryAnimation();
-	}, [hideNativeSplash, startAppEntryAnimation]);
-
-	const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-		if (!status.isLoaded) {
-			return;
-		}
-
-		if (status.didJustFinish) {
-			setShowVideoSplash(false);
-			startAppEntryAnimation();
-		}
-	}, [startAppEntryAnimation]);
 
 	return (
 		<>
@@ -138,6 +129,13 @@ function RootNavigator() {
 					<Stack.Screen name="onboarding" />
 					<Stack.Screen name="(tabs)" />
 					<Stack.Screen
+						name="create"
+						options={{
+							animation: "slide_from_bottom",
+							presentation: "fullScreenModal",
+						}}
+					/>
+					<Stack.Screen
 						name="auth"
 						options={{
 							animation: "fade",
@@ -147,6 +145,7 @@ function RootNavigator() {
 					<Stack.Screen name="chats/index" />
 					<Stack.Screen name="chats/[id]" />
 					<Stack.Screen name="group-chat/[id]" />
+					<Stack.Screen name="rider/[id]" />
 					<Stack.Screen name="solo-ride/[id]" />
 					<Stack.Screen name="ride-details" />
 					<Stack.Screen
@@ -185,17 +184,13 @@ function RootNavigator() {
 							},
 						]}
 					>
-						<Video
-							source={require("../assets/logo.mp4")}
+						<Image
+							source={require("../assets/logo.png")}
 							style={styles.video}
-							resizeMode={ResizeMode.COVER}
-							shouldPlay
-							isLooping={false}
-							isMuted
-							rate={1.06}
-							onReadyForDisplay={onVideoReady}
-							onError={onVideoError}
-							onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+							resizeMode="contain"
+							onLoad={() => {
+								void hideNativeSplash();
+							}}
 						/>
 					</Animated.View>
 				</View>

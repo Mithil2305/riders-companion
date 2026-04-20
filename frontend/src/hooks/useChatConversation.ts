@@ -65,12 +65,14 @@ export function useChatConversation(roomId: string) {
 					.map((entry: any) => {
 						const senderId =
 							typeof entry?.senderId === "string" ? entry.senderId : null;
-						const encryptedPayload =
-							typeof entry?.encryptedPayload === "string"
-								? entry.encryptedPayload
-								: null;
+						const messageText =
+							typeof entry?.message === "string"
+								? entry.message
+								: typeof entry?.encryptedPayload === "string"
+									? entry.encryptedPayload
+									: null;
 
-						if (!encryptedPayload) {
+						if (!messageText) {
 							return null;
 						}
 
@@ -78,7 +80,7 @@ export function useChatConversation(roomId: string) {
 							id: String(entry.id ?? `hist-${Date.now()}-${Math.random()}`),
 							sender:
 								senderId != null && senderId === user?.id ? "me" : "other",
-							text: encryptedPayload,
+							text: messageText,
 							avatar:
 								senderId != null && senderId === user?.id
 									? undefined
@@ -130,9 +132,11 @@ export function useChatConversation(roomId: string) {
 			const senderId =
 				typeof payload.senderId === "string" ? payload.senderId : null;
 			const text =
-				typeof payload.encryptedPayload === "string"
-					? payload.encryptedPayload
-					: null;
+				typeof payload.message === "string"
+					? payload.message
+					: typeof payload.encryptedPayload === "string"
+						? payload.encryptedPayload
+						: null;
 
 			if (!text) {
 				return;
@@ -221,8 +225,7 @@ export function useChatConversation(roomId: string) {
 
 		sendWsMessage("CHAT_SEND_MESSAGE", {
 			roomId,
-			encryptedPayload: trimmed,
-			iv: `iv-${Date.now()}`,
+			message: trimmed,
 		});
 	}, [draft, roomId, sendWsMessage]);
 
