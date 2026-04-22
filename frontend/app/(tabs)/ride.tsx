@@ -1,11 +1,11 @@
 import React from "react";
 import {
-	Image,
-	Pressable,
-	ScrollView,
-	StyleSheet,
-	Text,
-	View,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -24,66 +24,66 @@ export default function RideScreen() {
 		"solo",
 	);
 
-	const styles = React.useMemo(
-		() =>
-			StyleSheet.create({
-				container: {
-					flex: 1,
-					backgroundColor: colors.background,
-				},
-				content: {
-					padding: metrics.lg,
-					paddingBottom: metrics["3xl"],
-					gap: metrics.lg,
-				},
-				header: {
-					flexDirection: "row",
-					alignItems: "center",
-					gap: metrics.sm,
-				},
-				title: {
-					fontSize: typography.sizes["3xl"],
-					color: colors.textPrimary,
-					fontWeight: "700",
-					lineHeight: 38,
-				},
-				subtitle: {
-					color: colors.textSecondary,
-					fontSize: typography.sizes.base,
-					lineHeight: 22,
-				},
-				card: {
-					borderRadius: metrics.radius.xl,
-					borderWidth: 1,
-					borderColor: colors.border,
-					backgroundColor: colors.surface,
-					padding: metrics.md,
-					alignItems: "center",
-					gap: metrics.sm,
-					minHeight: 268,
-				},
-				selectedCard: {
-					borderColor: colors.primary,
-				},
-				rideImage: {
-					width: 180,
-					height: 180,
-					borderRadius: metrics.radius.lg,
-				},
-				rideLabel: {
-					color: colors.textPrimary,
-					fontSize: typography.sizes.xl,
-					fontWeight: "600",
-				},
-				rideMeta: {
-					color: colors.textSecondary,
-					fontSize: typography.sizes.sm,
-					lineHeight: 20,
-					textAlign: "center",
-				},
-			}),
-		[colors, metrics, typography],
-	);
+  const styles = React.useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: colors.background,
+        },
+        content: {
+          padding: metrics.lg,
+		  paddingTop: metrics.sm,
+          gap: metrics.lg,
+        },
+        header: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: metrics.sm,
+        },
+        title: {
+          fontSize: typography.sizes["2xl"],
+          color: colors.textPrimary,
+          fontWeight: "700",
+          lineHeight: 38,
+        },
+        subtitle: {
+          color: colors.textSecondary,
+          fontSize: typography.sizes.sm,
+          lineHeight: 22,
+        },
+        card: {
+          borderRadius: metrics.radius.xl,
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+          padding: metrics.xs,
+          alignItems: "center",
+          gap: metrics.xs,
+          minHeight: 240,
+        },
+        selectedCard: {
+          borderColor: colors.primary,
+        },
+        rideImage: {
+          width: 160,
+          height: 160,
+          borderRadius: metrics.radius.lg,
+        },
+        rideLabel: {
+          fontSize: typography.sizes.xl,
+          fontWeight: "600",
+		  color: colors.textPrimary,
+        },
+        rideMeta: {
+          color: colors.textSecondary,
+          fontSize: typography.sizes.sm,
+          lineHeight: 20,
+          textAlign: "center",
+        },
+      }),
+    [colors, metrics, typography],
+  );
 
 	return (
 		<Animated.View
