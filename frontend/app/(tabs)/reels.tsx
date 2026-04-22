@@ -36,7 +36,7 @@ export default function ReelsScreen() {
   const { colors, metrics, typography } = useTheme();
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
-  const { reels, setActiveIndex, toggleLike } = useReelsFeed();
+  const { reels, setActiveIndex } = useReelsFeed();
   const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
     useTabSwipeNavigation("reels");
   const [reelHeight, setReelHeight] = React.useState(height);
