@@ -12,6 +12,8 @@ import {
 	FeedSkeleton,
 	HeaderBar,
 } from "../../src/components/feed";
+import { CommentsSheet } from "../../src/components/comments";
+import { ShareSheet } from "../../src/components/share";
 import { useHomeFeed } from "../../src/hooks/useHomeFeed";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { useTheme } from "../../src/hooks/useTheme";
@@ -26,11 +28,16 @@ export default function HomeScreen() {
 		likedPostIds,
 		onRefresh,
 		toggleLike,
-		addComment,
 	} = useHomeFeed();
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("home");
 	const scrollY = useSharedValue(0);
+	const [activeCommentsPostId, setActiveCommentsPostId] = React.useState<
+		string | null
+	>(null);
+	const [activeSharePostId, setActiveSharePostId] = React.useState<string | null>(
+		null,
+	);
 
 	const onScroll = useAnimatedScrollHandler({
 		onScroll: (event) => {
@@ -44,12 +51,13 @@ export default function HomeScreen() {
 				index={index}
 				item={item}
 				liked={Boolean(likedPostIds[item.id])}
-				onAddComment={addComment}
+				onOpenComments={(postId) => setActiveCommentsPostId(postId)}
+				onOpenShare={(postId) => setActiveSharePostId(postId)}
 				onToggleLike={toggleLike}
 				scrollY={scrollY}
 			/>
 		),
-		[addComment, likedPostIds, scrollY, toggleLike],
+		[likedPostIds, scrollY, toggleLike],
 	);
 
 	const styles = React.useMemo(
@@ -133,6 +141,22 @@ export default function HomeScreen() {
 					renderItem={renderPost}
 					showsVerticalScrollIndicator={false}
 				/>
+
+				{activeCommentsPostId ? (
+					<CommentsSheet
+						onClose={() => setActiveCommentsPostId(null)}
+						postId={activeCommentsPostId}
+						visible={Boolean(activeCommentsPostId)}
+					/>
+				) : null}
+
+				{activeSharePostId ? (
+					<ShareSheet
+						onClose={() => setActiveSharePostId(null)}
+						postId={activeSharePostId}
+						visible={Boolean(activeSharePostId)}
+					/>
+				) : null}
 			</SafeAreaView>
 		</Animated.View>
 	);

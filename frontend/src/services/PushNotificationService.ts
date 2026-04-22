@@ -1,21 +1,36 @@
 import Constants from "expo-constants";
-import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { apiRequest } from "./api";
 
-Notifications.setNotificationHandler({
-	handleNotification: async () => ({
-		shouldShowAlert: true,
-		shouldPlaySound: true,
-		shouldSetBadge: false,
-		shouldShowBanner: true,
-		shouldShowList: true,
-	}),
-});
+let notificationHandlerConfigured = false;
 
 const isPhysicalDevice = () => {
 	const appOwnership = Constants.appOwnership;
 	return appOwnership !== "expo";
+};
+
+const loadNotifications = async () => {
+	if (!isPhysicalDevice()) {
+		return null;
+	}
+
+	const Notifications = await import("expo-notifications");
+
+	if (!notificationHandlerConfigured) {
+		Notifications.setNotificationHandler({
+			handleNotification: async () => ({
+				shouldShowAlert: true,
+				shouldPlaySound: true,
+				shouldSetBadge: false,
+				shouldShowBanner: true,
+				shouldShowList: true,
+			}),
+		});
+
+		notificationHandlerConfigured = true;
+	}
+
+	return Notifications;
 };
 
 const getProjectId = () => {
@@ -39,7 +54,8 @@ const registerPushToken = async (token: string) => {
 
 export const initializePushNotifications = async () => {
 	try {
-		if (!isPhysicalDevice()) {
+		const Notifications = await loadNotifications();
+		if (!Notifications) {
 			return;
 		}
 

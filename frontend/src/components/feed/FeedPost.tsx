@@ -29,7 +29,8 @@ interface FeedPostProps {
 	index: number;
 	liked: boolean;
 	onToggleLike: (postId: string) => void;
-	onAddComment: (postId: string, commentText?: string) => void;
+	onOpenComments: (postId: string) => void;
+	onOpenShare: (postId: string) => void;
 	scrollY: SharedValue<number>;
 }
 
@@ -40,7 +41,8 @@ export function FeedPost({
 	index,
 	liked,
 	onToggleLike,
-	onAddComment,
+	onOpenComments,
+	onOpenShare,
 	scrollY,
 }: FeedPostProps) {
 	const { colors, metrics, typography, resolvedMode } = useTheme();
@@ -302,7 +304,7 @@ export function FeedPost({
 				<View style={styles.leftActions}>
 					<Pressable
 						android_ripple={{ color: colors.overlayLight }}
-						onPress={() => onAddComment(item.id)}
+						onPress={() => onOpenComments(item.id)}
 						style={styles.passiveAction}
 					>
 						<Ionicons
@@ -314,6 +316,7 @@ export function FeedPost({
 
 					<Pressable
 						android_ripple={{ color: colors.overlayLight }}
+						onPress={() => onOpenShare(item.id)}
 						style={styles.passiveAction}
 					>
 						<Ionicons
@@ -367,7 +370,7 @@ export function FeedPost({
 					<Text style={styles.captionUser}>{item.user} </Text>
 					{item.caption}
 				</Text>
-				<Pressable onPress={() => onAddComment(item.id)}>
+				<Pressable onPress={() => onOpenComments(item.id)}>
 					<Text style={styles.comments}>View all {item.comments} comments</Text>
 				</Pressable>
 			</View>
