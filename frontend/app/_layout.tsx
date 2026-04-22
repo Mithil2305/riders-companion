@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, StyleSheet, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
+import Constants from "expo-constants";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -8,7 +9,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "../src/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
 import { useTheme } from "../src/hooks/useTheme";
-import { initializePushNotifications } from "../src/services/PushNotificationService";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Ignore if splash is already controlled by Expo runtime.
@@ -79,11 +79,27 @@ function RootNavigator() {
 	}, [appEntryOpacity, appEntryY]);
 
 	useEffect(() => {
-		if (!isAuthenticated) {
+		if (!isAuthenticated || Constants.appOwnership === "expo") {
 			return;
 		}
 
-		void initializePushNotifications();
+		let cancelled = false;
+
+		const setupPushNotifications = async () => {
+			const { initializePushNotifications } = await import(
+				"../src/services/PushNotificationService"
+			);
+
+			if (!cancelled) {
+				await initializePushNotifications();
+			}
+		};
+
+		void setupPushNotifications();
+
+		return () => {
+			cancelled = true;
+		};
 	}, [isAuthenticated]);
 
 	useEffect(() => {
