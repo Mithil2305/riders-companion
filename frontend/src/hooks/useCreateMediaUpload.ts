@@ -79,7 +79,10 @@ export function useCreateMediaUpload() {
 		uploadType === "reel" && selectedAsset?.mediaType !== "video";
 
 	const requestPermission = React.useCallback(async () => {
-		const permission = await MediaLibrary.requestPermissionsAsync();
+		const permission = await MediaLibrary.requestPermissionsAsync(false, [
+			"photo",
+			"video",
+		]);
 		setPermissionGranted(permission.granted);
 		return permission.granted;
 	}, []);
