@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, StyleSheet, View } from "react-native";
+import { Animated, Easing, StyleSheet, View } from "react-native";
+import { ResizeMode, Video, type AVPlaybackStatus } from "expo-av";
 import * as SplashScreen from "expo-splash-screen";
 import Constants from "expo-constants";
 import { Stack } from "expo-router";
@@ -32,8 +33,8 @@ function RootNavigator() {
 	const { colors, resolvedMode } = useTheme();
 	const { isAuthenticated } = useAuth();
 	const [showVideoSplash, setShowVideoSplash] = useState(true);
-	const boomScale = useRef(new Animated.Value(1.24)).current;
-	const boomOpacity = useRef(new Animated.Value(0.9)).current;
+	const boomScale = useRef(new Animated.Value(1.56)).current;
+	const boomOpacity = useRef(new Animated.Value(0)).current;
 	const appEntryY = useRef(new Animated.Value(110)).current;
 	const appEntryOpacity = useRef(new Animated.Value(0)).current;
 	const hasStartedAppEntry = useRef(false);
@@ -104,16 +105,17 @@ function RootNavigator() {
 
 	useEffect(() => {
 		Animated.parallel([
-			Animated.timing(boomScale, {
+			Animated.spring(boomScale, {
 				toValue: 1,
-				duration: 360,
-				easing: Easing.out(Easing.cubic),
+				damping: 12,
+				stiffness: 260,
+				mass: 0.8,
 				useNativeDriver: true,
 			}),
 			Animated.timing(boomOpacity, {
 				toValue: 1,
-				duration: 260,
-				easing: Easing.out(Easing.quad),
+				duration: 220,
+				easing: Easing.out(Easing.cubic),
 				useNativeDriver: true,
 			}),
 		]).start();
@@ -122,10 +124,34 @@ function RootNavigator() {
 			void hideNativeSplash();
 			setShowVideoSplash(false);
 			startAppEntryAnimation();
-		}, 2400);
+		}, 7000);
 
 		return () => clearTimeout(fallbackTimer);
 	}, [boomOpacity, boomScale, hideNativeSplash, startAppEntryAnimation]);
+
+	const onVideoReady = useCallback(() => {
+		void hideNativeSplash();
+	}, [hideNativeSplash]);
+
+	const onVideoError = useCallback(() => {
+		void hideNativeSplash();
+		setShowVideoSplash(false);
+		startAppEntryAnimation();
+	}, [hideNativeSplash, startAppEntryAnimation]);
+
+	const onPlaybackStatusUpdate = useCallback(
+		(status: AVPlaybackStatus) => {
+			if (!status.isLoaded) {
+				return;
+			}
+
+			if (status.didJustFinish) {
+				setShowVideoSplash(false);
+				startAppEntryAnimation();
+			}
+		},
+		[startAppEntryAnimation],
+	);
 
 	return (
 		<>
@@ -199,13 +225,17 @@ function RootNavigator() {
 							},
 						]}
 					>
-						<Image
-							source={require("../assets/logo.png")}
+						<Video
+							source={require("../assets/logo.mp4")}
 							style={styles.video}
-							resizeMode="contain"
-							onLoad={() => {
-								void hideNativeSplash();
-							}}
+							resizeMode={ResizeMode.COVER}
+							shouldPlay
+							isLooping={false}
+							isMuted
+							rate={1.06}
+							onReadyForDisplay={onVideoReady}
+							onError={onVideoError}
+							onPlaybackStatusUpdate={onPlaybackStatusUpdate}
 						/>
 					</Animated.View>
 				</View>
