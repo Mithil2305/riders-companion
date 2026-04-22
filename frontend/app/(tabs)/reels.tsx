@@ -17,6 +17,8 @@ import {
 	useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
+import { CommentsSheet } from "../../src/components/comments";
+import { ShareSheet } from "../../src/components/share";
 import { useTheme } from "../../src/hooks/useTheme";
 import { useReelsFeed } from "../../src/hooks/useReelsFeed";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
@@ -38,6 +40,12 @@ export default function ReelsScreen() {
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("reels");
 	const [reelHeight, setReelHeight] = React.useState(height);
+	const [activeCommentsReelId, setActiveCommentsReelId] = React.useState<
+		string | null
+	>(null);
+	const [activeShareReelId, setActiveShareReelId] = React.useState<string | null>(
+		null,
+	);
 
 	const styles = React.useMemo(
 		() =>
@@ -185,26 +193,32 @@ export default function ReelsScreen() {
 						</View>
 
 						<View style={styles.actionItem}>
-							<View style={styles.actionIconWrap}>
+							<Pressable
+								onPress={() => setActiveCommentsReelId(item.id)}
+								style={styles.actionIconWrap}
+							>
 								<Ionicons
 									color={colors.textInverse}
 									name="chatbubble"
 									size={metrics.icon.md}
 								/>
-							</View>
+							</Pressable>
 							<Text style={styles.actionLabel}>
 								{compactNumber(item.comments)}
 							</Text>
 						</View>
 
 						<View style={styles.actionItem}>
-							<View style={styles.actionIconWrap}>
+							<Pressable
+								onPress={() => setActiveShareReelId(item.id)}
+								style={styles.actionIconWrap}
+							>
 								<Ionicons
 									color={colors.textInverse}
 									name="paper-plane"
 									size={metrics.icon.md}
 								/>
-							</View>
+							</Pressable>
 							<Text style={styles.actionLabel}>
 								{compactNumber(item.shares)}
 							</Text>
@@ -262,6 +276,23 @@ export default function ReelsScreen() {
 					snapToInterval={reelHeight}
 					showsVerticalScrollIndicator={false}
 				/>
+
+				{activeCommentsReelId ? (
+					<CommentsSheet
+						contentType="clip"
+						onClose={() => setActiveCommentsReelId(null)}
+						postId={activeCommentsReelId}
+						visible={Boolean(activeCommentsReelId)}
+					/>
+				) : null}
+
+				{activeShareReelId ? (
+					<ShareSheet
+						onClose={() => setActiveShareReelId(null)}
+						postId={activeShareReelId}
+						visible={Boolean(activeShareReelId)}
+					/>
+				) : null}
 			</SafeAreaView>
 		</Animated.View>
 	);

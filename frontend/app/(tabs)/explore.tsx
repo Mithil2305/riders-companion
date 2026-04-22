@@ -12,7 +12,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import Animated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { CommentsSheet } from "../../src/components/comments";
 import { ExploreGrid, SearchBar } from "../../src/components/explore";
+import { ShareSheet } from "../../src/components/share";
 import ClipService from "../../src/services/ClipService";
 import { useExploreData } from "../../src/hooks/useExploreData";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
@@ -34,6 +36,12 @@ export default function ExploreScreen() {
 		useTabSwipeNavigation("explore");
 	const [detailVisible, setDetailVisible] = React.useState(false);
 	const [selectedClipId, setSelectedClipId] = React.useState<string | null>(
+		null,
+	);
+	const [activeCommentsClipId, setActiveCommentsClipId] = React.useState<
+		string | null
+	>(null);
+	const [activeShareClipId, setActiveShareClipId] = React.useState<string | null>(
 		null,
 	);
 
@@ -146,6 +154,22 @@ export default function ExploreScreen() {
 					fontSize: typography.sizes.sm,
 					lineHeight: typography.sizes.sm * 1.45,
 				},
+				detailActions: {
+					marginTop: metrics.xs,
+					flexDirection: "row",
+					alignItems: "center",
+					gap: metrics.md,
+				},
+				actionButton: {
+					flexDirection: "row",
+					alignItems: "center",
+					gap: metrics.xs,
+				},
+				actionText: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "600",
+				},
 			}),
 		[colors, metrics, typography],
 	);
@@ -194,11 +218,53 @@ export default function ExploreScreen() {
 									/>
 									<Text style={styles.creator}>@{clip.creatorUsername}</Text>
 									<Text style={styles.caption}>{clip.title}</Text>
+									<View style={styles.detailActions}>
+										<Pressable
+											onPress={() => setActiveCommentsClipId(clip.id)}
+											style={styles.actionButton}
+										>
+											<Ionicons
+												color={colors.textPrimary}
+												name="chatbubble-outline"
+												size={metrics.icon.sm}
+											/>
+											<Text style={styles.actionText}>{clip.comments}</Text>
+										</Pressable>
+
+										<Pressable
+											onPress={() => setActiveShareClipId(clip.id)}
+											style={styles.actionButton}
+										>
+											<Ionicons
+												color={colors.textPrimary}
+												name="paper-plane-outline"
+												size={metrics.icon.sm}
+											/>
+											<Text style={styles.actionText}>{clip.shares}</Text>
+										</Pressable>
+									</View>
 								</View>
 							))}
 						</ScrollView>
 					</SafeAreaView>
 				</Modal>
+
+				{activeCommentsClipId ? (
+					<CommentsSheet
+						contentType="clip"
+						onClose={() => setActiveCommentsClipId(null)}
+						postId={activeCommentsClipId}
+						visible={Boolean(activeCommentsClipId)}
+					/>
+				) : null}
+
+				{activeShareClipId ? (
+					<ShareSheet
+						onClose={() => setActiveShareClipId(null)}
+						postId={activeShareClipId}
+						visible={Boolean(activeShareClipId)}
+					/>
+				) : null}
 			</SafeAreaView>
 		</Animated.View>
 	);
