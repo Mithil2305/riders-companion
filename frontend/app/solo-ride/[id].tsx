@@ -4,9 +4,25 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "../../src/components/common";
+import { LiveMapSection } from "../../src/components/chat/group";
 import { useLocation } from "../../src/hooks/useLocation";
 import { useTheme } from "../../src/hooks/useTheme";
 import { useWebSocket } from "../../src/hooks/useWebSocket";
+import { RiderLocation } from "../../src/types/groupChat";
+
+const upsertRiderLocation = (
+	prev: RiderLocation[],
+	nextEntry: RiderLocation,
+) => {
+	const index = prev.findIndex((item) => item.riderId === nextEntry.riderId);
+	if (index === -1) {
+		return [...prev, nextEntry];
+	}
+
+	const updated = [...prev];
+	updated[index] = nextEntry;
+	return updated;
+};
 
 const toClockTime = (iso: string) => {
 	const date = new Date(iso);
@@ -36,6 +52,12 @@ export default function SoloRideLiveScreen() {
 	const [status, setStatus] = React.useState("Connecting to live ride room...");
 	const [lastEventTime, setLastEventTime] = React.useState("");
 	const [liveRiderCount, setLiveRiderCount] = React.useState(1);
+	const [riderLocations, setRiderLocations] = React.useState<RiderLocation[]>(
+		[],
+	);
+	const [locationsLastUpdatedAt, setLocationsLastUpdatedAt] = React.useState<
+		string | null
+	>(null);
 
 	React.useEffect(() => {
 		if (!rideId || !isConnected) {
@@ -77,6 +99,17 @@ export default function SoloRideLiveScreen() {
 			return;
 		}
 
+		setRiderLocations((prev) =>
+			upsertRiderLocation(prev, {
+				riderId: "self-rider",
+				name: "You",
+				latitude: location.latitude,
+				longitude: location.longitude,
+				updatedAt: new Date().toISOString(),
+			}),
+		);
+		setLocationsLastUpdatedAt(new Date().toISOString());
+
 		sendWsMessage("LOCATION_UPDATE", {
 			rideId,
 			latitude: location.latitude,
@@ -91,7 +124,42 @@ export default function SoloRideLiveScreen() {
 		}
 
 		if (lastMessage.type === "RIDE_JOINED") {
-			const payload = (lastMessage.payload || {}) as { locations?: unknown[] };
+			const payload = (lastMessage.payload || {}) as {
+				locations?: {
+					riderId?: string;
+					name?: string;
+					latitude?: number;
+					longitude?: number;
+					updatedAt?: string;
+				}[];
+			};
+
+			if (Array.isArray(payload.locations)) {
+				setRiderLocations(
+					payload.locations
+						.filter(
+							(entry) =>
+								typeof entry?.riderId === "string" &&
+								typeof entry?.latitude === "number" &&
+								typeof entry?.longitude === "number",
+						)
+						.map((entry) => ({
+							riderId: entry.riderId as string,
+							name:
+								typeof entry.name === "string" && entry.name.trim().length > 0
+									? entry.name
+									: "Rider",
+							latitude: entry.latitude as number,
+							longitude: entry.longitude as number,
+							updatedAt:
+								typeof entry.updatedAt === "string"
+									? entry.updatedAt
+									: new Date().toISOString(),
+						})),
+				);
+				setLocationsLastUpdatedAt(new Date().toISOString());
+			}
+
 			const count = Array.isArray(payload.locations)
 				? payload.locations.length
 				: 1;
@@ -102,7 +170,42 @@ export default function SoloRideLiveScreen() {
 		}
 
 		if (lastMessage.type === "RIDE_SNAPSHOT") {
-			const payload = (lastMessage.payload || {}) as { locations?: unknown[] };
+			const payload = (lastMessage.payload || {}) as {
+				locations?: {
+					riderId?: string;
+					name?: string;
+					latitude?: number;
+					longitude?: number;
+					updatedAt?: string;
+				}[];
+			};
+
+			if (Array.isArray(payload.locations)) {
+				setRiderLocations(
+					payload.locations
+						.filter(
+							(entry) =>
+								typeof entry?.riderId === "string" &&
+								typeof entry?.latitude === "number" &&
+								typeof entry?.longitude === "number",
+						)
+						.map((entry) => ({
+							riderId: entry.riderId as string,
+							name:
+								typeof entry.name === "string" && entry.name.trim().length > 0
+									? entry.name
+									: "Rider",
+							latitude: entry.latitude as number,
+							longitude: entry.longitude as number,
+							updatedAt:
+								typeof entry.updatedAt === "string"
+									? entry.updatedAt
+									: new Date().toISOString(),
+						})),
+				);
+				setLocationsLastUpdatedAt(new Date().toISOString());
+			}
+
 			const count = Array.isArray(payload.locations)
 				? payload.locations.length
 				: 1;
@@ -114,10 +217,39 @@ export default function SoloRideLiveScreen() {
 		if (lastMessage.type === "LOCATION_UPDATE") {
 			const payload = (lastMessage.payload || {}) as {
 				rideId?: string;
+				riderId?: string;
 				name?: string;
+				latitude?: number;
+				longitude?: number;
+				updatedAt?: string;
 			};
 			if (payload.rideId !== rideId) {
 				return;
+			}
+
+			if (
+				typeof payload.riderId === "string" &&
+				typeof payload.latitude === "number" &&
+				typeof payload.longitude === "number"
+			) {
+				const latitude = payload.latitude;
+				const longitude = payload.longitude;
+				setRiderLocations((prev) =>
+					upsertRiderLocation(prev, {
+						riderId: payload.riderId as string,
+						name:
+							typeof payload.name === "string" && payload.name.trim().length > 0
+								? payload.name
+								: "Rider",
+						latitude,
+						longitude,
+						updatedAt:
+							typeof payload.updatedAt === "string"
+								? payload.updatedAt
+								: new Date().toISOString(),
+					}),
+				);
+				setLocationsLastUpdatedAt(new Date().toISOString());
 			}
 
 			setStatus(`Live update received from ${payload.name || "rider"}.`);
@@ -193,6 +325,9 @@ export default function SoloRideLiveScreen() {
 					backgroundColor: colors.surface,
 					gap: metrics.sm,
 				},
+				mapWrap: {
+					height: 360,
+				},
 				label: {
 					color: colors.textSecondary,
 					fontSize: typography.sizes.sm,
@@ -211,12 +346,40 @@ export default function SoloRideLiveScreen() {
 		[colors, metrics, typography],
 	);
 
+	const displayRiders = React.useMemo(() => {
+		if (riderLocations.length > 0) {
+			return riderLocations;
+		}
+
+		if (!location) {
+			return [] as RiderLocation[];
+		}
+
+		return [
+			{
+				riderId: "self-rider",
+				name: "You",
+				latitude: location.latitude,
+				longitude: location.longitude,
+				updatedAt: new Date().toISOString(),
+			},
+		];
+	}, [location, riderLocations]);
+
 	return (
 		<SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
 			<ScrollView
 				contentContainerStyle={styles.content}
 				style={styles.container}
 			>
+				<View style={styles.mapWrap}>
+					<LiveMapSection
+						isRideEnded={false}
+						lastUpdatedAt={locationsLastUpdatedAt}
+						riders={displayRiders}
+					/>
+				</View>
+
 				<View style={styles.header}>
 					<View style={styles.headerLeft}>
 						<Pressable hitSlop={8} onPress={() => router.back()}>

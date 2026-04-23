@@ -4,6 +4,7 @@ import {
 	Image,
 	Modal,
 	Pressable,
+	RefreshControl,
 	ScrollView,
 	StyleSheet,
 	Text,
@@ -28,7 +29,9 @@ export default function ExploreScreen() {
 		gridSections,
 		hasMoreClips,
 		isLoadingMore,
+		refreshing,
 		loadMoreClips,
+		onRefresh,
 	} = useExploreData();
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("explore");
@@ -157,15 +160,17 @@ export default function ExploreScreen() {
 		>
 			<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
 				<View style={styles.searchWrap}>
-					<SearchBar query={query} setQuery={setQuery} />
+					<SearchBar onChangeText={setQuery} value={query} />
 				</View>
 				<ExploreGrid
 					sections={gridSections}
 					hasMore={hasMoreClips}
 					isLoadingMore={isLoadingMore}
+					refreshing={refreshing}
 					onLongPressClip={handleClipLongPress}
 					onSelectClip={openClipDetail}
 					onEndReached={loadMoreClips}
+					onRefresh={onRefresh}
 				/>
 
 				<Modal
@@ -185,7 +190,18 @@ export default function ExploreScreen() {
 							</Pressable>
 						</View>
 
-						<ScrollView contentContainerStyle={styles.detailList}>
+						<ScrollView
+							contentContainerStyle={styles.detailList}
+							refreshControl={
+								<RefreshControl
+									colors={[colors.primary]}
+									onRefresh={onRefresh}
+									progressBackgroundColor={colors.surface}
+									refreshing={refreshing}
+									tintColor={colors.primary}
+								/>
+							}
+						>
 							{relatedClips.map((clip) => (
 								<View key={clip.id} style={styles.detailCard}>
 									<Image

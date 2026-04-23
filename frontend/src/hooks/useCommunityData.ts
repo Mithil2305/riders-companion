@@ -69,48 +69,71 @@ const toRideItem = (
 
 export function useCommunityData() {
 	const [data, setData] = React.useState<CommunityData>(communityMockData);
+	const [loading, setLoading] = React.useState(true);
+	const [refreshing, setRefreshing] = React.useState(false);
+	const mountedRef = React.useRef(true);
 
-	React.useEffect(() => {
-		let mounted = true;
+	const loadCommunity = React.useCallback(async () => {
+		try {
+			const payload = await RideService.getCommunityRides();
+			if (!mountedRef.current) {
+				return;
+			}
 
-		RideService.getCommunityRides()
-			.then((payload) => {
-				if (!mounted) {
-					return;
-				}
-
-				const fallbackAvatars =
-					prev.activeRide?.avatars ||
-					communityMockData.activeRide?.avatars ||
-					[];
-
-				setData((prev) => ({
-					...prev,
-					activeRide: payload.activeRide
-						? {
-								id: payload.activeRide.id,
-								badge: payload.activeRide.status,
-								title: `${payload.activeRide.details.source || "Source"} -> ${payload.activeRide.details.destination || "Destination"}`,
-								subtitle: "Live group ride",
-								actionIcon: "navigate",
-								avatars: fallbackAvatars,
-								extraCount: payload.activeRide.joinedCount,
-							}
-						: null,
-					nearbyRides: payload.nearbyRides.map((ride) =>
-						toRideItem(ride, "nearby"),
-					),
-					myRides: payload.myRides.map((ride) => toRideItem(ride, "myRides")),
-				}));
-			})
-			.catch(() => {
-				// Keep mocked community rails as fallback when backend is unavailable.
-			});
-
-		return () => {
-			mounted = false;
-		};
+			setData((prev) => ({
+				...prev,
+				activeRide: payload.activeRide
+					? {
+							id: payload.activeRide.id,
+							badge: payload.activeRide.status,
+							title: `${payload.activeRide.details.source || "Source"} -> ${payload.activeRide.details.destination || "Destination"}`,
+							subtitle: "Live group ride",
+							actionIcon: "navigate",
+							avatars:
+								prev.activeRide?.avatars ||
+								communityMockData.activeRide?.avatars ||
+								[],
+							extraCount: payload.activeRide.joinedCount,
+						}
+					: null,
+				nearbyRides: payload.nearbyRides.map((ride) =>
+					toRideItem(ride, "nearby"),
+				),
+				myRides: payload.myRides.map((ride) => toRideItem(ride, "myRides")),
+			}));
+		} catch {
+			// Keep mocked community rails as fallback when backend is unavailable.
+		} finally {
+			if (mountedRef.current) {
+				setLoading(false);
+			}
+		}
 	}, []);
 
-	return data;
+	React.useEffect(() => {
+		mountedRef.current = true;
+		void loadCommunity();
+
+		return () => {
+			mountedRef.current = false;
+		};
+	}, [loadCommunity]);
+
+	const refreshCommunity = React.useCallback(async () => {
+		setRefreshing(true);
+		try {
+			await loadCommunity();
+		} finally {
+			if (mountedRef.current) {
+				setRefreshing(false);
+			}
+		}
+	}, [loadCommunity]);
+
+	return {
+		...data,
+		loading,
+		refreshing,
+		refreshCommunity,
+	};
 }
