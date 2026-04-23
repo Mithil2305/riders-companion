@@ -4,9 +4,11 @@ import {
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
+	Text,
 	View,
 	type ListRenderItemInfo,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../hooks/useTheme";
@@ -25,7 +27,7 @@ const sectionOrder: SectionKey[] = ["suggested", "nearby", "myRides"];
 
 export function CommunityScreen() {
 	const router = useRouter();
-	const { colors, metrics } = useTheme();
+	const { colors, metrics, typography } = useTheme();
 	const {
 		activeRide,
 		suggestedGroups,
@@ -58,8 +60,26 @@ export function CommunityScreen() {
 					paddingLeft: metrics.md,
 					paddingRight: metrics.md,
 				},
+				emptyStateWrap: {
+					alignItems: "center",
+					justifyContent: "center",
+					paddingVertical: metrics["3xl"],
+					paddingHorizontal: metrics.xl,
+					gap: metrics.sm,
+				},
+				emptyStateTitle: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.lg,
+					fontWeight: "600",
+					marginTop: metrics.sm,
+				},
+				emptyStateSubtitle: {
+					color: colors.textTertiary,
+					fontSize: typography.sizes.sm,
+					textAlign: "center",
+				},
 			}),
-		[colors, metrics],
+		[colors, metrics, typography],
 	);
 
 	const renderSection = React.useCallback(
@@ -93,22 +113,30 @@ export function CommunityScreen() {
 				return (
 					<View style={styles.sectionWrap}>
 						<SectionHeader title="Nearby Rides" />
-						<View style={styles.rideListWrap}>
-							{nearbyRides.map((ride: RideItem) => (
-								<RideCard
-									item={ride}
-									key={ride.id}
-									mode="nearby"
-									onPrimaryAction={async (rideId) => {
-										try {
-											await RideService.joinRide(rideId);
-										} catch {
-											// Keep UI stable; hook refresh picks updates on next load.
-										}
-									}}
-								/>
-							))}
-						</View>
+						{nearbyRides.length === 0 ? (
+							<View style={styles.emptyStateWrap}>
+								<Ionicons color={colors.borderDark} name="map-outline" size={48} />
+								<Text style={styles.emptyStateTitle}>No nearby rides right now.</Text>
+								<Text style={styles.emptyStateSubtitle}>Be the first to start one!</Text>
+							</View>
+						) : (
+							<View style={styles.rideListWrap}>
+								{nearbyRides.map((ride: RideItem) => (
+									<RideCard
+										item={ride}
+										key={ride.id}
+										mode="nearby"
+										onPrimaryAction={async (rideId) => {
+											try {
+												await RideService.joinRide(rideId);
+											} catch {
+												// Keep UI stable; hook refresh picks updates on next load.
+											}
+										}}
+									/>
+								))}
+							</View>
+						)}
 					</View>
 				);
 			}

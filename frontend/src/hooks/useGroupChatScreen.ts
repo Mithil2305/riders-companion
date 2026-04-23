@@ -182,6 +182,7 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		React.useState("Current location");
 	const [rideDestinationLabel, setRideDestinationLabel] =
 		React.useState("Destination");
+	const [rideStatus, setRideStatus] = React.useState<string>("PENDING");
 	const [rideMembers, setRideMembers] = React.useState<GroupRideMember[]>([]);
 	const [organizerProfile, setOrganizerProfile] =
 		React.useState<GroupRideMember | null>(null);
@@ -318,6 +319,7 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 				}
 
 				const status = String(response.ride?.status || "").toUpperCase();
+				setRideStatus(status);
 				if (status === "COMPLETED") {
 					setIsRideEnded(true);
 					setLocationEnabled(false);
@@ -753,6 +755,7 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		roomSubtitle,
 		rideSourceLabel,
 		rideDestinationLabel,
+		rideStatus,
 		onlineRiders,
 		totalRiders,
 		rideMembers,
