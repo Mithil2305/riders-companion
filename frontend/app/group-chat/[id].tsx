@@ -52,6 +52,9 @@ export default function GroupChatScreen() {
 		riderLocations,
 		roomTitle,
 		roomSubtitle,
+		rideSourceLabel,
+		rideDestinationLabel,
+		rideStatus,
 		rideMembers,
 		organizerProfile,
 		setDraft,
@@ -214,6 +217,9 @@ export default function GroupChatScreen() {
 								leaderRiderId={organizerProfile?.id}
 								recenterSignal={recenterSignal}
 								isRideEnded={isRideEnded}
+								rideStarted={rideStatus === "STARTED"}
+								sourceLabel={rideSourceLabel}
+								destinationLabel={rideDestinationLabel}
 							/>
 						</View>
 
