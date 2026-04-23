@@ -30,6 +30,8 @@ import {
 	isPrivilegedAccount,
 } from "../../src/utils/accessControl";
 
+const SHOW_GOOGLE_SIGNIN = false;
+
 export default function SignupScreen() {
 	const { colors, metrics, typography } = useTheme();
 	const { signup, loginWithGoogle, loginWithGoogleIdToken } = useAuth();
@@ -400,31 +402,35 @@ export default function SignupScreen() {
 								title="Create Account"
 							/>
 
-							<View style={styles.googleDividerWrap}>
-								<View style={styles.dividerLine} />
-								<Text style={styles.dividerText}>or</Text>
-								<View style={styles.dividerLine} />
-							</View>
+							{SHOW_GOOGLE_SIGNIN ? (
+								<>
+									<View style={styles.googleDividerWrap}>
+										<View style={styles.dividerLine} />
+										<Text style={styles.dividerText}>or</Text>
+										<View style={styles.dividerLine} />
+									</View>
 
-							<TouchableOpacity
-								disabled={googleLoading || loading || !googleReady}
-								activeOpacity={0.9}
-								onPress={signInWithGoogle}
-								style={[
-									styles.googleBtn,
-									(googleLoading || loading || !googleReady) &&
-										styles.disabledBtn,
-								]}
-							>
-								<FontAwesome color="#DB4437" name="google" size={18} />
-								<Text style={styles.googleBtnText}>
-									{googleLoading
-										? "Signing in..."
-										: !googleReady
-											? "Google setup required"
-											: "Continue with Google"}
-								</Text>
-							</TouchableOpacity>
+									<TouchableOpacity
+										disabled={googleLoading || loading || !googleReady}
+										activeOpacity={0.9}
+										onPress={signInWithGoogle}
+										style={[
+											styles.googleBtn,
+											(googleLoading || loading || !googleReady) &&
+												styles.disabledBtn,
+										]}
+									>
+										<FontAwesome color="#DB4437" name="google" size={18} />
+										<Text style={styles.googleBtnText}>
+											{googleLoading
+												? "Signing in..."
+												: !googleReady
+													? "Google setup required"
+													: "Continue with Google"}
+										</Text>
+									</TouchableOpacity>
+								</>
+							) : null}
 
 							{authError != null ? (
 								<Text style={styles.errorText}>{authError}</Text>

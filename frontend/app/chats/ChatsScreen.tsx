@@ -1,5 +1,5 @@
 import React from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -14,8 +14,15 @@ import { useTheme } from "../../src/hooks/useTheme";
 export default function ChatsScreen() {
 	const router = useRouter();
 	const { colors, metrics } = useTheme();
-	const { chats, searchQuery, setSearchQuery, activeFilter, setActiveFilter } =
-		useChatListData();
+	const {
+		chats,
+		refreshing,
+		refreshChats,
+		searchQuery,
+		setSearchQuery,
+		activeFilter,
+		setActiveFilter,
+	} = useChatListData();
 
 	const openChat = React.useCallback(
 		(
@@ -75,6 +82,15 @@ export default function ChatsScreen() {
 					contentContainerStyle={styles.listContent}
 					data={chats}
 					keyExtractor={(item) => item.id}
+					refreshControl={
+						<RefreshControl
+							colors={[colors.primary]}
+							onRefresh={refreshChats}
+							progressBackgroundColor={colors.surface}
+							refreshing={refreshing}
+							tintColor={colors.primary}
+						/>
+					}
 					renderItem={({ item }) => (
 						<ChatItem
 							item={item}

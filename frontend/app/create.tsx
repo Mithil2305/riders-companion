@@ -36,7 +36,7 @@ import {
 const uploadTypeLabel: Record<UploadType, string> = {
 	post: "Post",
 	story: "Story",
-	reel: "Reel",
+	clip: "Clip",
 };
 
 const aspectPresets: AspectPreset[] = [
@@ -132,7 +132,8 @@ export default function CreateMediaScreen() {
 		selectedAlbumId,
 		assets,
 		selectedAsset,
-		isReelSelectionInvalid,
+		isClipSelectionInvalid,
+		clipSelectionError,
 		isLoadingAssets,
 		isLoadingMore,
 		hasMoreAssets,
@@ -478,7 +479,7 @@ export default function CreateMediaScreen() {
 					height: 1,
 					backgroundColor: "rgba(255,255,255,0.45)",
 				},
-				reelWarning: {
+				clipWarning: {
 					paddingHorizontal: metrics.md,
 					paddingTop: metrics.sm,
 					paddingBottom: metrics.xs,
@@ -815,7 +816,7 @@ export default function CreateMediaScreen() {
 					<Text style={styles.permissionTitle}>Gallery access needed</Text>
 					<Text style={styles.permissionSubtitle}>
 						Allow access to your photos and videos to create posts, stories, and
-						reels.
+						clips.
 					</Text>
 					<Pressable
 						onPress={() => void refreshAssets()}
@@ -861,9 +862,10 @@ export default function CreateMediaScreen() {
 				)}
 			</View>
 
-			{step === "picker" && isReelSelectionInvalid ? (
-				<Text style={styles.reelWarning}>
-					Reels require video. Select a video to continue.
+			{step === "picker" && isClipSelectionInvalid ? (
+				<Text style={styles.clipWarning}>
+					{clipSelectionError ??
+						"Clips require video. Select a video to continue."}
 				</Text>
 			) : null}
 
@@ -1013,7 +1015,7 @@ export default function CreateMediaScreen() {
 					)}
 
 					<View style={styles.bottomPickerFloating}>
-						{(["post", "story", "reel"] as UploadType[]).map((type) => {
+						{(["post", "story", "clip"] as UploadType[]).map((type) => {
 							const active = uploadType === type;
 							return (
 								<Pressable

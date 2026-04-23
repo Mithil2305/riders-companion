@@ -4,6 +4,7 @@ import {
 	Image,
 	Modal,
 	Pressable,
+	RefreshControl,
 	ScrollView,
 	StyleSheet,
 	Text,
@@ -640,6 +641,7 @@ export default function ProfileScreen() {
 	const [activeSection, setActiveSection] =
 		React.useState<ProfileSection>("moments");
 	const [showAchievements, setShowAchievements] = React.useState(false);
+	const [refreshing, setRefreshing] = React.useState(false);
 	const [selectedPostId, setSelectedPostId] = React.useState<string | null>(
 		null,
 	);
@@ -729,6 +731,15 @@ export default function ProfileScreen() {
 		},
 		[reloadDashboard],
 	);
+
+	const onRefresh = React.useCallback(async () => {
+		setRefreshing(true);
+		try {
+			await reloadDashboard();
+		} finally {
+			setRefreshing(false);
+		}
+	}, [reloadDashboard]);
 
 	const styles = React.useMemo(
 		() =>
@@ -928,6 +939,15 @@ export default function ProfileScreen() {
 					</View>
 					<ScrollView
 						contentContainerStyle={styles.scrollContent}
+						refreshControl={
+							<RefreshControl
+								colors={[colors.primary]}
+								onRefresh={onRefresh}
+								progressBackgroundColor={colors.surface}
+								refreshing={refreshing}
+								tintColor={colors.primary}
+							/>
+						}
 						style={styles.container}
 					>
 						<SkeletonBlock style={styles.skeletonCover} />
@@ -1002,6 +1022,15 @@ export default function ProfileScreen() {
 
 				<ScrollView
 					contentContainerStyle={styles.scrollContent}
+					refreshControl={
+						<RefreshControl
+							colors={[colors.primary]}
+							onRefresh={onRefresh}
+							progressBackgroundColor={colors.surface}
+							refreshing={refreshing}
+							tintColor={colors.primary}
+						/>
+					}
 					style={styles.container}
 				>
 					<Image source={{ uri: user.coverImage }} style={styles.coverImage} />
