@@ -1,4 +1,4 @@
-export interface ReelItem {
+export interface ClipItem {
 	id: string;
 	user: string;
 	avatar: string;

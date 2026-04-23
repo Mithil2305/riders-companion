@@ -15,6 +15,8 @@ import {
 const PAGE_SIZE = 60;
 const RECENT_ALBUM_ID = "__recent__";
 const MAX_VIDEO_UPLOAD_BYTES = 24 * 1024 * 1024;
+const MAX_CLIP_VIDEO_UPLOAD_BYTES = 90 * 1024 * 1024;
+const MAX_CLIP_DURATION_SECONDS = 120;
 const IMAGE_COMPRESSION = 0.8;
 
 const extractHashtags = (text: string) => {
@@ -51,6 +53,26 @@ const toGalleryAsset = (asset: MediaLibrary.Asset): GalleryMediaAsset => ({
 			: undefined,
 });
 
+const getClipSelectionError = (asset: GalleryMediaAsset | null) => {
+	if (asset == null) {
+		return "Select a video to upload a clip.";
+	}
+
+	if (asset.mediaType !== "video") {
+		return "Clips require video. Select a video to continue.";
+	}
+
+	if (
+		typeof asset.duration === "number" &&
+		Number.isFinite(asset.duration) &&
+		asset.duration > MAX_CLIP_DURATION_SECONDS
+	) {
+		return "Clips can be up to 2 minutes. Select a video under 2 minutes.";
+	}
+
+	return null;
+};
+
 export function useCreateMediaUpload() {
 	const [step, setStep] = React.useState<ComposerStep>("picker");
 	const [uploadType, setUploadType] = React.useState<UploadType>("post");
@@ -75,8 +97,9 @@ export function useCreateMediaUpload() {
 		() => assets.find((item) => item.id === selectedAssetId) ?? null,
 		[assets, selectedAssetId],
 	);
-	const isReelSelectionInvalid =
-		uploadType === "reel" && selectedAsset?.mediaType !== "video";
+	const clipSelectionError =
+		uploadType === "clip" ? getClipSelectionError(selectedAsset) : null;
+	const isClipSelectionInvalid = clipSelectionError != null;
 
 	const requestPermission = React.useCallback(async () => {
 		const permission = await MediaLibrary.requestPermissionsAsync();
@@ -227,30 +250,36 @@ export function useCreateMediaUpload() {
 		(nextType: UploadType) => {
 			setUploadType(nextType);
 
-			if (nextType !== "reel") {
+			if (nextType !== "clip") {
 				return;
 			}
 
-			if (selectedAsset?.mediaType === "video") {
+			if (getClipSelectionError(selectedAsset) == null) {
 				return;
 			}
 
-			const firstVideo = assets.find((item) => item.mediaType === "video");
+			const firstVideo = assets.find(
+				(item) =>
+					item.mediaType === "video" &&
+					(typeof item.duration !== "number" ||
+						!Number.isFinite(item.duration) ||
+						item.duration <= MAX_CLIP_DURATION_SECONDS),
+			);
 			if (firstVideo) {
 				setSelectedAssetId(firstVideo.id);
 				Alert.alert(
-					"Reel requires a video",
-					"Switched to your nearest video in gallery. You can choose another video.",
+					"Clip requires a video",
+					"Switched to a supported video (up to 2 minutes). You can choose another one.",
 				);
 				return;
 			}
 
 			Alert.alert(
-				"No videos found",
-				"Reels can only be uploaded as videos. Select an album with videos.",
+				"No supported videos found",
+				"Clips can only use videos up to 2 minutes. Select an album with shorter videos.",
 			);
 		},
-		[assets, selectedAsset?.mediaType],
+		[assets, selectedAsset],
 	);
 
 	const goNext = React.useCallback(() => {
@@ -259,13 +288,13 @@ export function useCreateMediaUpload() {
 			return;
 		}
 
-		if (uploadType === "reel" && selectedAsset.mediaType !== "video") {
-			Alert.alert("Reel requires video", "Please select a video for Reels.");
+		if (uploadType === "clip" && clipSelectionError) {
+			Alert.alert("Clip not supported", clipSelectionError);
 			return;
 		}
 
 		setStep("details");
-	}, [selectedAsset, uploadType]);
+	}, [clipSelectionError, selectedAsset, uploadType]);
 
 	const goBack = React.useCallback(() => {
 		if (step === "details") {
@@ -278,14 +307,18 @@ export function useCreateMediaUpload() {
 			throw new Error("Select media to upload.");
 		}
 
-		if (uploadType === "reel" && selectedAsset.mediaType !== "video") {
-			throw new Error("Reels can only be uploaded as videos.");
+		if (uploadType === "clip" && clipSelectionError) {
+			throw new Error(clipSelectionError);
 		}
 
 		setIsUploading(true);
 		try {
 			const response = await fetch(selectedAsset.uri);
 			let blob = await response.blob();
+			const maxVideoUploadBytes =
+				uploadType === "clip"
+					? MAX_CLIP_VIDEO_UPLOAD_BYTES
+					: MAX_VIDEO_UPLOAD_BYTES;
 
 			if (selectedAsset.mediaType === "photo") {
 				const manipulated = await manipulateAsync(selectedAsset.uri, [], {
@@ -298,10 +331,13 @@ export function useCreateMediaUpload() {
 
 			if (
 				selectedAsset.mediaType === "video" &&
-				blob.size > MAX_VIDEO_UPLOAD_BYTES
+				blob.size > maxVideoUploadBytes
 			) {
+				const maxMb = Math.floor(maxVideoUploadBytes / (1024 * 1024));
 				throw new Error(
-					"Selected video is too large to upload from Expo Go. Choose a shorter video (under ~24MB) or compress it first.",
+					uploadType === "clip"
+						? `Selected clip is too large to upload from Expo Go. Choose a clip under ~${maxMb}MB or compress it first.`
+						: "Selected video is too large to upload from Expo Go. Choose a shorter video (under ~24MB) or compress it first.",
 				);
 			}
 
@@ -321,7 +357,7 @@ export function useCreateMediaUpload() {
 					mediaMimeType,
 					hashtags,
 				});
-			} else if (uploadType === "reel") {
+			} else if (uploadType === "clip") {
 				await ClipService.createClip({
 					caption: description.trim(),
 					mediaData,
@@ -340,7 +376,7 @@ export function useCreateMediaUpload() {
 		} finally {
 			setIsUploading(false);
 		}
-	}, [description, selectedAsset, uploadType]);
+	}, [clipSelectionError, description, selectedAsset, uploadType]);
 
 	return {
 		step,
@@ -351,7 +387,8 @@ export function useCreateMediaUpload() {
 		selectedAlbumId,
 		assets,
 		selectedAsset,
-		isReelSelectionInvalid,
+		isClipSelectionInvalid,
+		clipSelectionError,
 		isLoadingAssets,
 		isLoadingMore,
 		hasMoreAssets,

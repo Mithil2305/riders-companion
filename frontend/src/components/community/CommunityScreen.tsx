@@ -1,6 +1,7 @@
 import React from "react";
 import {
 	FlatList,
+	RefreshControl,
 	ScrollView,
 	StyleSheet,
 	View,
@@ -25,8 +26,14 @@ const sectionOrder: SectionKey[] = ["suggested", "nearby", "myRides"];
 export function CommunityScreen() {
 	const router = useRouter();
 	const { colors, metrics } = useTheme();
-	const { activeRide, suggestedGroups, nearbyRides, myRides } =
-		useCommunityData();
+	const {
+		activeRide,
+		suggestedGroups,
+		nearbyRides,
+		myRides,
+		refreshing,
+		refreshCommunity,
+	} = useCommunityData();
 
 	const styles = React.useMemo(
 		() =>
@@ -135,7 +142,10 @@ export function CommunityScreen() {
 	);
 
 	return (
-		<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
+		<SafeAreaView
+			edges={["left", "right", "top", "bottom"]}
+			style={styles.container}
+		>
 			<Header
 				onBack={() => router.back()}
 				onStartRide={() => router.push("/(tabs)/ride")}
@@ -153,6 +163,15 @@ export function CommunityScreen() {
 				contentContainerStyle={styles.listContent}
 				data={sectionOrder}
 				keyExtractor={(item) => item}
+				refreshControl={
+					<RefreshControl
+						colors={[colors.primary]}
+						onRefresh={refreshCommunity}
+						progressBackgroundColor={colors.surface}
+						refreshing={refreshing}
+						tintColor={colors.primary}
+					/>
+				}
 				renderItem={renderSection}
 				showsVerticalScrollIndicator={false}
 			/>

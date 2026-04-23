@@ -12,7 +12,7 @@ import {
 type SwipeSection =
 	| "home"
 	| "explore"
-	| "reels"
+	| "clips"
 	| "ride"
 	| "profile"
 	| "settings";
@@ -23,8 +23,8 @@ const TRIGGER_DISTANCE = SCREEN_WIDTH * 0.2;
 
 const nextRouteBySection: Record<SwipeSection, string | null> = {
 	home: "/(tabs)/explore",
-	explore: "/(tabs)/reels",
-	reels: "/(tabs)/ride",
+	explore: "/(tabs)/clips",
+	clips: "/(tabs)/ride",
 	ride: "/(tabs)/profile",
 	profile: "/settings",
 	settings: null,

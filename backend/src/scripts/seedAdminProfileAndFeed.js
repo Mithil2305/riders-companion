@@ -32,7 +32,7 @@ const SAMPLE_POSTS = [
 		media_type: "STORY",
 	},
 	{
-		caption: "[seed] Twisties run reel drop.",
+		caption: "[seed] Twisties run clip drop.",
 		media_url:
 			"https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
 		media_type: "VIDEO",

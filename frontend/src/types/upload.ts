@@ -1,4 +1,4 @@
-export type UploadType = "post" | "story" | "reel";
+export type UploadType = "post" | "story" | "clip";
 
 export type ComposerStep = "picker" | "details";
 

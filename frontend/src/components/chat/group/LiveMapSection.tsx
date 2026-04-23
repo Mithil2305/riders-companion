@@ -1,13 +1,5 @@
 import React from "react";
-import {
-	Animated,
-	Easing,
-	Image,
-	Pressable,
-	StyleSheet,
-	Text,
-	View,
-} from "react-native";
+import { Animated, Easing, Image, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import { withAlpha } from "../../../utils/color";
@@ -17,13 +9,23 @@ const RIDER_MARKER_ICON = {
 	uri: "https://img.icons8.com/ios-filled/100/1A73E8/navigation.png",
 };
 
+const DESTINATION_MARKER_ICON = {
+	uri: "https://img.icons8.com/ios-filled/100/D93025/marker.png",
+};
+
+const DEFAULT_MAP_CENTER = {
+	latitude: 11.0017,
+	longitude: 76.9619,
+};
+
 interface LiveMapSectionProps {
 	riders: RiderLocation[];
-	lastUpdatedAt?: string | null;
-	refreshIntervalMinutes?: number;
 	leaderRiderId?: string | null;
+	recenterSignal?: number;
 	isRideEnded?: boolean;
 }
+
+const clampPercent = (value: number) => Math.max(7, Math.min(93, value));
 
 const normalizeRiders = (
 	riders: RiderLocation[],
@@ -69,42 +71,140 @@ const normalizeRiders = (
 
 	return projected.map((item) => ({
 		...item,
-		x: Math.max(8, Math.min(92, item.x + shiftX)),
-		y: Math.max(8, Math.min(92, item.y + shiftY)),
+		x: clampPercent(item.x + shiftX),
+		y: clampPercent(item.y + shiftY),
 	}));
 };
 
-const toUpdatedLabel = (iso?: string | null) => {
-	if (!iso) {
-		return "Waiting for rider updates";
+const buildPathSegments = (points: { x: number; y: number }[]) => {
+	if (points.length < 2) {
+		return [] as {
+			left: number;
+			top: number;
+			length: number;
+			angle: number;
+		}[];
 	}
 
-	const date = new Date(iso);
-	if (Number.isNaN(date.getTime())) {
-		return "Waiting for rider updates";
-	}
+	return points.slice(1).map((point, index) => {
+		const prev = points[index];
+		const dx = point.x - prev.x;
+		const dy = point.y - prev.y;
+		const length = Math.sqrt(dx * dx + dy * dy);
+		const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
 
-	return `Updated ${date.toLocaleTimeString([], {
-		hour: "2-digit",
-		minute: "2-digit",
-	})}`;
+		return {
+			left: prev.x,
+			top: prev.y,
+			length,
+			angle,
+		};
+	});
 };
 
 export function LiveMapSection({
 	riders,
-	lastUpdatedAt,
-	refreshIntervalMinutes = 15,
 	leaderRiderId,
+	recenterSignal = 0,
 	isRideEnded = false,
 }: LiveMapSectionProps) {
 	const { colors, metrics, typography } = useTheme();
 	const [followLeader, setFollowLeader] = React.useState(true);
-	const markerPulse = React.useRef(new Animated.Value(0.7)).current;
-	const statusFade = React.useRef(new Animated.Value(0)).current;
+	const markerPulse = React.useRef(new Animated.Value(0.72)).current;
+
+	React.useEffect(() => {
+		setFollowLeader(true);
+	}, [recenterSignal]);
+
+	const ridersSorted = React.useMemo(
+		() =>
+			[...riders].sort((a, b) => {
+				if (a.updatedAt === b.updatedAt) {
+					return a.riderId.localeCompare(b.riderId);
+				}
+				return a.updatedAt.localeCompare(b.updatedAt);
+			}),
+		[riders],
+	);
+
+	const leaderRider = React.useMemo(
+		() =>
+			ridersSorted.find((entry) => entry.riderId === leaderRiderId) ??
+			ridersSorted[0] ??
+			null,
+		[leaderRiderId, ridersSorted],
+	);
 
 	const projected = React.useMemo(
-		() => normalizeRiders(riders, leaderRiderId, followLeader),
-		[followLeader, leaderRiderId, riders],
+		() => normalizeRiders(ridersSorted, leaderRiderId, followLeader),
+		[followLeader, leaderRiderId, ridersSorted],
+	);
+
+	const destinationPoint = React.useMemo(() => {
+		if (!leaderRider) {
+			return { x: 82, y: 24 };
+		}
+
+		const leaderProjected =
+			projected.find((entry) => entry.riderId === leaderRider.riderId) ?? null;
+
+		if (!leaderProjected) {
+			return { x: 82, y: 24 };
+		}
+
+		return {
+			x: clampPercent(leaderProjected.x + 28),
+			y: clampPercent(leaderProjected.y - 22),
+		};
+	}, [leaderRider, projected]);
+
+	const routeSegments = React.useMemo(() => {
+		const leaderProjected =
+			leaderRider &&
+			projected.find((entry) => entry.riderId === leaderRider.riderId)
+				? (projected.find((entry) => entry.riderId === leaderRider.riderId) as {
+						x: number;
+						y: number;
+					})
+				: null;
+
+		if (!leaderProjected) {
+			return buildPathSegments(projected);
+		}
+
+		return buildPathSegments([leaderProjected, destinationPoint]);
+	}, [destinationPoint, leaderRider, projected]);
+
+	const mapCenter = React.useMemo(() => {
+		if (followLeader && leaderRider) {
+			return {
+				latitude: leaderRider.latitude,
+				longitude: leaderRider.longitude,
+			};
+		}
+
+		if (ridersSorted.length === 0) {
+			return DEFAULT_MAP_CENTER;
+		}
+
+		const latSum = ridersSorted.reduce((sum, rider) => sum + rider.latitude, 0);
+		const lonSum = ridersSorted.reduce(
+			(sum, rider) => sum + rider.longitude,
+			0,
+		);
+
+		return {
+			latitude: latSum / ridersSorted.length,
+			longitude: lonSum / ridersSorted.length,
+		};
+	}, [followLeader, leaderRider, ridersSorted]);
+
+	const mapImageUri = React.useMemo(
+		() =>
+			`https://staticmap.openstreetmap.de/staticmap.php?center=${mapCenter.latitude.toFixed(
+				5,
+			)},${mapCenter.longitude.toFixed(5)}&zoom=13&size=1200x700&maptype=mapnik`,
+		[mapCenter.latitude, mapCenter.longitude],
 	);
 
 	React.useEffect(() => {
@@ -117,7 +217,7 @@ export function LiveMapSection({
 					useNativeDriver: true,
 				}),
 				Animated.timing(markerPulse, {
-					toValue: 0.7,
+					toValue: 0.72,
 					duration: 700,
 					easing: Easing.in(Easing.quad),
 					useNativeDriver: true,
@@ -126,125 +226,111 @@ export function LiveMapSection({
 		).start();
 	}, [markerPulse]);
 
-	React.useEffect(() => {
-		statusFade.setValue(0);
-		Animated.timing(statusFade, {
-			toValue: 1,
-			duration: 280,
-			easing: Easing.out(Easing.cubic),
-			useNativeDriver: true,
-		}).start();
-	}, [isRideEnded, statusFade]);
-
 	const styles = React.useMemo(
 		() =>
 			StyleSheet.create({
 				wrap: {
 					marginHorizontal: metrics.md,
-					flex: 1,
-					minHeight: 230,
-					borderRadius: 20,
-					backgroundColor: withAlpha(colors.success, 0.14),
-					borderWidth: 1,
-					borderColor: withAlpha(colors.success, 0.26),
-					shadowColor: colors.shadow,
-					shadowOpacity: 0.1,
-					shadowOffset: { width: 0, height: 4 },
-					shadowRadius: 10,
-					elevation: 4,
-					marginBottom: metrics.md,
-					padding: metrics.sm,
-				},
-				mapCanvas: {
-					flex: 1,
-					borderRadius: 16,
+					borderRadius: 18,
 					overflow: "hidden",
-					backgroundColor: withAlpha(colors.success, 0.2),
+					height: 320,
+					borderWidth: 1,
+					borderColor: "#EAEAEA",
+					backgroundColor: "#E9EEEA",
 				},
-				mapTexture: {
+				mapImage: {
 					...StyleSheet.absoluteFillObject,
-					backgroundColor: withAlpha(colors.success, 0.2),
+					width: undefined,
+					height: undefined,
 				},
-				hotspot: {
+				mapTint: {
+					...StyleSheet.absoluteFillObject,
+					backgroundColor: withAlpha("#AFC6BC", 0.12),
+				},
+				routeLayer: {
+					...StyleSheet.absoluteFillObject,
+					paddingHorizontal: metrics.sm,
+					paddingVertical: metrics.md,
+				},
+				routeSegmentShadow: {
 					position: "absolute",
+					height: 9,
 					borderRadius: 999,
-					backgroundColor: withAlpha(colors.success, 0.22),
+					backgroundColor: withAlpha("#1557D3", 0.28),
 				},
-				hotspotOne: {
-					width: 124,
-					height: 124,
-					top: "10%",
-					left: "8%",
-				},
-				hotspotTwo: {
-					width: 92,
-					height: 92,
-					top: "46%",
-					left: "58%",
-				},
-				textureLine: {
+				routeSegment: {
 					position: "absolute",
-					width: "140%",
-					left: "-20%",
-					height: 1,
-					backgroundColor: withAlpha(colors.success, 0.26),
-				},
-				lineOne: {
-					top: "22%",
-				},
-				lineTwo: {
-					top: "42%",
-				},
-				lineThree: {
-					top: "62%",
-				},
-				routeLine: {
-					position: "absolute",
-					left: "19%",
-					top: "20%",
-					width: "58%",
-					height: 3,
-					backgroundColor: withAlpha(colors.primary, 0.5),
-					transform: [{ rotate: "16deg" }],
+					height: 6,
 					borderRadius: 999,
-				},
-				routeLineTwo: {
-					position: "absolute",
-					left: "31%",
-					top: "52%",
-					width: "38%",
-					height: 3,
-					backgroundColor: withAlpha(colors.primary, 0.5),
-					transform: [{ rotate: "-24deg" }],
-					borderRadius: 999,
+					backgroundColor: "#1B67FF",
 				},
 				markerLayer: {
 					...StyleSheet.absoluteFillObject,
-					paddingHorizontal: metrics.xs,
-					paddingVertical: metrics.xs,
 				},
-				marker: {
+				markerWrap: {
 					position: "absolute",
-					width: 28,
-					height: 28,
+					width: 32,
+					height: 32,
 					alignItems: "center",
 					justifyContent: "center",
-					backgroundColor: "transparent",
-					zIndex: 3,
 				},
 				markerPulse: {
 					position: "absolute",
-					bottom: 3,
-					width: 8,
-					height: 8,
+					bottom: 4,
+					width: 11,
+					height: 11,
 					borderRadius: 999,
-					backgroundColor: withAlpha(colors.primary, 0.3),
+					backgroundColor: withAlpha("#1b67ff", 0.35),
 				},
 				markerIcon: {
-					width: 22,
-					height: 22,
+					width: 25,
+					height: 25,
 					resizeMode: "contain",
 					transform: [{ rotate: "-18deg" }],
+				},
+				rideChip: {
+					position: "absolute",
+					top: metrics.sm,
+					left: metrics.sm,
+					borderRadius: 999,
+					paddingHorizontal: metrics.sm,
+					paddingVertical: metrics.xs,
+					backgroundColor: withAlpha(
+						isRideEnded ? colors.error : "#32A852",
+						0.18,
+					),
+					borderWidth: 1,
+					borderColor: withAlpha(isRideEnded ? colors.error : "#32A852", 0.45),
+				},
+				rideChipText: {
+					color: isRideEnded ? colors.error : "#2B8A3E",
+					fontSize: typography.sizes.xs,
+					fontWeight: "800",
+					letterSpacing: 0.3,
+				},
+				speedChip: {
+					position: "absolute",
+					left: metrics.sm,
+					bottom: metrics.sm,
+					width: 64,
+					height: 64,
+					borderRadius: 32,
+					backgroundColor: "#FFFFFF",
+					alignItems: "center",
+					justifyContent: "center",
+					borderWidth: 1,
+					borderColor: "#EFEFEF",
+				},
+				speedValue: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes["2xl"],
+					fontWeight: "700",
+					lineHeight: typography.sizes["2xl"],
+				},
+				speedUnit: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.xs,
+					fontWeight: "600",
 				},
 				emptyWrap: {
 					flex: 1,
@@ -258,173 +344,109 @@ export function LiveMapSection({
 					fontSize: typography.sizes.sm,
 					textAlign: "center",
 				},
-				chipsRow: {
-					position: "absolute",
-					left: metrics.sm,
-					right: metrics.sm,
-					bottom: metrics.sm,
-					flexDirection: "row",
-					justifyContent: "space-between",
-					gap: metrics.xs,
-				},
-				chip: {
-					borderRadius: metrics.radius.full,
-					paddingVertical: metrics.xs + 1,
-					paddingHorizontal: metrics.sm,
-					backgroundColor: withAlpha(colors.surface, 0.95),
-					borderWidth: 1,
-					borderColor: colors.border,
-					flexDirection: "row",
-					alignItems: "center",
-					gap: metrics.xs,
-					shadowColor: colors.shadow,
-					shadowOpacity: 0.08,
-					shadowOffset: { width: 0, height: 2 },
-					shadowRadius: 6,
-					elevation: 3,
-					maxWidth: "50%",
-				},
-				chipText: {
-					color: colors.textPrimary,
-					fontSize: typography.sizes.xs,
-					fontWeight: "600",
-				},
-				controlsRow: {
-					position: "absolute",
-					top: metrics.sm,
-					right: metrics.sm,
-					gap: metrics.xs,
-				},
-				controlButton: {
-					width: 34,
-					height: 34,
-					borderRadius: 999,
-					alignItems: "center",
-					justifyContent: "center",
-					backgroundColor: withAlpha(colors.surface, 0.95),
-					borderWidth: 1,
-					borderColor: colors.border,
-				},
-				statusChip: {
-					position: "absolute",
-					top: metrics.sm,
-					left: metrics.sm,
-					borderRadius: metrics.radius.full,
-					paddingHorizontal: metrics.sm,
-					paddingVertical: metrics.xs,
-					backgroundColor: withAlpha(
-						isRideEnded ? colors.error : colors.success,
-						0.18,
-					),
-					borderWidth: 1,
-					borderColor: withAlpha(
-						isRideEnded ? colors.error : colors.success,
-						0.42,
-					),
-				},
-				statusText: {
-					color: isRideEnded ? colors.error : colors.success,
-					fontSize: typography.sizes.xs,
-					fontWeight: "700",
-					letterSpacing: 0.3,
-				},
 			}),
 		[colors, isRideEnded, metrics, typography],
 	);
 
 	return (
 		<View style={styles.wrap}>
-			<View style={styles.mapCanvas}>
-				<View style={styles.mapTexture} />
-				<View style={[styles.hotspot, styles.hotspotOne]} />
-				<View style={[styles.hotspot, styles.hotspotTwo]} />
-				<View style={[styles.textureLine, styles.lineOne]} />
-				<View style={[styles.textureLine, styles.lineTwo]} />
-				<View style={[styles.textureLine, styles.lineThree]} />
-				<View style={styles.routeLine} />
-				<View style={styles.routeLineTwo} />
+			<Image source={{ uri: mapImageUri }} style={styles.mapImage} />
+			<View style={styles.mapTint} />
 
-				{projected.length === 0 ? (
-					<View style={styles.emptyWrap}>
-						<Ionicons
-							color={withAlpha(colors.textPrimary, 0.6)}
-							name="map-outline"
-							size={34}
+			<View style={styles.routeLayer}>
+				{routeSegments.map((segment, index) => (
+					<React.Fragment key={`segment-${index}`}>
+						<View
+							style={[
+								styles.routeSegmentShadow,
+								{
+									left: `${segment.left}%`,
+									top: `${segment.top}%`,
+									width: `${segment.length}%`,
+									transform: [
+										{ translateY: -4 },
+										{ rotate: `${segment.angle}deg` },
+									],
+								},
+							]}
 						/>
-						<Text style={styles.emptyText}>
-							No rider locations yet. Tracking will appear here.
-						</Text>
-					</View>
-				) : (
-					<View style={styles.markerLayer}>
-						{projected.map((rider) => (
-							<View
-								key={rider.riderId}
-								style={[
-									styles.marker,
-									{
-										left: `${rider.x}%`,
-										top: `${rider.y}%`,
-										transform: [{ translateX: -11 }, { translateY: -18 }],
-									},
-								]}
-							>
-								<Animated.View
-									style={[
-										styles.markerPulse,
-										{ transform: [{ scale: markerPulse }] },
-									]}
-								/>
-								<Image source={RIDER_MARKER_ICON} style={styles.markerIcon} />
-							</View>
-						))}
-					</View>
-				)}
+						<View
+							style={[
+								styles.routeSegment,
+								{
+									left: `${segment.left}%`,
+									top: `${segment.top}%`,
+									width: `${segment.length}%`,
+									transform: [
+										{ translateY: -3 },
+										{ rotate: `${segment.angle}deg` },
+									],
+								},
+							]}
+						/>
+					</React.Fragment>
+				))}
+			</View>
 
-				<Animated.View style={[styles.statusChip, { opacity: statusFade }]}>
-					<Text style={styles.statusText}>
-						{isRideEnded ? "RIDE ENDED" : "RIDE LIVE"}
+			{projected.length === 0 ? (
+				<View style={styles.emptyWrap}>
+					<Ionicons
+						color={withAlpha(colors.textPrimary, 0.6)}
+						name="map-outline"
+						size={34}
+					/>
+					<Text style={styles.emptyText}>
+						No rider locations yet. Tracking will appear here.
 					</Text>
-				</Animated.View>
-
-				<View style={styles.controlsRow}>
-					<Pressable
-						onPress={() => {
-							setFollowLeader((prev) => !prev);
-						}}
-						style={styles.controlButton}
-					>
-						<Ionicons
-							color={followLeader ? colors.primary : colors.textSecondary}
-							name="locate"
-							size={16}
-						/>
-					</Pressable>
-					<Pressable
-						onPress={() => {
-							setFollowLeader(true);
-						}}
-						style={styles.controlButton}
-					>
-						<Ionicons color={colors.primary} name="compass" size={16} />
-					</Pressable>
 				</View>
+			) : (
+				<View style={styles.markerLayer}>
+					{projected.map((rider) => (
+						<View
+							key={rider.riderId}
+							style={[
+								styles.markerWrap,
+								{
+									left: `${rider.x}%`,
+									top: `${rider.y}%`,
+									transform: [{ translateX: -11 }, { translateY: -18 }],
+								},
+							]}
+						>
+							<Animated.View
+								style={[
+									styles.markerPulse,
+									{ transform: [{ scale: markerPulse }] },
+								]}
+							/>
+							<Image source={RIDER_MARKER_ICON} style={styles.markerIcon} />
+						</View>
+					))}
 
-				<View style={styles.chipsRow}>
-					<View style={styles.chip}>
-						<Ionicons color={colors.primary} name="navigate-circle" size={16} />
-						<Text
-							style={styles.chipText}
-						>{`${riders.length} rider${riders.length === 1 ? "" : "s"}`}</Text>
-					</View>
-
-					<View style={styles.chip}>
-						<Ionicons color={colors.primary} name="time-outline" size={15} />
-						<Text numberOfLines={1} style={styles.chipText}>
-							{`${toUpdatedLabel(lastUpdatedAt)} • ${refreshIntervalMinutes}m API`}
-						</Text>
+					<View
+						style={[
+							styles.markerWrap,
+							{
+								left: `${destinationPoint.x}%`,
+								top: `${destinationPoint.y}%`,
+								transform: [{ translateX: -11 }, { translateY: -18 }],
+							},
+						]}
+					>
+						<Image source={DESTINATION_MARKER_ICON} style={styles.markerIcon} />
 					</View>
 				</View>
+			)}
+
+			<View style={styles.rideChip}>
+				<Text style={styles.rideChipText}>
+					{isRideEnded ? "RIDE ENDED" : "RIDE LIVE"}
+				</Text>
+			</View>
+
+			<View style={styles.speedChip}>
+				<Text style={styles.speedValue}>0</Text>
+				<Text style={styles.speedUnit}>km/h</Text>
 			</View>
 		</View>
 	);

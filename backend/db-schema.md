@@ -77,7 +77,7 @@ All tables use `UUID` for primary keys to ensure global uniqueness and prevent e
 | `media_type` | VARCHAR(20) | NULL | IMAGE, VIDEO, or TEXT |
 | `created_at` | TIMESTAMPTZ | Default: NOW() | Time posted |
 
-**`clip` (Reels)**
+**`clip` (Clips)**
 | Column | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PK, Default: `uuid_generate_v4()` | Clip ID |

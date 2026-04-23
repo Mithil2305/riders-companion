@@ -5,6 +5,7 @@ import {
 	NativeScrollEvent,
 	NativeSyntheticEvent,
 	Pressable,
+	RefreshControl,
 	StyleSheet,
 	Text,
 	useWindowDimensions,
@@ -18,9 +19,9 @@ import {
 } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import { useTheme } from "../../src/hooks/useTheme";
-import { useReelsFeed } from "../../src/hooks/useReelsFeed";
+import { useClipsFeed } from "../../src/hooks/useClipsFeed";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
-import { ReelItem } from "../../src/types/reels";
+import { ClipItem } from "../../src/types/clips";
 
 function compactNumber(value: number): string {
 	if (value >= 1000) {
@@ -30,14 +31,15 @@ function compactNumber(value: number): string {
 	return String(value);
 }
 
-export default function ReelsScreen() {
+export default function ClipsScreen() {
 	const { colors, metrics, typography } = useTheme();
 	const insets = useSafeAreaInsets();
 	const { height, width } = useWindowDimensions();
-	const { reels, setActiveIndex, toggleLike } = useReelsFeed();
+	const { clips, refreshing, setActiveIndex, toggleLike, onRefresh } =
+		useClipsFeed();
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
-		useTabSwipeNavigation("reels");
-	const [reelHeight, setReelHeight] = React.useState(height);
+		useTabSwipeNavigation("clips");
+	const [clipHeight, setClipHeight] = React.useState(height);
 
 	const styles = React.useMemo(
 		() =>
@@ -46,15 +48,15 @@ export default function ReelsScreen() {
 					flex: 1,
 					backgroundColor: colors.background,
 				},
-				reelContainer: {
+				clipContainer: {
 					width,
-					height: reelHeight,
+					height: clipHeight,
 					backgroundColor: colors.background,
 				},
 				media: {
 					...StyleSheet.absoluteFillObject,
 					width,
-					height: reelHeight,
+					height: clipHeight,
 				},
 				rightRail: {
 					position: "absolute",
@@ -132,21 +134,21 @@ export default function ReelsScreen() {
 					textShadowRadius: 3,
 				},
 			}),
-		[colors, insets.bottom, metrics, reelHeight, typography, width],
+		[colors, insets.bottom, metrics, clipHeight, typography, width],
 	);
 
 	const handleMomentumEnd = React.useCallback(
 		(event: NativeSyntheticEvent<NativeScrollEvent>) => {
 			const nextIndex = Math.round(
-				event.nativeEvent.contentOffset.y / reelHeight,
+				event.nativeEvent.contentOffset.y / clipHeight,
 			);
 			setActiveIndex(nextIndex);
 		},
-		[reelHeight, setActiveIndex],
+		[clipHeight, setActiveIndex],
 	);
 
-	const renderReel = React.useCallback(
-		({ item }: { item: ReelItem }) => {
+	const renderClip = React.useCallback(
+		({ item }: { item: ClipItem }) => {
 			const liked = Boolean(item.likedByMe);
 			const likeIcon = liked
 				? require("../../assets/icons/fist-bump-color.png")
@@ -155,7 +157,7 @@ export default function ReelsScreen() {
 			const likeCount = item.likes;
 
 			return (
-				<View style={styles.reelContainer}>
+				<View style={styles.clipContainer}>
 					<Image
 						resizeMode="cover"
 						source={{ uri: item.media }}
@@ -241,25 +243,34 @@ export default function ReelsScreen() {
 		>
 			<SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
 				<FlatList
-					data={reels}
+					data={clips}
 					decelerationRate="fast"
 					disableIntervalMomentum
 					getItemLayout={(_, index) => ({
-						length: reelHeight,
-						offset: reelHeight * index,
+						length: clipHeight,
+						offset: clipHeight * index,
 						index,
 					})}
 					keyExtractor={(item) => item.id}
 					onLayout={(event) => {
 						const nextHeight = event.nativeEvent.layout.height;
-						if (nextHeight > 0 && nextHeight !== reelHeight) {
-							setReelHeight(nextHeight);
+						if (nextHeight > 0 && nextHeight !== clipHeight) {
+							setClipHeight(nextHeight);
 						}
 					}}
 					onMomentumScrollEnd={handleMomentumEnd}
 					pagingEnabled
-					renderItem={renderReel}
-					snapToInterval={reelHeight}
+					renderItem={renderClip}
+					refreshControl={
+						<RefreshControl
+							colors={[colors.primary]}
+							onRefresh={onRefresh}
+							progressBackgroundColor={colors.surface}
+							refreshing={refreshing}
+							tintColor={colors.primary}
+						/>
+					}
+					snapToInterval={clipHeight}
 					showsVerticalScrollIndicator={false}
 				/>
 			</SafeAreaView>
