@@ -101,11 +101,12 @@ export default function TrackingScreen() {
 		({ item, index }: { item: TrackerUser; index: number }) => (
 			<UserListItem
 				index={index}
+				onOpenProfile={(userId) => router.push(`/rider/${userId}`)}
 				onToggleFollow={toggleFollowState}
 				user={item}
 			/>
 		),
-		[toggleFollowState],
+		[router, toggleFollowState],
 	);
 
 	if (loading) {

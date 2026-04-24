@@ -22,6 +22,11 @@ type PublicProfilePayload = {
 	name: string;
 	bio: string | null;
 	profileImageUrl: string | null;
+	totalMiles?: string | number;
+	followersCount?: number;
+	followingCount?: number;
+	isFollowing?: boolean;
+	isMe?: boolean;
 };
 
 type BikePayload = {
@@ -41,8 +46,14 @@ class ProfileService {
 	}
 
 	async getRiderProfile(riderId: string) {
-		return apiRequest<{ profile: PublicProfilePayload }>(
+		return apiRequest<{ profile: PublicProfilePayload; bikes: BikePayload[] }>(
 			`/profile/riders/${riderId}`,
+		);
+	}
+
+	async searchRiders(query: string) {
+		return apiRequest<{ users: PublicProfilePayload[] }>(
+			`/profile/search?q=${encodeURIComponent(query)}`,
 		);
 	}
 

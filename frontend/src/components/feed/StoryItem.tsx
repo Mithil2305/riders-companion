@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useAnimatedStyle,
@@ -65,6 +65,9 @@ export function StoryItem({ item }: StoryItemProps) {
 
   return (
     <AnimatedPressable
+      onPress={() => {
+        Alert.alert('Stories — Coming Soon! 🚀', 'This feature is still being built. Stay tuned!');
+      }}
       onPressIn={() => {
         scale.value = withSpring(0.94, { damping: 12, stiffness: 260 });
       }}

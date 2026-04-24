@@ -11,6 +11,16 @@ router.patch("/:postId", requireAuth, feedController.updatePost);
 router.delete("/:postId", requireAuth, feedController.deletePost);
 router.get("/:postId/comments", requireAuth, feedController.getComments);
 router.post("/:postId/comments", requireAuth, feedController.addComment);
+router.post(
+	"/:postId/comments/:commentId/likes",
+	requireAuth,
+	feedController.likeComment,
+);
+router.delete(
+	"/:postId/comments/:commentId/likes",
+	requireAuth,
+	feedController.unlikeComment,
+);
 router.post("/:postId/likes", requireAuth, feedController.likePost);
 router.delete("/:postId/likes", requireAuth, feedController.unlikePost);
 

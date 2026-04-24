@@ -15,6 +15,8 @@ class StoryService {
 		return apiRequest("/stories", {
 			method: "POST",
 			body: payload,
+			timeoutMs: 15 * 60 * 1000,
+			allowRetryOnTimeout: false,
 		});
 	}
 }
