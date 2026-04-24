@@ -1,146 +1,221 @@
-import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../src/hooks/useTheme';
+import React from "react";
+import {
+	Alert,
+	Image,
+	Modal,
+	Pressable,
+	RefreshControl,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import Animated from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ExploreGrid, SearchBar } from "../../src/components/explore";
+import ClipService from "../../src/services/ClipService";
+import { useExploreData } from "../../src/hooks/useExploreData";
+import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
+import { useTheme } from "../../src/hooks/useTheme";
+import { TrendingClip } from "../../src/types/explore";
 
 export default function ExploreScreen() {
-  const { colors, metrics, typography } = useTheme();
-  const styles = React.useMemo(
-    () =>
-      StyleSheet.create({
-        container: {
-          flex: 1,
-          backgroundColor: colors.background,
-        },
-        content: {
-          padding: metrics.md,
-          gap: metrics.md,
-        },
-        titleRow: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: metrics.sm,
-        },
-        title: {
-          fontSize: typography.sizes.xl,
-          color: colors.textPrimary,
-          fontWeight: '700',
-        },
-        searchBar: {
-          minHeight: 50,
-          borderRadius: metrics.radius.full,
-          backgroundColor: colors.surface,
-          borderWidth: 1,
-          borderColor: colors.border,
-          paddingHorizontal: metrics.md,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: metrics.sm,
-        },
-        searchPlaceholder: {
-          color: colors.textTertiary,
-          fontSize: typography.sizes.base,
-        },
-        chipRow: {
-          flexDirection: 'row',
-          gap: metrics.sm,
-        },
-        chip: {
-          minHeight: 42,
-          borderRadius: metrics.radius.full,
-          paddingHorizontal: metrics.md,
-          justifyContent: 'center',
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.surface,
-        },
-        chipActive: {
-          backgroundColor: colors.primary,
-          borderColor: colors.primary,
-        },
-        chipText: {
-          color: colors.textSecondary,
-          fontSize: typography.sizes.base,
-          fontWeight: '500',
-        },
-        chipTextActive: {
-          color: colors.textInverse,
-          fontWeight: '700',
-        },
-        riderCard: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingVertical: metrics.sm,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        },
-        riderLeft: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: metrics.sm,
-        },
-        riderAvatar: {
-          width: 48,
-          height: 48,
-          borderRadius: 24,
-        },
-        riderName: {
-          color: colors.textPrimary,
-          fontSize: typography.sizes.lg,
-          fontWeight: '600',
-        },
-        riderMeta: {
-          color: colors.textSecondary,
-          fontSize: typography.sizes.base,
-        },
-      }),
-    [colors, metrics, typography],
-  );
+	const { colors, metrics, typography } = useTheme();
+	const {
+		query,
+		setQuery,
+		clips,
+		gridSections,
+		hasMoreClips,
+		isLoadingMore,
+		refreshing,
+		loadMoreClips,
+		onRefresh,
+	} = useExploreData();
+	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
+		useTabSwipeNavigation("explore");
+	const [detailVisible, setDetailVisible] = React.useState(false);
+	const [selectedClipId, setSelectedClipId] = React.useState<string | null>(
+		null,
+	);
 
-  return (
-    <SafeAreaView edges={['left', 'right']} style={styles.container}>
-      <ScrollView style={styles.container}>
-        <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <Ionicons color={colors.primary} name="search-outline" size={22} />
-          <Text style={styles.title}>Search</Text>
-        </View>
+	const selectedIndex = React.useMemo(
+		() => clips.findIndex((clip) => clip.id === selectedClipId),
+		[clips, selectedClipId],
+	);
 
-        <View style={styles.searchBar}>
-          <Ionicons color={colors.textTertiary} name="search-outline" size={20} />
-          <Text style={styles.searchPlaceholder}>Find riders and moments</Text>
-        </View>
+	const relatedClips = React.useMemo(() => {
+		if (selectedIndex < 0) {
+			return clips;
+		}
 
-        <View style={styles.chipRow}>
-          <Pressable style={[styles.chip, styles.chipActive]}>
-            <Text style={[styles.chipText, styles.chipTextActive]}>Mutual</Text>
-          </Pressable>
-          <Pressable style={styles.chip}>
-            <Text style={styles.chipText}>New</Text>
-          </Pressable>
-          <Pressable style={styles.chip}>
-            <Text style={styles.chipText}>Group</Text>
-          </Pressable>
-        </View>
+		const current = clips[selectedIndex];
+		const rest = clips.filter((clip) => clip.id !== current.id);
+		return [current, ...rest];
+	}, [clips, selectedIndex]);
 
-        {['Cameron Williamson', 'Annette Black', 'Marvin McKinney', 'Brooklyn Simmons'].map(
-          (name, index) => (
-            <View key={name} style={styles.riderCard}>
-              <View style={styles.riderLeft}>
-                <Image source={require('../../assets/images/solo_ride.png')} style={styles.riderAvatar} />
-                <View>
-                  <Text style={styles.riderName}>{name}</Text>
-                  <Text style={styles.riderMeta}>{index % 2 === 0 ? 'How are you' : 'Available for rides'}</Text>
-                </View>
-              </View>
-              <Ionicons color={colors.primary} name="chevron-forward" size={18} />
-            </View>
-          ),
-        )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+	const openClipDetail = React.useCallback((clip: TrendingClip) => {
+		setSelectedClipId(clip.id);
+		setDetailVisible(true);
+	}, []);
+
+	const handleClipLongPress = React.useCallback(async (clip: TrendingClip) => {
+		Alert.alert("Post actions", "Choose an action for this post.", [
+			{
+				text: "Like",
+				onPress: async () => {
+					try {
+						if (clip.likedByMe) {
+							await ClipService.unlikeClip(clip.id);
+						} else {
+							await ClipService.likeClip(clip.id);
+						}
+					} catch {
+						Alert.alert("Action failed", "Unable to update like right now.");
+					}
+				},
+			},
+			{
+				text: "Share to friends",
+				onPress: () => {
+					Alert.alert(
+						"Shared",
+						"This post was shared to your platform friends feed.",
+					);
+				},
+			},
+			{
+				text: "Cancel",
+				style: "cancel",
+			},
+		]);
+	}, []);
+
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				container: {
+					flex: 1,
+					backgroundColor: colors.background,
+				},
+				searchWrap: {
+					paddingHorizontal: metrics.md,
+					paddingBottom: metrics.sm,
+				},
+				detailBackdrop: {
+					flex: 1,
+					backgroundColor: colors.background,
+					paddingTop: metrics.md,
+				},
+				detailHeader: {
+					flexDirection: "row",
+					alignItems: "center",
+					justifyContent: "space-between",
+					paddingHorizontal: metrics.md,
+					paddingBottom: metrics.sm,
+				},
+				detailTitle: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.lg,
+					fontWeight: "700",
+				},
+				detailList: {
+					paddingHorizontal: metrics.md,
+					gap: metrics.lg,
+					paddingBottom: metrics["3xl"],
+				},
+				detailCard: {
+					borderRadius: metrics.radius.lg,
+					borderWidth: 1,
+					borderColor: colors.border,
+					backgroundColor: colors.card,
+					padding: metrics.md,
+					gap: metrics.sm,
+				},
+				media: {
+					width: "100%",
+					aspectRatio: 1,
+					borderRadius: metrics.radius.md,
+					backgroundColor: colors.surface,
+				},
+				creator: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.base,
+					fontWeight: "700",
+				},
+				caption: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.sm,
+					lineHeight: typography.sizes.sm * 1.45,
+				},
+			}),
+		[colors, metrics, typography],
+	);
+
+	return (
+		<Animated.View
+			style={[styles.container, swipeAnimatedStyle]}
+			{...swipeHandlers}
+		>
+			<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
+				<View style={styles.searchWrap}>
+					<SearchBar onChangeText={setQuery} value={query} />
+				</View>
+				<ExploreGrid
+					sections={gridSections}
+					hasMore={hasMoreClips}
+					isLoadingMore={isLoadingMore}
+					refreshing={refreshing}
+					onLongPressClip={handleClipLongPress}
+					onSelectClip={openClipDetail}
+					onEndReached={loadMoreClips}
+					onRefresh={onRefresh}
+				/>
+
+				<Modal
+					animationType="slide"
+					onRequestClose={() => setDetailVisible(false)}
+					visible={detailVisible}
+				>
+					<SafeAreaView style={styles.detailBackdrop}>
+						<View style={styles.detailHeader}>
+							<Text style={styles.detailTitle}>Post</Text>
+							<Pressable onPress={() => setDetailVisible(false)}>
+								<Ionicons
+									color={colors.textPrimary}
+									name="close"
+									size={metrics.icon.md}
+								/>
+							</Pressable>
+						</View>
+
+						<ScrollView
+							contentContainerStyle={styles.detailList}
+							refreshControl={
+								<RefreshControl
+									colors={[colors.primary]}
+									onRefresh={onRefresh}
+									progressBackgroundColor={colors.surface}
+									refreshing={refreshing}
+									tintColor={colors.primary}
+								/>
+							}
+						>
+							{relatedClips.map((clip) => (
+								<View key={clip.id} style={styles.detailCard}>
+									<Image
+										source={{ uri: clip.thumbnail }}
+										style={styles.media}
+									/>
+									<Text style={styles.creator}>@{clip.creatorUsername}</Text>
+									<Text style={styles.caption}>{clip.title}</Text>
+								</View>
+							))}
+						</ScrollView>
+					</SafeAreaView>
+				</Modal>
+			</SafeAreaView>
+		</Animated.View>
+	);
 }

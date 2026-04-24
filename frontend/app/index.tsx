@@ -1,235 +1,326 @@
-import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
+import React from "react";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ImageStyle,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useFonts } from "expo-font";
 import Animated, {
+  FadeInUp,
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
   withRepeat,
   withSequence,
+  withSpring,
   withTiming,
-} from 'react-native-reanimated';
-import { useTheme } from '../src/hooks/useTheme';
-import { lightTheme } from '../src/theme/light';
+} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../src/hooks/useTheme";
+import { withAlpha } from "../src/utils/color";
 
-function withAlpha(color: string, alpha: number) {
-  if (!color.startsWith('#') || (color.length !== 7 && color.length !== 9)) {
-    return color;
-  }
-
-  const hex = color.slice(1, 7);
-  const red = Number.parseInt(hex.slice(0, 2), 16);
-  const green = Number.parseInt(hex.slice(2, 4), 16);
-  const blue = Number.parseInt(hex.slice(4, 6), 16);
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+function StaggeredItem({
+  delay,
+  children,
+}: {
+  delay: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <Animated.View entering={FadeInUp.delay(delay).springify().damping(13)}>
+      {children}
+    </Animated.View>
+  );
 }
 
-export default function SplashScreen() {
-  const { metrics, typography } = useTheme();
-  const colors = lightTheme.colors;
-  const router = useRouter();
-  const overlayOpacity = useSharedValue(0);
-  const logoOpacity = useSharedValue(0);
-  const logoScale = useSharedValue(0.9);
-  const logoShift = useSharedValue(-12);
-  const fogShift = useSharedValue(0);
-  const bikeShake = useSharedValue(0);
-  const progress = useSharedValue(0);
-  const pulse = useSharedValue(0.2);
+export default function OnboardingScreen() {
+  const [fontsLoaded] = useFonts({
+    Redseven: require("../assets/fonts/Redseven.otf"),
+  });
 
-  const isDark = false;
+  const { colors, metrics, typography } = useTheme();
+  const router = useRouter();
+  const buttonScale = useSharedValue(1);
+  const logoScale = useSharedValue(0.76);
+  const logoLift = useSharedValue(22);
+  const logoTilt = useSharedValue(-4);
+  const glowPulse = useSharedValue(0.82);
+  const ctaPulse = useSharedValue(1);
+  const ctaLaunchY = useSharedValue(-140);
+  const ctaLaunchScale = useSharedValue(0.9);
+
+  React.useEffect(() => {
+    logoScale.value = withSequence(
+      withSpring(1.2, { damping: 11, stiffness: 250 }),
+      withSpring(1, { damping: 14, stiffness: 220 }),
+    );
+    logoLift.value = withSpring(0, { damping: 16, stiffness: 180 });
+    logoTilt.value = withSequence(
+      withTiming(1.4, { duration: 140, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) }),
+    );
+
+    glowPulse.value = withRepeat(
+      withSequence(
+        withTiming(1.02, { duration: 950, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.86, { duration: 950, easing: Easing.inOut(Easing.quad) }),
+      ),
+      -1,
+      true,
+    );
+
+    ctaPulse.value = withDelay(
+      550,
+      withRepeat(
+        withSequence(
+          withTiming(1.02, { duration: 900, easing: Easing.inOut(Easing.quad) }),
+          withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }),
+        ),
+        -1,
+        true,
+      ),
+    );
+
+    ctaLaunchY.value = withDelay(
+      420,
+      withSequence(
+        withTiming(22, { duration: 170, easing: Easing.in(Easing.cubic) }),
+        withSpring(0, { damping: 13, stiffness: 240, mass: 0.85 }),
+      ),
+    );
+
+    ctaLaunchScale.value = withDelay(
+      420,
+      withSequence(
+        withTiming(1.04, { duration: 170, easing: Easing.in(Easing.cubic) }),
+        withSpring(1, { damping: 14, stiffness: 230 }),
+      ),
+    );
+
+    return () => {
+      cancelAnimation(glowPulse);
+      cancelAnimation(ctaPulse);
+      cancelAnimation(logoScale);
+      cancelAnimation(logoLift);
+      cancelAnimation(logoTilt);
+      cancelAnimation(ctaLaunchY);
+      cancelAnimation(ctaLaunchScale);
+    };
+  }, [ctaLaunchScale, ctaLaunchY, ctaPulse, glowPulse, logoLift, logoScale, logoTilt]);
+
+  const logoBoomStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: logoScale.value },
+      { translateY: logoLift.value },
+      { rotateZ: `${logoTilt.value}deg` },
+    ],
+  }));
+
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: glowPulse.value,
+    transform: [{ scale: glowPulse.value }],
+  }));
+
+  const buttonStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: ctaLaunchY.value },
+      { scale: buttonScale.value * ctaPulse.value * ctaLaunchScale.value },
+    ],
+  }));
+
+  const logoSize = Math.min(metrics.screenWidth * 0.58, 320);
+
+  type OnboardingStyles = {
+    container: ViewStyle;
+    heroWrap: ViewStyle;
+    logoOuter: ViewStyle;
+    halo: ViewStyle;
+    logo: ImageStyle;
+    textContent: ViewStyle;
+    mainTitle: TextStyle;
+    headline: TextStyle;
+    description: TextStyle;
+    slogan: TextStyle;
+    buttonDock: ViewStyle;
+    buttonTapZone: ViewStyle;
+    ctaButton: ViewStyle;
+    ctaText: TextStyle;
+  };
 
   const styles = React.useMemo(
     () =>
-      StyleSheet.create({
+      StyleSheet.create<OnboardingStyles>({
         container: {
           flex: 1,
           backgroundColor: colors.background,
-        },
-        backgroundGradient: {
-          ...StyleSheet.absoluteFillObject,
-        },
-        fogLayer: {
-          position: 'absolute',
-          width: metrics.screenWidth * 1.15,
-          height: 150,
-          borderRadius: metrics.radius.full,
-          backgroundColor: withAlpha(colors.textPrimary, isDark ? 0.08 : 0.12),
-          top: metrics.screenHeight * 0.23,
-          left: -metrics.md,
-        },
-        fogLayerSecondary: {
-          top: metrics.screenHeight * 0.32,
-          left: metrics.md,
-          backgroundColor: withAlpha(colors.primary, isDark ? 0.12 : 0.08),
-        },
-        content: {
-          flex: 1,
           paddingHorizontal: metrics.lg,
-          justifyContent: 'space-between',
-          paddingTop: metrics['2xl'],
-          paddingBottom: metrics.lg,
         },
         heroWrap: {
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: metrics.md,
-          marginTop: metrics.xl,
+          flex: 1.9,
+          justifyContent: "center",
+          alignItems: "center",
+          paddingTop: metrics.sm,
         },
-        radialGlow: {
-          position: 'absolute',
-          width: 290,
-          height: 290,
+        logoOuter: {
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        halo: {
+          position: "absolute",
+          width: logoSize * 0.9,
+          height: logoSize * 0.9,
           borderRadius: metrics.radius.full,
-          backgroundColor: withAlpha(colors.primary, isDark ? 0.2 : 0.1),
+          backgroundColor: withAlpha(colors.primary, 0.16),
           shadowColor: colors.primary,
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: isDark ? 0.42 : 0.2,
-          shadowRadius: 36,
+          shadowOpacity: 0.25,
+          shadowRadius: 20,
+          elevation: 5,
         },
-        bikeCard: {
-          width: 260,
-          height: 210,
-          borderRadius: metrics.radius.xl,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: withAlpha(colors.surface, isDark ? 0.72 : 0.9),
-          borderWidth: 1,
-          borderColor: withAlpha(colors.borderDark, isDark ? 0.8 : 1),
-          overflow: 'hidden',
+        logo: {
+          width: logoSize,
+          height: logoSize,
+          resizeMode: "contain",
         },
-        wheelShadow: {
-          position: 'absolute',
-          bottom: metrics.md,
-          width: 170,
-          height: 18,
-          borderRadius: metrics.radius.full,
-          backgroundColor: withAlpha(colors.shadow, isDark ? 0.25 : 0.14),
+        textContent: {
+          flex: 1.8,
+          alignItems: "center",
         },
-        bikeAnimation: {
-          width: 220,
-          height: 170,
-        },
-        title: {
+        mainTitle: {
           color: colors.textPrimary,
-          fontSize: typography.sizes['4xl'],
-          fontWeight: '700',
-          letterSpacing: 1.4,
+          textAlign: "center",
+          fontFamily: "Redseven",
+          fontSize: Math.min(metrics.screenWidth * 0.12, typography.sizes["xl"]),
+          lineHeight: Math.min(metrics.screenWidth * 0.08, 52),
+          letterSpacing: 1.6,
+          marginTop: metrics.xs,
         },
-        subtitle: {
+        headline: {
+          textAlign: "center",
+          color: colors.primary,
+          fontSize: Math.min(metrics.screenWidth * 0.07, typography.sizes["xl"]),
+          fontWeight: "700",
+          lineHeight: Math.min(metrics.screenWidth * 0.08, 36),
+          marginTop: metrics.xs,
+        },
+        description: {
+          textAlign: "center",
           color: colors.textSecondary,
-          fontSize: typography.sizes.sm,
-          letterSpacing: 0.5,
+          fontSize: typography.sizes.lg,
+          lineHeight: 32,
+          marginTop: metrics.xs,
+          fontWeight: "500",
         },
-        footer: {
-          gap: metrics.sm,
+        slogan: {
+          textAlign: "center",
+          color: colors.primary,
+          fontSize: typography.sizes.lg,
+          letterSpacing: 1.8,
+          marginTop: metrics.xs,
+          fontStyle: "italic",
+          fontWeight: "600",
         },
-        progressTrack: {
-          width: '100%',
-          height: 4,
-          borderRadius: metrics.radius.full,
-          overflow: 'hidden',
-          backgroundColor: colors.spinnerTrack,
+        buttonDock: {
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "flex-start",
+          marginTop: metrics.md,
         },
-        progressFill: {
-          height: '100%',
-          borderRadius: metrics.radius.full,
+        buttonTapZone: {
+          borderRadius: 46,
+        },
+        ctaButton: {
           backgroundColor: colors.primary,
-          shadowColor: colors.primary,
-          shadowOffset: { width: 0, height: 0 },
-          shadowRadius: 12,
-          elevation: 4,
+          minHeight: 54,
+          width: 150,
+          borderRadius: 44,
+          alignItems: "center",
+          justifyContent: "center",
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: 9 },
+          shadowOpacity: 0.18,
+          shadowRadius: 18,
+          elevation: 8,
+        },
+        ctaText: {
+          color: colors.textInverse,
+          fontSize: typography.sizes["xl"],
+          fontWeight: "700",
+          letterSpacing: 1,
         },
       }),
-    [colors, isDark, metrics, typography],
+    [colors, logoSize, metrics, typography],
   );
 
-  React.useEffect(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    overlayOpacity.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.quad) });
-    logoOpacity.value = withDelay(220, withTiming(1, { duration: 650, easing: Easing.out(Easing.cubic) }));
-    logoScale.value = withDelay(220, withTiming(1, { duration: 850, easing: Easing.out(Easing.exp) }));
-    logoShift.value = withDelay(120, withTiming(0, { duration: 980, easing: Easing.out(Easing.exp) }));
-    fogShift.value = withRepeat(withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.quad) }), -1, true);
-    bikeShake.value = withDelay(
-      180,
-      withSequence(
-        withTiming(-2, { duration: 46 }),
-        withTiming(2, { duration: 46 }),
-        withTiming(-1, { duration: 40 }),
-        withTiming(0, { duration: 40 }),
-      ),
+  const onGetStarted = React.useCallback(() => {
+    buttonScale.value = withSequence(
+      withSpring(0.94, { damping: 14, stiffness: 280 }),
+      withSpring(1, { damping: 14, stiffness: 260 }),
     );
-    progress.value = withTiming(1, { duration: 4200, easing: Easing.bezier(0.25, 0.1, 0.25, 1) });
-    pulse.value = withRepeat(withTiming(1, { duration: 860, easing: Easing.inOut(Easing.quad) }), -1, true);
 
-    const timer = setTimeout(() => {
-      router.replace('/onboarding');
-    }, 4500);
+    setTimeout(() => {
+      router.replace("/auth/login");
+    }, 170);
+  }, [buttonScale, router]);
 
-    return () => clearTimeout(timer);
-  }, [bikeShake, fogShift, logoOpacity, logoScale, logoShift, overlayOpacity, progress, pulse, router]);
-
-  const fogStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: -24 + fogShift.value * 48 }],
-    opacity: 0.55 + fogShift.value * 0.2,
-  }));
-
-  const heroStyle = useAnimatedStyle(() => ({
-    opacity: logoOpacity.value,
-    transform: [{ scale: logoScale.value }, { translateY: logoShift.value }, { translateX: bikeShake.value }],
-  }));
-
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${Math.max(8, progress.value * 100)}%`,
-    opacity: 0.7 + pulse.value * 0.25,
-  }));
-
-  const gradientStyle = useAnimatedStyle(() => ({
-    opacity: overlayOpacity.value,
-  }));
-
-  const gradientColors: [string, string, string] = isDark
-    ? [colors.background, withAlpha(colors.primary, 0.14), colors.background]
-    : [withAlpha(colors.background, 0.9), colors.surface, colors.background];
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.container}>
-      <Animated.View style={[styles.backgroundGradient, gradientStyle]}>
-        <LinearGradient
-          colors={gradientColors}
-          end={{ x: 1, y: 1 }}
-          start={{ x: 0, y: 0 }}
-          style={styles.backgroundGradient}
-        />
-      </Animated.View>
-
-      <Animated.View style={[styles.fogLayer, fogStyle]} />
-      <Animated.View style={[styles.fogLayer, styles.fogLayerSecondary, fogStyle]} />
-
-      <View style={styles.content}>
-        <Animated.View style={[styles.heroWrap, heroStyle]}>
-          <View style={styles.radialGlow} />
-          <View style={styles.bikeCard}>
-            <View style={styles.wheelShadow} />
-            <Image source={require('../assets/gif/rider.gif')} style={styles.bikeAnimation} />
-          </View>
-
-          <Text style={styles.title}>RIDER</Text>
-          <Text style={styles.subtitle}>Ride. Track. Stay Safe.</Text>
-        </Animated.View>
-
-        <View style={styles.footer}>
-          <View style={styles.progressTrack}>
-            <Animated.View style={[styles.progressFill, progressStyle]} />
-          </View>
-        </View>
+    <SafeAreaView
+      edges={["top", "left", "right", "bottom"]}
+      style={styles.container}
+    >
+      <View style={styles.heroWrap}>
+        <StaggeredItem delay={90}>
+          <Animated.View style={[styles.logoOuter, logoBoomStyle]}>
+            <Animated.View style={[styles.halo, haloStyle]} />
+            <Image
+              source={require("../assets/images/hero.png")}
+              style={styles.logo}
+            />
+          </Animated.View>
+        </StaggeredItem>
       </View>
+
+      <View style={styles.textContent}>
+        <StaggeredItem delay={150}>
+          <Text style={styles.mainTitle}>RIDER&apos;S{"\n"}COMPANION</Text>
+        </StaggeredItem>
+
+        <StaggeredItem delay={220}>
+          <Text style={styles.headline}>
+            The Ultimate Riding{"\n"}Experience
+          </Text>
+        </StaggeredItem>
+
+        <StaggeredItem delay={280}>
+          <Text style={styles.description}>
+            Solo journeys & group{"\n"}adventures with friends and{"\n"}family
+          </Text>
+        </StaggeredItem>
+
+        <StaggeredItem delay={340}>
+          <Text style={styles.slogan}>Together on Every Road</Text>
+        </StaggeredItem>
+      </View>
+
+      <Animated.View style={styles.buttonDock}>
+        <Pressable onPress={onGetStarted} style={styles.buttonTapZone}>
+          <Animated.View style={[styles.ctaButton, buttonStyle]}>
+            <Text style={styles.ctaText}>Get Started</Text>
+          </Animated.View>
+        </Pressable>
+      </Animated.View>
     </SafeAreaView>
   );
 }
