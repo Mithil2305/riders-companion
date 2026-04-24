@@ -22,6 +22,8 @@ import { useTheme } from "../../src/hooks/useTheme";
 import { useClipsFeed } from "../../src/hooks/useClipsFeed";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { ClipItem } from "../../src/types/clips";
+import { ClipsSkeleton } from "../../src/components/clips";
+import { useRouter } from "expo-router";
 
 function compactNumber(value: number): string {
 	if (value >= 1000) {
@@ -33,6 +35,7 @@ function compactNumber(value: number): string {
 
 export default function ClipsScreen() {
 	const { colors, metrics, typography } = useTheme();
+	const router = useRouter();
 	const insets = useSafeAreaInsets();
 	const { height, width } = useWindowDimensions();
 	const { clips, refreshing, setActiveIndex, toggleLike, onRefresh } =
@@ -172,7 +175,12 @@ export default function ClipsScreen() {
 					/>
 
 					<View style={styles.rightRail}>
-						<Image source={{ uri: item.avatar }} style={styles.avatar} />
+						<Pressable
+							disabled={!item.riderId}
+							onPress={() => item.riderId && router.push(`/rider/${item.riderId}`)}
+						>
+							<Image source={{ uri: item.avatar }} style={styles.avatar} />
+						</Pressable>
 
 						<View style={styles.actionItem}>
 							<Pressable
@@ -214,7 +222,12 @@ export default function ClipsScreen() {
 					</View>
 
 					<View style={styles.bottomMeta}>
-						<Text style={styles.user}>@{item.user}</Text>
+						<Pressable
+							disabled={!item.riderId}
+							onPress={() => item.riderId && router.push(`/rider/${item.riderId}`)}
+						>
+							<Text style={styles.user}>@{item.user}</Text>
+						</Pressable>
 						<Text numberOfLines={2} style={styles.caption}>
 							{item.caption}
 						</Text>
@@ -233,7 +246,7 @@ export default function ClipsScreen() {
 				</View>
 			);
 		},
-		[colors.textInverse, metrics.icon.md, metrics.icon.sm, styles, toggleLike],
+		[colors.textInverse, metrics.icon.md, metrics.icon.sm, router, styles, toggleLike],
 	);
 
 	return (
@@ -242,7 +255,10 @@ export default function ClipsScreen() {
 			{...swipeHandlers}
 		>
 			<SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
-				<FlatList
+				{clips.length === 0 && !refreshing ? (
+					<ClipsSkeleton />
+				) : (
+					<FlatList
 					data={clips}
 					decelerationRate="fast"
 					disableIntervalMomentum
@@ -273,6 +289,7 @@ export default function ClipsScreen() {
 					snapToInterval={clipHeight}
 					showsVerticalScrollIndicator={false}
 				/>
+				)}
 			</SafeAreaView>
 		</Animated.View>
 	);
