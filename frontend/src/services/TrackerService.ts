@@ -21,6 +21,15 @@ class TrackerService {
 			},
 		);
 	}
+
+	async unfollowRider(riderId: string) {
+		return apiRequest<{ riderId: string; following: boolean }>(
+			`/tracker/${riderId}/follow`,
+			{
+				method: "DELETE",
+			},
+		);
+	}
 }
 
 export default new TrackerService();
