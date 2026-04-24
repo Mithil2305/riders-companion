@@ -1,0 +1,38 @@
+name: Deploy Backend to VPS
+
+on:
+  push:
+    branches:
+      - main   # change if you're using another branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "🚀 Starting deployment..."
+
+            cd /root/riders-companion
+
+            echo "📥 Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
+
+            echo "📦 Installing dependencies..."
+            cd backend
+            npm install
+
+            echo "♻️ Restarting server..."
+            pm2 restart riders-backend || pm2 start server.js --name riders-backend
+
+            echo "💾 Saving PM2 state..."
+            pm2 save
+
+            echo "✅ Deployment complete!"
