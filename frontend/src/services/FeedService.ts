@@ -1,65 +1,87 @@
-import { Platform } from 'react-native';
+import { apiRequest } from "./api";
 
-const API_URL = Platform.select({
-  ios: 'http://localhost:3000/api',
-  android: 'http://10.0.2.2:3000/api',
-  default: 'http://localhost:3000/api',
-});
+export interface FeedAuthorPayload {
+	id?: string;
+	name?: string;
+	username?: string;
+	profileImageUrl?: string;
+}
+
+export interface FeedPostPayload {
+	id: string;
+	caption: string | null;
+	mediaUrl: string | null;
+	mediaType: string | null;
+	createdAt: string;
+	rider?: FeedAuthorPayload;
+	likesCount: number;
+	commentsCount: number;
+	likedByMe?: boolean;
+}
+
+interface CreatePostPayload {
+	title?: string;
+	caption: string;
+	mediaData?: string;
+	mediaBase64?: string;
+	mediaUrl?: string;
+	mediaMimeType?: string;
+	hashtags?: string[];
+}
 
 class FeedService {
-  async getFeed(page: number = 1, limit: number = 20) {
-    try {
-      const response = await fetch(`${API_URL}/feed?page=${page}&limit=${limit}`);
-      return await response.json();
-    } catch (error) {
-      console.error('Get feed error:', error);
-      throw error;
-    }
-  }
+	async getFeed(_page: number = 1, _limit: number = 20) {
+		return apiRequest<{ posts: FeedPostPayload[] }>("/feed");
+	}
 
-  async createPost(content: string, image?: string) {
-    try {
-      const response = await fetch(`${API_URL}/feed/posts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content, image }),
-      });
-      return await response.json();
-    } catch (error) {
-      console.error('Create post error:', error);
-      throw error;
-    }
-  }
+	async createPost(payload: CreatePostPayload) {
+		return apiRequest("/feed", {
+			method: "POST",
+			body: payload,
+		});
+	}
 
-  async likePost(postId: string) {
-    try {
-      const response = await fetch(`${API_URL}/feed/posts/${postId}/like`, {
-        method: 'POST',
-      });
-      return await response.json();
-    } catch (error) {
-      console.error('Like post error:', error);
-      throw error;
-    }
-  }
+	async getPostById(postId: string) {
+		return apiRequest<{ post: FeedPostPayload }>(`/feed/${postId}`);
+	}
 
-  async commentOnPost(postId: string, content: string) {
-    try {
-      const response = await fetch(`${API_URL}/feed/posts/${postId}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content }),
-      });
-      return await response.json();
-    } catch (error) {
-      console.error('Comment error:', error);
-      throw error;
-    }
-  }
+	async updatePost(postId: string, payload: { caption: string }) {
+		return apiRequest<{ post: FeedPostPayload }>(`/feed/${postId}`, {
+			method: "PATCH",
+			body: payload,
+		});
+	}
+
+	async deletePost(postId: string) {
+		return apiRequest<{ postId: string }>(`/feed/${postId}`, {
+			method: "DELETE",
+		});
+	}
+
+	async likePost(postId: string) {
+		return apiRequest<{ postId: string; liked: boolean; likesCount: number }>(
+			`/feed/${postId}/likes`,
+			{
+				method: "POST",
+			},
+		);
+	}
+
+	async unlikePost(postId: string) {
+		return apiRequest<{ postId: string; liked: boolean; likesCount: number }>(
+			`/feed/${postId}/likes`,
+			{
+				method: "DELETE",
+			},
+		);
+	}
+
+	async commentOnPost(postId: string, commentText: string) {
+		return apiRequest<{ commentsCount: number }>(`/feed/${postId}/comments`, {
+			method: "POST",
+			body: { commentText },
+		});
+	}
 }
 
 export default new FeedService();
