@@ -23,7 +23,7 @@ export function EndOfFeed() {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.text}>- End of tracked users' posts -</Text>
+      <Text style={styles.text}>{"- End of tracked users' posts -"}</Text>
     </View>
   );
 }
