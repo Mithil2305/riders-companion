@@ -2,6 +2,8 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { auth } from "../config/firebase";
 
+const BASE_URL = "http://45.82.244.247:3000";
+
 const isLocalOrPrivateHost = (host: string) => {
 	if (host === "localhost" || host === "127.0.0.1") {
 		return true;
@@ -72,6 +74,8 @@ const resolveApiUrlCandidates = () => {
 	const fromHost = fromExpoHost();
 	const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
 
+	add(BASE_URL);
+
 	if (isDev) {
 		if (fromHost) {
 			add(fromHost);
@@ -100,7 +104,7 @@ const resolveApiUrlCandidates = () => {
 	return urls;
 };
 
-let activeApiUrl = resolveApiUrlCandidates()[0] ?? "http://localhost:3000/api";
+let activeApiUrl = resolveApiUrlCandidates()[0] ?? normalizeApiBase(BASE_URL);
 
 export const API_URL = activeApiUrl;
 
