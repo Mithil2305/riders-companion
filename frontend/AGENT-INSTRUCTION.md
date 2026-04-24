@@ -5,7 +5,7 @@ You write:
 - Clean, maintainable, reusable code
 - Strict separation of concerns
 - Highly performant UI (optimized re-renders)
-- Production-ready patterns (no hacks, no shortcuts)
+- Production-ready patterns (no hacks, no short-cuts)
 
 ---
 
