@@ -1,16 +1,18 @@
 import React from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../hooks/useTheme';
 
 interface ChatInputProps {
   value: string;
   onChangeText: (text: string) => void;
   onSend: () => void;
+  onSendImage?: (uri: string) => void;
   disabled?: boolean;
 }
 
-export function ChatInput({ value, onChangeText, onSend, disabled = false }: ChatInputProps) {
+export function ChatInput({ value, onChangeText, onSend, onSendImage, disabled = false }: ChatInputProps) {
   const { colors, metrics, typography } = useTheme();
 
   const styles = React.useMemo(
@@ -75,9 +77,21 @@ export function ChatInput({ value, onChangeText, onSend, disabled = false }: Cha
     [colors, metrics, typography],
   );
 
+  const handlePickImage = React.useCallback(async () => {
+    if (!onSendImage) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      onSendImage(result.assets[0].uri);
+    }
+  }, [onSendImage]);
+
   return (
     <View style={styles.root}>
-      <Pressable android_ripple={{ color: colors.overlayLight }} style={styles.plusTap}>
+      <Pressable android_ripple={{ color: colors.overlayLight }} onPress={handlePickImage} style={styles.plusTap}>
         <Ionicons color={colors.icon} name="add" size={metrics.icon.md} />
       </Pressable>
 
@@ -91,6 +105,7 @@ export function ChatInput({ value, onChangeText, onSend, disabled = false }: Cha
           returnKeyType="send"
           style={styles.input}
           value={value}
+          blurOnSubmit={false}
         />
 
         <Pressable android_ripple={{ color: colors.overlayLight }} style={styles.iconTap}>

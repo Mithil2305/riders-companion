@@ -403,7 +403,7 @@ export default function LoginScreen() {
 			style={styles.keyboardContainer}
 		>
 			<KeyboardAvoidingView
-				behavior={Platform.OS === "ios" ? "padding" : undefined}
+				behavior={Platform.OS === "ios" ? "padding" : "height"}
 				style={styles.keyboardContainer}
 			>
 				<View style={styles.topRightToggle}>

@@ -7,6 +7,7 @@ export interface Story {
 
 export interface FeedPostItem {
 	id: string;
+	riderId?: string;
 	user: string;
 	avatar: string;
 	image: string;

@@ -14,9 +14,7 @@ import {
 
 const PAGE_SIZE = 60;
 const RECENT_ALBUM_ID = "__recent__";
-const MAX_VIDEO_UPLOAD_BYTES = 24 * 1024 * 1024;
-const MAX_CLIP_VIDEO_UPLOAD_BYTES = 90 * 1024 * 1024;
-const MAX_CLIP_DURATION_SECONDS = 120;
+const MAX_VIDEO_UPLOAD_BYTES = 500 * 1024 * 1024;
 const IMAGE_COMPRESSION = 0.8;
 
 const extractHashtags = (text: string) => {
@@ -51,6 +49,10 @@ const toGalleryAsset = (asset: MediaLibrary.Asset): GalleryMediaAsset => ({
 		typeof asset.duration === "number" && Number.isFinite(asset.duration)
 			? asset.duration
 			: undefined,
+	fileSize:
+		typeof (asset as unknown as { fileSize?: number }).fileSize === "number"
+			? (asset as unknown as { fileSize: number }).fileSize
+			: undefined,
 });
 
 const getClipSelectionError = (asset: GalleryMediaAsset | null) => {
@@ -60,14 +62,6 @@ const getClipSelectionError = (asset: GalleryMediaAsset | null) => {
 
 	if (asset.mediaType !== "video") {
 		return "Clips require video. Select a video to continue.";
-	}
-
-	if (
-		typeof asset.duration === "number" &&
-		Number.isFinite(asset.duration) &&
-		asset.duration > MAX_CLIP_DURATION_SECONDS
-	) {
-		return "Clips can be up to 2 minutes. Select a video under 2 minutes.";
 	}
 
 	return null;
@@ -258,25 +252,19 @@ export function useCreateMediaUpload() {
 				return;
 			}
 
-			const firstVideo = assets.find(
-				(item) =>
-					item.mediaType === "video" &&
-					(typeof item.duration !== "number" ||
-						!Number.isFinite(item.duration) ||
-						item.duration <= MAX_CLIP_DURATION_SECONDS),
-			);
+			const firstVideo = assets.find((item) => item.mediaType === "video");
 			if (firstVideo) {
 				setSelectedAssetId(firstVideo.id);
 				Alert.alert(
 					"Clip requires a video",
-					"Switched to a supported video (up to 2 minutes). You can choose another one.",
+					"Switched to a video. You can choose another one up to 500MB.",
 				);
 				return;
 			}
 
 			Alert.alert(
 				"No supported videos found",
-				"Clips can only use videos up to 2 minutes. Select an album with shorter videos.",
+				"Select an album with videos up to 500MB.",
 			);
 		},
 		[assets, selectedAsset],
@@ -315,10 +303,6 @@ export function useCreateMediaUpload() {
 		try {
 			const response = await fetch(selectedAsset.uri);
 			let blob = await response.blob();
-			const maxVideoUploadBytes =
-				uploadType === "clip"
-					? MAX_CLIP_VIDEO_UPLOAD_BYTES
-					: MAX_VIDEO_UPLOAD_BYTES;
 
 			if (selectedAsset.mediaType === "photo") {
 				const manipulated = await manipulateAsync(selectedAsset.uri, [], {
@@ -331,13 +315,11 @@ export function useCreateMediaUpload() {
 
 			if (
 				selectedAsset.mediaType === "video" &&
-				blob.size > maxVideoUploadBytes
+				blob.size > MAX_VIDEO_UPLOAD_BYTES
 			) {
-				const maxMb = Math.floor(maxVideoUploadBytes / (1024 * 1024));
+				const maxMb = Math.floor(MAX_VIDEO_UPLOAD_BYTES / (1024 * 1024));
 				throw new Error(
-					uploadType === "clip"
-						? `Selected clip is too large to upload from Expo Go. Choose a clip under ~${maxMb}MB or compress it first.`
-						: "Selected video is too large to upload from Expo Go. Choose a shorter video (under ~24MB) or compress it first.",
+					`Selected video is too large. Choose a video under ${maxMb}MB.`,
 				);
 			}
 

@@ -38,6 +38,8 @@ class ClipService {
 		return apiRequest("/clips", {
 			method: "POST",
 			body: payload,
+			timeoutMs: 15 * 60 * 1000,
+			allowRetryOnTimeout: false,
 		});
 	}
 

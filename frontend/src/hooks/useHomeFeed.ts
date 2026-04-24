@@ -11,6 +11,7 @@ interface UseHomeFeedResult {
 	onRefresh: () => Promise<void>;
 	toggleLike: (postId: string) => void;
 	addComment: (postId: string, commentText?: string) => void;
+	updateCommentCount: (postId: string, count: number) => void;
 }
 
 const formatRelativeTime = (isoDate: string) => {
@@ -41,6 +42,7 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 
 	return {
 		id: post.id,
+		riderId: post.rider?.id,
 		user: post.rider?.username
 			? `@${post.rider.username}`
 			: (post.rider?.name ?? "rider"),
@@ -177,6 +179,14 @@ export function useHomeFeed(): UseHomeFeedResult {
 		[],
 	);
 
+	const updateCommentCount = React.useCallback((postId: string, count: number) => {
+		setPosts((current) =>
+			current.map((post) =>
+				post.id === postId ? { ...post, comments: count } : post,
+			),
+		);
+	}, []);
+
 	return {
 		loading,
 		refreshing,
@@ -186,5 +196,6 @@ export function useHomeFeed(): UseHomeFeedResult {
 		onRefresh,
 		toggleLike,
 		addComment,
+		updateCommentCount,
 	};
 }

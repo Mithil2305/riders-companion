@@ -243,6 +243,10 @@ class AuthService {
 		}
 	}
 
+	async restoreSession(idToken: string) {
+		return await this.postAuth("/auth/login", { idToken });
+	}
+
 	async logout() {
 		const firebaseAuth = this.ensureFirebaseReady();
 		await signOut(firebaseAuth);
