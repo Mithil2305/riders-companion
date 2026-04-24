@@ -30,7 +30,7 @@ export default function RootLayout() {
 
 function RootNavigator() {
 	const { colors, resolvedMode } = useTheme();
-	const { isAuthenticated } = useAuth();
+	const { isAuthenticated, isRestoring } = useAuth();
 	const [showVideoSplash, setShowVideoSplash] = useState(true);
 	const boomScale = useRef(new Animated.Value(1.24)).current;
 	const boomOpacity = useRef(new Animated.Value(0.9)).current;
@@ -103,13 +103,27 @@ function RootNavigator() {
 		]).start();
 
 		const fallbackTimer = setTimeout(() => {
-			void hideNativeSplash();
-			setShowVideoSplash(false);
-			startAppEntryAnimation();
+			if (!isRestoring) {
+				void hideNativeSplash();
+				setShowVideoSplash(false);
+				startAppEntryAnimation();
+			}
 		}, 2400);
 
 		return () => clearTimeout(fallbackTimer);
-	}, [boomOpacity, boomScale, hideNativeSplash, startAppEntryAnimation]);
+	}, [boomOpacity, boomScale, hideNativeSplash, isRestoring, startAppEntryAnimation]);
+
+	// Once restoration is complete and splash is still showing, dismiss it
+	useEffect(() => {
+		if (!isRestoring && showVideoSplash) {
+			const dismissTimer = setTimeout(() => {
+				void hideNativeSplash();
+				setShowVideoSplash(false);
+				startAppEntryAnimation();
+			}, 400);
+			return () => clearTimeout(dismissTimer);
+		}
+	}, [isRestoring, showVideoSplash, hideNativeSplash, startAppEntryAnimation]);
 
 	return (
 		<>
@@ -146,6 +160,7 @@ function RootNavigator() {
 					<Stack.Screen name="chats/[id]" />
 					<Stack.Screen name="group-chat/[id]" />
 					<Stack.Screen name="rider/[id]" />
+					<Stack.Screen name="post/[postId]" />
 					<Stack.Screen name="solo-ride/[id]" />
 					<Stack.Screen name="ride-details" />
 					<Stack.Screen

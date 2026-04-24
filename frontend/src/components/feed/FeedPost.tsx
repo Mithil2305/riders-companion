@@ -30,6 +30,8 @@ interface FeedPostProps {
 	liked: boolean;
 	onToggleLike: (postId: string) => void;
 	onAddComment: (postId: string, commentText?: string) => void;
+	onShare: (postId: string) => void;
+	onOpenProfile?: (riderId: string) => void;
 	scrollY: SharedValue<number>;
 }
 
@@ -41,6 +43,8 @@ export function FeedPost({
 	liked,
 	onToggleLike,
 	onAddComment,
+	onShare,
+	onOpenProfile,
 	scrollY,
 }: FeedPostProps) {
 	const { colors, metrics, typography, resolvedMode } = useTheme();
@@ -78,18 +82,6 @@ export function FeedPost({
 	const likeAnimatedStyle = useAnimatedStyle(() => ({
 		transform: [{ scale: likeScale.value }],
 	}));
-
-	const bumpTextAnimatedStyle = useAnimatedStyle(() => {
-		const color = interpolateColor(
-			likeProgress.value,
-			[0, 1],
-			[colors.textPrimary, colors.primary],
-		);
-
-		return {
-			color,
-		};
-	});
 
 	const bumpPulseStyle = useAnimatedStyle(() => {
 		const scale = interpolate(
@@ -213,7 +205,7 @@ export function FeedPost({
 		[colors, metrics, typography],
 	);
 
-	const likeCount = liked ? item.likes + 1 : item.likes;
+	const likeCount = item.likes;
 
 	const defaultFistBumpIcon: ImageSourcePropType =
 		resolvedMode === "dark"
@@ -245,6 +237,12 @@ export function FeedPost({
 		lastTapRef.current = now;
 	}, [item.id, liked, onToggleLike, runBumpPulse]);
 
+	const openProfile = React.useCallback(() => {
+		if (item.riderId) {
+			onOpenProfile?.(item.riderId);
+		}
+	}, [item.riderId, onOpenProfile]);
+
 	return (
 		<Animated.View
 			entering={FadeInDown.delay(index * 90).duration(360)}
@@ -252,11 +250,13 @@ export function FeedPost({
 		>
 			<View style={styles.header}>
 				<View style={styles.userInfo}>
-					<Image source={{ uri: item.avatar }} style={styles.avatar} />
-					<View>
+					<Pressable disabled={!item.riderId} onPress={openProfile}>
+						<Image source={{ uri: item.avatar }} style={styles.avatar} />
+					</Pressable>
+					<Pressable disabled={!item.riderId} onPress={openProfile}>
 						<Text style={styles.username}>{item.user}</Text>
 						<Text style={styles.time}>{item.time}</Text>
-					</View>
+					</Pressable>
 				</View>
 			</View>
 
@@ -289,10 +289,9 @@ export function FeedPost({
 						pointerEvents="none"
 						style={[styles.bumpPulse, bumpPulseStyle]}
 					>
-						<Ionicons
-							color={colors.primary}
-							name="heart"
-							size={metrics.icon.xl}
+						<Image
+							source={activeFistBumpIcon}
+							style={{ width: metrics.icon.xl * 1.5, height: metrics.icon.xl * 1.5 }}
 						/>
 					</Animated.View>
 				) : null}
@@ -314,6 +313,7 @@ export function FeedPost({
 
 					<Pressable
 						android_ripple={{ color: colors.overlayLight }}
+						onPress={() => onShare(item.id)}
 						style={styles.passiveAction}
 					>
 						<Ionicons
@@ -357,11 +357,9 @@ export function FeedPost({
 						);
 					}}
 				>
-					<Animated.Text
-						style={[styles.likes, bumpTextAnimatedStyle, likeAnimatedStyle]}
-					>
+					<Text style={[styles.likes]}>
 						{likeCount} bumps
-					</Animated.Text>
+					</Text>
 				</AnimatedPressable>
 				<Text numberOfLines={2} style={styles.caption}>
 					<Text style={styles.captionUser}>{item.user} </Text>

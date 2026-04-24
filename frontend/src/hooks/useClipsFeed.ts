@@ -15,6 +15,7 @@ const toClipItem = (
 	clip: Awaited<ReturnType<typeof ClipService.getClips>>["clips"][number],
 ): ClipItem => ({
 	id: clip.id,
+	riderId: clip.rider?.id,
 	user: clip.rider?.username ?? clip.rider?.name ?? "rider",
 	avatar:
 		clip.rider?.profileImageUrl ??

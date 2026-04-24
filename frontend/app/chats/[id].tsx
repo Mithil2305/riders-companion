@@ -17,6 +17,7 @@ export default function ChatRoomScreen() {
     draft,
     setDraft,
     sendMessage,
+    sendImage,
     isLoading,
     isMenuVisible,
     openMenu,
@@ -40,7 +41,7 @@ export default function ChatRoomScreen() {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
         style={styles.container}
       >
@@ -55,7 +56,7 @@ export default function ChatRoomScreen() {
           title={meta.name}
         />
         <MessageList messages={listData} />
-        <ChatInput disabled={isBlocked} onChangeText={setDraft} onSend={sendMessage} value={draft} />
+        <ChatInput disabled={isBlocked} onChangeText={setDraft} onSend={sendMessage} onSendImage={sendImage} value={draft} />
       </KeyboardAvoidingView>
 
       <PersonalChatMenuSheet

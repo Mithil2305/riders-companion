@@ -11,6 +11,9 @@ const { randomUUID } = require("crypto");
 const dataUriRegex = /^data:([^;,]+);base64,(.+)$/i;
 const COMPRESS_IMAGE_QUALITY = 80;
 const COMPRESS_VIDEO_CRF = 30;
+const MB = 1024 * 1024;
+const MAX_VIDEO_INPUT_BYTES = 500 * MB;
+const MAX_VIDEO_OUTPUT_BYTES = 200 * MB;
 
 if (ffmpegPath) {
 	ffmpeg.setFfmpegPath(ffmpegPath);
@@ -91,6 +94,31 @@ const compressImageBuffer = async (buffer) => {
 		.toBuffer();
 };
 
+const runVideoCompression = async ({ inputPath, outputPath, crf, maxWidth }) => {
+	const outputOptions = [
+		"-vcodec libx264",
+		`-crf ${crf}`,
+		"-preset veryfast",
+		"-acodec aac",
+		"-b:a 128k",
+		"-movflags +faststart",
+	];
+
+	if (maxWidth) {
+		outputOptions.push(
+			`-vf scale='min(${maxWidth},iw)':-2:force_original_aspect_ratio=decrease`,
+		);
+	}
+
+	await new Promise((resolve, reject) => {
+		ffmpeg(inputPath)
+			.outputOptions(outputOptions)
+			.on("end", resolve)
+			.on("error", reject)
+			.save(outputPath);
+	});
+};
+
 const compressVideoBuffer = async (buffer) => {
 	if (!ffmpegPath) {
 		throw new Error(
@@ -98,31 +126,54 @@ const compressVideoBuffer = async (buffer) => {
 		);
 	}
 
+	if (buffer.length > MAX_VIDEO_INPUT_BYTES) {
+		throw new Error("Media upload video must be 500MB or smaller.");
+	}
+
 	const tempDir = os.tmpdir();
 	const token = randomUUID();
 	const inputPath = path.join(tempDir, `rider-upload-${token}.input.mp4`);
-	const outputPath = path.join(tempDir, `rider-upload-${token}.output.mp4`);
+	const outputPaths = [];
 
 	await fs.writeFile(inputPath, buffer);
 
 	try {
-		await new Promise((resolve, reject) => {
-			ffmpeg(inputPath)
-				.outputOptions([
-					"-vcodec libx264",
-					`-crf ${COMPRESS_VIDEO_CRF}`,
-					"-preset veryfast",
-					"-acodec aac",
-					"-movflags +faststart",
-				])
-				.on("end", resolve)
-				.on("error", reject)
-				.save(outputPath);
-		});
+		const attempts = [
+			{ crf: COMPRESS_VIDEO_CRF, maxWidth: 1280 },
+			{ crf: 34, maxWidth: 960 },
+			{ crf: 38, maxWidth: 720 },
+			{ crf: 42, maxWidth: 540 },
+		];
 
-		return await fs.readFile(outputPath);
+		let smallestBuffer = buffer;
+
+		for (const [index, attempt] of attempts.entries()) {
+			const outputPath = path.join(
+				tempDir,
+				`rider-upload-${token}.output-${index}.mp4`,
+			);
+			outputPaths.push(outputPath);
+			await runVideoCompression({ inputPath, outputPath, ...attempt });
+			const compressedBuffer = await fs.readFile(outputPath);
+
+			if (compressedBuffer.length < smallestBuffer.length) {
+				smallestBuffer = compressedBuffer;
+			}
+
+			if (compressedBuffer.length <= MAX_VIDEO_OUTPUT_BYTES) {
+				return compressedBuffer;
+			}
+		}
+
+		if (smallestBuffer.length <= MAX_VIDEO_OUTPUT_BYTES) {
+			return smallestBuffer;
+		}
+
+		throw new Error(
+			"Media upload video could not be compressed under 200MB. Choose a shorter video or a smaller source file.",
+		);
 	} finally {
-		await cleanupTmpFiles([inputPath, outputPath]);
+		await cleanupTmpFiles([inputPath, ...outputPaths]);
 	}
 };
 

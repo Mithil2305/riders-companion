@@ -1,5 +1,6 @@
 export interface ClipItem {
 	id: string;
+	riderId?: string;
 	user: string;
 	avatar: string;
 	media: string;
