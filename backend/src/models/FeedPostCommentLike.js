@@ -1,34 +1,39 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const Tracker = sequelize.define(
-	"Tracker",
+const FeedPostCommentLike = sequelize.define(
+	"FeedPostCommentLike",
 	{
 		id: {
 			type: DataTypes.UUID,
 			defaultValue: DataTypes.UUIDV4,
 			primaryKey: true,
 		},
-		follower_id: {
+		feed_post_id: {
 			type: DataTypes.UUID,
 			allowNull: false,
 		},
-		following_id: {
+		feed_post_comment_id: {
+			type: DataTypes.UUID,
+			allowNull: false,
+		},
+		rider_id: {
 			type: DataTypes.UUID,
 			allowNull: false,
 		},
 	},
 	{
-		tableName: "tracker",
+		tableName: "feed_post_comment_like",
 		underscored: true,
 		timestamps: true,
+		updatedAt: false,
 		indexes: [
 			{
 				unique: true,
-				fields: ["follower_id", "following_id"],
+				fields: ["feed_post_comment_id", "rider_id"],
 			},
 		],
 	},
 );
 
-module.exports = Tracker;
+module.exports = FeedPostCommentLike;

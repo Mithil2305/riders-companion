@@ -335,11 +335,19 @@ export default function PostDetailsPage() {
 
 			<View style={styles.card}>
 				<View style={styles.postHeader}>
-					<Image
-						source={{ uri: post.rider?.profileImageUrl ?? FALLBACK_AVATAR }}
-						style={styles.avatar}
-					/>
-					<View>
+					<Pressable
+						disabled={!post.rider?.id}
+						onPress={() => post.rider?.id && router.push(`/rider/${post.rider.id}`)}
+					>
+						<Image
+							source={{ uri: post.rider?.profileImageUrl ?? FALLBACK_AVATAR }}
+							style={styles.avatar}
+						/>
+					</Pressable>
+					<Pressable
+						disabled={!post.rider?.id}
+						onPress={() => post.rider?.id && router.push(`/rider/${post.rider.id}`)}
+					>
 						<Text style={styles.username}>
 							{post.rider?.username
 								? `@${post.rider.username}`
@@ -348,7 +356,7 @@ export default function PostDetailsPage() {
 						<Text style={styles.time}>
 							{formatRelativeTime(post.createdAt)}
 						</Text>
-					</View>
+					</Pressable>
 				</View>
 
 				<View style={styles.mediaWrap}>

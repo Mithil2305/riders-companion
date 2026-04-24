@@ -8,6 +8,7 @@ export interface GalleryMediaAsset {
 	mediaType: "photo" | "video";
 	filename?: string;
 	duration?: number;
+	fileSize?: number;
 }
 
 export interface GalleryAlbum {

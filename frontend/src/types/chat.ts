@@ -3,7 +3,7 @@ export type ChatFilter = 'all' | 'personal' | 'group' | 'ended';
 export type ChatRoomType = 'personal' | 'group';
 export type ChatStatus = 'active' | 'ended';
 export type MessageSender = 'me' | 'other';
-export type MessageDelivery = 'sent' | 'delivered' | 'read';
+export type MessageDelivery = 'sent' | 'delivered' | 'read' | 'failed';
 
 export interface ChatPreview {
   id: string;

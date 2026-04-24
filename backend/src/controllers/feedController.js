@@ -7,6 +7,7 @@ const { canCreateContentOrRide } = require("../utils/profileAccess");
 const {
 	FeedPost,
 	FeedPostComment,
+	FeedPostCommentLike,
 	FeedPostLike,
 	RiderAccount,
 } = require("../models");
@@ -74,6 +75,32 @@ const validateCommentText = (value) => {
 	}
 
 	return trimmed;
+};
+
+const toCommentPayload = async (comment, viewerId) => {
+	const [likesCount, likedRecord] = await Promise.all([
+		FeedPostCommentLike.count({
+			where: { feed_post_comment_id: comment.id },
+		}),
+		FeedPostCommentLike.findOne({
+			where: { feed_post_comment_id: comment.id, rider_id: viewerId },
+			attributes: ["id"],
+		}),
+	]);
+
+	return {
+		id: comment.id,
+		commentText: comment.comment_text,
+		createdAt: comment.created_at,
+		rider: {
+			id: comment.RiderAccount?.id,
+			name: comment.RiderAccount?.name,
+			username: comment.RiderAccount?.username,
+			profileImageUrl: comment.RiderAccount?.profile_image_url,
+		},
+		likesCount,
+		likedByMe: Boolean(likedRecord),
+	};
 };
 
 const normalizeCaption = (value) => {
@@ -213,22 +240,15 @@ exports.getComments = async (req, res) => {
 		order: [["created_at", "DESC"]],
 		limit: 100,
 	});
+	const payloadComments = await Promise.all(
+		comments.map((comment) => toCommentPayload(comment, req.user.id)),
+	);
 
 	return res.status(200).json({
 		success: true,
 		data: {
 			postId: post.id,
-			comments: comments.map((comment) => ({
-				id: comment.id,
-				commentText: comment.comment_text,
-				createdAt: comment.created_at,
-				rider: {
-					id: comment.RiderAccount?.id,
-					name: comment.RiderAccount?.name,
-					username: comment.RiderAccount?.username,
-					profileImageUrl: comment.RiderAccount?.profile_image_url,
-				},
-			})),
+			comments: payloadComments,
 		},
 	});
 };
@@ -285,18 +305,111 @@ exports.addComment = async (req, res) => {
 	const commentsCount = await FeedPostComment.count({
 		where: { feed_post_id: post.id },
 	});
+	const commentWithRider = await FeedPostComment.findByPk(createdComment.id, {
+		include: [
+			{
+				model: RiderAccount,
+				attributes: ["id", "name", "username", "profile_image_url"],
+			},
+		],
+	});
 
 	return res.status(201).json({
 		success: true,
 		data: {
 			postId: post.id,
-			comment: {
-				id: createdComment.id,
-				commentText: createdComment.comment_text,
-				createdAt: createdComment.created_at,
-			},
+			comment: commentWithRider
+				? await toCommentPayload(commentWithRider, req.user.id)
+				: {
+						id: createdComment.id,
+						commentText: createdComment.comment_text,
+						createdAt: createdComment.created_at,
+						likesCount: 0,
+						likedByMe: false,
+					},
 			commentsCount,
 		},
+	});
+};
+
+exports.likeComment = async (req, res) => {
+	const post = await FeedPost.findByPk(req.params.postId, {
+		attributes: ["id"],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	const comment = await FeedPostComment.findOne({
+		where: {
+			id: req.params.commentId,
+			feed_post_id: post.id,
+		},
+		attributes: ["id", "feed_post_id"],
+	});
+
+	if (!comment) {
+		return formatError(res, 404, "Comment not found", "FEED_COMMENT_NOT_FOUND");
+	}
+
+	await FeedPostCommentLike.findOrCreate({
+		where: {
+			feed_post_comment_id: comment.id,
+			rider_id: req.user.id,
+		},
+		defaults: {
+			feed_post_id: post.id,
+			feed_post_comment_id: comment.id,
+			rider_id: req.user.id,
+		},
+	});
+
+	const likesCount = await FeedPostCommentLike.count({
+		where: { feed_post_comment_id: comment.id },
+	});
+
+	return res.status(200).json({
+		success: true,
+		data: { commentId: comment.id, liked: true, likesCount },
+	});
+};
+
+exports.unlikeComment = async (req, res) => {
+	const post = await FeedPost.findByPk(req.params.postId, {
+		attributes: ["id"],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	const comment = await FeedPostComment.findOne({
+		where: {
+			id: req.params.commentId,
+			feed_post_id: post.id,
+		},
+		attributes: ["id"],
+	});
+
+	if (!comment) {
+		return formatError(res, 404, "Comment not found", "FEED_COMMENT_NOT_FOUND");
+	}
+
+	await FeedPostCommentLike.destroy({
+		where: {
+			feed_post_comment_id: comment.id,
+			rider_id: req.user.id,
+		},
+	});
+
+	const likesCount = await FeedPostCommentLike.count({
+		where: { feed_post_comment_id: comment.id },
+	});
+
+	return res.status(200).json({
+		success: true,
+		data: { commentId: comment.id, liked: false, likesCount },
 	});
 };
 
@@ -419,6 +532,7 @@ exports.deletePost = async (req, res) => {
 
 	await Promise.all([
 		FeedPostLike.destroy({ where: { feed_post_id: post.id } }),
+		FeedPostCommentLike.destroy({ where: { feed_post_id: post.id } }),
 		FeedPostComment.destroy({ where: { feed_post_id: post.id } }),
 	]);
 

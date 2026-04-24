@@ -1,5 +1,6 @@
 const { formatError } = require("../utils/errorFormatter");
-const { RiderAccount, UserBike } = require("../models");
+const { Op } = require("sequelize");
+const { RiderAccount, Tracker, UserBike } = require("../models");
 const {
 	mediaUploadError,
 	uploadMediaFromBody,
@@ -32,13 +33,50 @@ const toBikePayload = (bike) => ({
 	isPrimary: bike.is_primary,
 });
 
-const toPublicProfilePayload = (user) => ({
+const toPublicProfilePayload = (user, extras = {}) => ({
 	id: user.id,
 	username: user.username,
 	name: user.name,
 	bio: user.bio,
 	profileImageUrl: user.profile_image_url,
+	totalMiles: user.total_miles,
+	...extras,
 });
+
+exports.searchRiders = async (req, res) => {
+	const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
+
+	if (query.length < 2) {
+		return res.status(200).json({
+			success: true,
+			data: { users: [] },
+		});
+	}
+
+	const normalized = query.replace(/^@/, "").toLowerCase();
+	const riders = await RiderAccount.findAll({
+		where: {
+			id: { [Op.ne]: req.user.id },
+			[Op.or]: [
+				{ username: { [Op.iLike]: `%${normalized}%` } },
+				{ name: { [Op.iLike]: `%${query}%` } },
+			],
+		},
+		attributes: ["id", "username", "name", "bio", "profile_image_url"],
+		order: [
+			["username", "ASC"],
+			["name", "ASC"],
+		],
+		limit: 20,
+	});
+
+	return res.status(200).json({
+		success: true,
+		data: {
+			users: riders.map((rider) => toPublicProfilePayload(rider)),
+		},
+	});
+};
 
 exports.getRiderProfile = async (req, res) => {
 	const riderId = req.params.riderId;
@@ -53,7 +91,7 @@ exports.getRiderProfile = async (req, res) => {
 	}
 
 	const rider = await RiderAccount.findByPk(riderId, {
-		attributes: ["id", "username", "name", "bio", "profile_image_url"],
+		attributes: ["id", "username", "name", "bio", "profile_image_url", "total_miles"],
 	});
 
 	if (!rider) {
@@ -65,10 +103,35 @@ exports.getRiderProfile = async (req, res) => {
 		);
 	}
 
+	const [followersCount, followingCount, followRecord, bikes] = await Promise.all([
+		Tracker.count({ where: { following_id: rider.id } }),
+		Tracker.count({ where: { follower_id: rider.id } }),
+		Tracker.findOne({
+			where: {
+				follower_id: req.user.id,
+				following_id: rider.id,
+			},
+			attributes: ["id"],
+		}),
+		UserBike.findAll({
+			where: { rider_id: rider.id },
+			order: [
+				["is_primary", "DESC"],
+				["year", "DESC"],
+			],
+		}),
+	]);
+
 	return res.status(200).json({
 		success: true,
 		data: {
-			profile: toPublicProfilePayload(rider),
+			profile: toPublicProfilePayload(rider, {
+				followersCount,
+				followingCount,
+				isFollowing: Boolean(followRecord),
+				isMe: rider.id === req.user.id,
+			}),
+			bikes: bikes.map(toBikePayload),
 		},
 	});
 };
