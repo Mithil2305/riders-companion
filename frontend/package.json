@@ -52,5 +52,8 @@
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.8.3"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.10"
+  }
 }
