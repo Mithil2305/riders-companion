@@ -1,6 +1,8 @@
 import React from "react";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
+import Constants from "expo-constants";
 import * as MediaLibrary from "expo-media-library";
+import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import ClipService from "../services/ClipService";
 import FeedService from "../services/FeedService";
@@ -16,6 +18,8 @@ const PAGE_SIZE = 60;
 const RECENT_ALBUM_ID = "__recent__";
 const MAX_VIDEO_UPLOAD_BYTES = 24 * 1024 * 1024;
 const IMAGE_COMPRESSION = 0.8;
+const IS_EXPO_GO_ANDROID =
+	Platform.OS === "android" && Constants.appOwnership === "expo";
 
 const extractHashtags = (text: string) => {
 	const matches = text.match(/#[A-Za-z0-9_]+/g) ?? [];
@@ -79,12 +83,30 @@ export function useCreateMediaUpload() {
 		uploadType === "reel" && selectedAsset?.mediaType !== "video";
 
 	const requestPermission = React.useCallback(async () => {
-		const permission = await MediaLibrary.requestPermissionsAsync(false, [
-			"photo",
-			"video",
-		]);
-		setPermissionGranted(permission.granted);
-		return permission.granted;
+		try {
+			if (IS_EXPO_GO_ANDROID) {
+				const permission =
+					await ImagePicker.requestMediaLibraryPermissionsAsync();
+				setPermissionGranted(permission.granted);
+				return permission.granted;
+			}
+
+			const permission = await MediaLibrary.requestPermissionsAsync(false, [
+				"photo",
+				"video",
+			]);
+			setPermissionGranted(permission.granted);
+			return permission.granted;
+		} catch (error) {
+			setPermissionGranted(false);
+			Alert.alert(
+				"Gallery access unavailable",
+				error instanceof Error
+					? error.message
+					: "Gallery permission could not be requested.",
+			);
+			return false;
+		}
 	}, []);
 
 	const loadAlbums = React.useCallback(async () => {
