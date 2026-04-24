@@ -52,5 +52,11 @@
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.8.3"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.13",
+    "postcss": "^8.5.10",
+    "protobufjs": "^7.5.5",
+    "uuid": "^14.0.0"
+  }
 }

@@ -23,7 +23,11 @@
         "backgroundColor": "#e8e8e8"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.riderscompanion.app"
+      "package": "com.riderscompanion.app",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +40,12 @@
       "@react-native-community/datetimepicker",
       "expo-video",
       "expo-location"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2d1fbb77-1119-4eeb-ac3a-5c9cd54c7227"
+      }
+    }
   }
 }
