@@ -55,6 +55,6 @@ app.get("/health", async (_req, res) => {
 
 setupWebSockets(server);
 
-server.listen(port, () => {
+server.listen(port,"0.0.0.0", () => {
 	console.log(`Backend running on port ${port}`);
 });
