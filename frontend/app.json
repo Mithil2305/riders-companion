@@ -23,6 +23,7 @@
         "backgroundColor": "#e8e8e8"
       },
       "edgeToEdgeEnabled": true,
+      "usesCleartextTraffic": true,
       "package": "com.riderscompanion.app",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
