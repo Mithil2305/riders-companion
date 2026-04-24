@@ -87,6 +87,32 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 		);
 	}, []);
 
+	const editComment = React.useCallback(async (commentId: string, newContent: string) => {
+		const trimmed = newContent.trim();
+		if (trimmed.length === 0) {
+			throw new Error("Comment cannot be empty");
+		}
+
+		// TODO: Replace with actual API call when endpoints are provided
+		// await InteractionService.editComment(contentType, contentId, commentId, trimmed);
+
+		setComments((current) =>
+			current.map((comment) => {
+				if (comment.id !== commentId) {
+					return comment;
+				}
+				return { ...comment, content: trimmed };
+			}),
+		);
+	}, [contentId, contentType]);
+
+	const deleteComment = React.useCallback(async (commentId: string) => {
+		// TODO: Replace with actual API call when endpoints are provided
+		// await InteractionService.deleteComment(contentType, contentId, commentId);
+
+		setComments((current) => current.filter((comment) => comment.id !== commentId));
+	}, [contentId, contentType]);
+
 	return {
 		comments,
 		draft,
@@ -95,6 +121,8 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 		isSubmitting,
 		addComment,
 		likeComment,
+		editComment,
+		deleteComment,
 		reload: loadComments,
 	};
 }
