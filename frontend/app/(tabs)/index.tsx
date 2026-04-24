@@ -1,147 +1,139 @@
-import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../src/hooks/useTheme';
+import React from "react";
+import { RefreshControl, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+	useAnimatedScrollHandler,
+	useSharedValue,
+} from "react-native-reanimated";
+import { EmptyState } from "../../src/components/common";
+import {
+	EndOfFeed,
+	FeedPost,
+	FeedSkeleton,
+	HeaderBar,
+} from "../../src/components/feed";
+import { useHomeFeed } from "../../src/hooks/useHomeFeed";
+import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
+import { useTheme } from "../../src/hooks/useTheme";
+import { FeedPostItem } from "../../src/types/feed";
 
 export default function HomeScreen() {
-  const { colors, metrics, typography } = useTheme();
-  const styles = React.useMemo(
-    () =>
-      StyleSheet.create({
-        container: {
-          flex: 1,
-          backgroundColor: colors.background,
-        },
-        content: {
-          padding: metrics.md,
-          gap: metrics.md,
-        },
-        headerRow: {
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        },
-        titleWrap: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: metrics.sm,
-        },
-        title: {
-          fontSize: typography.sizes.xl,
-          color: colors.textPrimary,
-          fontWeight: '700',
-        },
-        subtitle: {
-          color: colors.textSecondary,
-          fontSize: typography.sizes.sm,
-        },
-        actionRow: {
-          flexDirection: 'row',
-          gap: metrics.sm,
-        },
-        iconButton: {
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: colors.surface,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        card: {
-          borderRadius: metrics.radius.xl,
-          backgroundColor: colors.surface,
-          borderWidth: 1,
-          borderColor: colors.border,
-          overflow: 'hidden',
-        },
-        riderRow: {
-          padding: metrics.md,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        },
-        riderName: {
-          color: colors.textPrimary,
-          fontSize: typography.sizes.base,
-          fontWeight: '600',
-        },
-        riderTime: {
-          color: colors.textTertiary,
-          fontSize: typography.sizes.xs,
-        },
-        postImage: {
-          width: '100%',
-          height: 270,
-        },
-        statRow: {
-          paddingHorizontal: metrics.md,
-          paddingVertical: metrics.sm,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        },
-        statText: {
-          color: colors.textSecondary,
-          fontSize: typography.sizes.sm,
-        },
-      }),
-    [colors, metrics, typography],
-  );
+	const { colors, metrics, typography } = useTheme();
+	const {
+		loading,
+		refreshing,
+		posts,
+		likedPostIds,
+		onRefresh,
+		toggleLike,
+		addComment,
+	} = useHomeFeed();
+	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
+		useTabSwipeNavigation("home");
+	const scrollY = useSharedValue(0);
 
-  return (
-    <SafeAreaView edges={['left', 'right']} style={styles.container}>
-      <ScrollView style={styles.container}>
-        <View style={styles.content}>
-        <View style={styles.headerRow}>
-          <View>
-            <View style={styles.titleWrap}>
-              <Ionicons color={colors.primary} name="flash-outline" size={20} />
-              <Text style={styles.title}>Moments</Text>
-            </View>
-            <Text style={styles.subtitle}>Trackers and ride stories</Text>
-          </View>
-          <View style={styles.actionRow}>
-            <View style={styles.iconButton}>
-              <Ionicons color={colors.icon} name="notifications-outline" size={18} />
-            </View>
-            <View style={styles.iconButton}>
-              <Ionicons color={colors.icon} name="chatbubble-ellipses-outline" size={18} />
-            </View>
-          </View>
-        </View>
+	const onScroll = useAnimatedScrollHandler({
+		onScroll: (event) => {
+			scrollY.value = event.contentOffset.y;
+		},
+	});
 
-        <View style={styles.card}>
-          <View style={styles.riderRow}>
-            <View>
-              <Text style={styles.riderName}>alex_rider</Text>
-              <Text style={styles.riderTime}>2h</Text>
-            </View>
-            <Ionicons color={colors.primary} name="ellipsis-horizontal" size={18} />
-          </View>
-          <Image source={require('../../assets/images/hero.png')} style={styles.postImage} />
-          <View style={styles.statRow}>
-            <Text style={styles.statText}>142 bumps</Text>
-            <Ionicons color={colors.primary} name="heart-outline" size={20} />
-          </View>
-        </View>
+	const renderPost = React.useCallback(
+		({ item, index }: { item: FeedPostItem; index: number }) => (
+			<FeedPost
+				index={index}
+				item={item}
+				liked={Boolean(likedPostIds[item.id])}
+				onAddComment={addComment}
+				onToggleLike={toggleLike}
+				scrollY={scrollY}
+			/>
+		),
+		[addComment, likedPostIds, scrollY, toggleLike],
+	);
 
-        <View style={styles.card}>
-          <View style={styles.riderRow}>
-            <View>
-              <Text style={styles.riderName}>moto_john</Text>
-              <Text style={styles.riderTime}>5h</Text>
-            </View>
-            <Ionicons color={colors.primary} name="ellipsis-horizontal" size={18} />
-          </View>
-          <Image source={require('../../assets/images/group_ride.png')} style={styles.postImage} />
-          <View style={styles.statRow}>
-            <Text style={styles.statText}>120 bumps</Text>
-            <Ionicons color={colors.primary} name="heart-outline" size={20} />
-          </View>
-        </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				container: {
+					flex: 1,
+					backgroundColor: colors.background,
+					gap: metrics.md,
+				},
+				feedContent: {
+					paddingBottom: metrics["3xl"],
+					backgroundColor: colors.background,
+					paddingTop: metrics.md,
+					// paddingHorizontal: metrics.md,
+				},
+				emptyWrap: {
+					paddingHorizontal: metrics.md,
+					paddingTop: metrics["2xl"],
+				},
+				loadingTitle: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.sm,
+					textAlign: "center",
+					marginTop: metrics.lg,
+				},
+			}),
+		[colors, metrics, typography],
+	);
+
+	if (loading) {
+		return (
+			<Animated.View
+				style={[styles.container, swipeAnimatedStyle]}
+				{...swipeHandlers}
+			>
+				<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
+					<HeaderBar showSpinner title="Moments" />
+					<FeedSkeleton />
+					<Text style={styles.loadingTitle}>
+						Loading your latest moments...
+					</Text>
+				</SafeAreaView>
+			</Animated.View>
+		);
+	}
+
+	return (
+		<Animated.View
+			style={[styles.container, swipeAnimatedStyle]}
+			{...swipeHandlers}
+		>
+			<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
+				<HeaderBar showSpinner={refreshing} title="Moments" />
+
+				<Animated.FlatList
+					ListEmptyComponent={
+						<View style={styles.emptyWrap}>
+							<EmptyState
+								icon="images-outline"
+								subtitle="Start sharing rides to populate your feed."
+								title="No moments yet"
+							/>
+						</View>
+					}
+					ListFooterComponent={<EndOfFeed />}
+					contentContainerStyle={styles.feedContent}
+					data={posts}
+					keyExtractor={(item) => item.id}
+					onScroll={onScroll}
+					scrollEventThrottle={16}
+					refreshControl={
+						<RefreshControl
+							colors={[colors.primary]}
+							onRefresh={onRefresh}
+							progressBackgroundColor={colors.surface}
+							refreshing={refreshing}
+							tintColor={colors.primary}
+						/>
+					}
+					renderItem={renderPost}
+					showsVerticalScrollIndicator={false}
+				/>
+			</SafeAreaView>
+		</Animated.View>
+	);
 }
