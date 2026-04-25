@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../src/contexts/AuthContext";
+import { useTheme } from "../src/hooks/useTheme";
 import RideService, { RideFriend } from "../src/services/RideService";
 import {
 	hasCompletedProfile,
@@ -29,20 +30,6 @@ type PrivacyMode = "friends" | "strangers" | "mixed";
 type RidePace = "calm" | "balanced" | "fast";
 type RoadPreference = "scenic" | "highway" | "mixed";
 type DateField = "start" | "end";
-
-const palette = {
-	bg: "#F9FAFB",
-	card: "#FFFFFF",
-	border: "#E5E7EB",
-	textPrimary: "#111827",
-	textSecondary: "#6B7280",
-	activeBg: "#FDE8E8",
-	activeBorder: "#D97768",
-	activeText: "#D97768",
-	button: "#000000",
-	buttonText: "#FFFFFF",
-	overlay: "rgba(0, 0, 0, 0.4)",
-};
 
 const resolveRideType = (
 	value: string | string[] | undefined,
@@ -74,6 +61,27 @@ export default function RideDetailsScreen() {
 	const router = useRouter();
 	const params = useLocalSearchParams();
 	const { user: authUser } = useAuth();
+	const { colors } = useTheme();
+
+	const palette = React.useMemo(
+		() => ({
+			bg: colors.background,
+			card: colors.surface,
+			border: colors.border,
+			textPrimary: colors.textPrimary,
+			textSecondary: colors.textSecondary,
+			activeBg: colors.overlayLight,
+			activeBorder: colors.primary,
+			activeText: colors.primary,
+			button: colors.buttonPrimaryBg,
+			buttonText: colors.buttonPrimaryText,
+			overlay: colors.overlay,
+			shadow: colors.shadow,
+		}),
+		[colors],
+	);
+
+	const styles = React.useMemo(() => createStyles(palette), [palette]);
 
 	const [selectedType] = React.useState<"solo" | "group">(
 		resolveRideType(params.rideType),
@@ -646,11 +654,7 @@ export default function RideDetailsScreen() {
 						<View style={styles.headerRow}>
 							<View style={styles.headerLeft}>
 								<Pressable hitSlop={8} onPress={() => router.back()}>
-									<Ionicons
-										color={palette.textPrimary}
-										name="arrow-back"
-										size={22}
-									/>
+									<Ionicons color={palette.textPrimary} name="arrow-back" size={22} />
 								</Pressable>
 								<Text style={styles.headerTitle}>Ride details</Text>
 								<View style={styles.groupPill}>
@@ -989,7 +993,20 @@ export default function RideDetailsScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
+const createStyles = (palette: {
+	bg: string;
+	card: string;
+	border: string;
+	textPrimary: string;
+	textSecondary: string;
+	activeBg: string;
+	activeBorder: string;
+	activeText: string;
+	button: string;
+	buttonText: string;
+	overlay: string;
+	shadow: string;
+}) => StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: palette.bg,
@@ -1049,7 +1066,7 @@ const styles = StyleSheet.create({
 		borderColor: palette.border,
 		borderRadius: 16,
 		padding: 16,
-		shadowColor: "#000",
+		shadowColor: palette.shadow,
 		shadowOpacity: 0.03,
 		shadowOffset: { width: 0, height: 6 },
 		shadowRadius: 10,
@@ -1217,7 +1234,7 @@ const styles = StyleSheet.create({
 		backgroundColor: palette.card,
 		borderTopWidth: 1,
 		borderTopColor: palette.border,
-		shadowColor: "#000",
+		shadowColor: palette.shadow,
 		shadowOpacity: 0.06,
 		shadowOffset: { width: 0, height: -2 },
 		shadowRadius: 8,
