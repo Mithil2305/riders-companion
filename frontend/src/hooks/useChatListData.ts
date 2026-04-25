@@ -34,77 +34,88 @@ export function useChatListData() {
 	const [chatPreviews, setChatPreviews] = React.useState<ChatPreview[]>([]);
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [activeFilter, setActiveFilter] = React.useState<ChatFilter>("all");
+	const [refreshing, setRefreshing] = React.useState(false);
+	const mountedRef = React.useRef(true);
+
+	const loadChatPreviews = React.useCallback(async () => {
+		try {
+			const response = await ChatService.getRooms();
+			const rooms = response.communities || [];
+
+			const previews = await Promise.all(
+				rooms.map(async (room) => {
+					try {
+						const history = await ChatService.getRoomMessages(String(room.id));
+						const latest = history.messages?.[history.messages.length - 1] as
+							| {
+									message?: string;
+									senderName?: string;
+									createdAt?: string;
+							  }
+							| undefined;
+
+						return {
+							id: String(room.id),
+							name: room.name || `Room ${room.id}`,
+							senderName:
+								typeof latest?.senderName === "string"
+									? latest.senderName
+									: undefined,
+							message:
+								typeof latest?.message === "string" &&
+								latest.message.trim().length > 0
+									? latest.message
+									: "No messages yet",
+							time: formatPreviewTime(latest?.createdAt),
+							avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(room.name || `Room ${room.id}`)}&background=0D8ABC&color=fff`,
+							roomType: "group" as const,
+							status: "active" as const,
+						};
+					} catch {
+						return {
+							id: String(room.id),
+							name: room.name || `Room ${room.id}`,
+							message: "No messages yet",
+							time: "--:--",
+							avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(room.name || `Room ${room.id}`)}&background=0D8ABC&color=fff`,
+							roomType: "group" as const,
+							status: "active" as const,
+						};
+					}
+				}),
+			);
+
+			if (!mountedRef.current) {
+				return;
+			}
+
+			setChatPreviews(previews.length > 0 ? previews : [MOCK_CHAT_PREVIEW]);
+		} catch {
+			if (mountedRef.current) {
+				setChatPreviews([MOCK_CHAT_PREVIEW]);
+			}
+		}
+	}, []);
 
 	React.useEffect(() => {
-		let isMounted = true;
-
-		ChatService.getRooms()
-			.then(async (response) => {
-				const rooms = response.communities || [];
-
-				const previews = await Promise.all(
-					rooms.map(async (room) => {
-						try {
-							const history = await ChatService.getRoomMessages(
-								String(room.id),
-							);
-							const latest = history.messages?.[history.messages.length - 1] as
-								| {
-										message?: string;
-										senderName?: string;
-										createdAt?: string;
-								  }
-								| undefined;
-
-							return {
-								id: String(room.id),
-								name: room.name || `Room ${room.id}`,
-								senderName:
-									typeof latest?.senderName === "string"
-										? latest.senderName
-										: undefined,
-								message:
-									typeof latest?.message === "string" &&
-									latest.message.trim().length > 0
-										? latest.message
-										: "No messages yet",
-								time: formatPreviewTime(latest?.createdAt),
-								avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(room.name || `Room ${room.id}`)}&background=0D8ABC&color=fff`,
-								roomType: "group" as const,
-								status: "active" as const,
-							};
-						} catch {
-							return {
-								id: String(room.id),
-								name: room.name || `Room ${room.id}`,
-								message: "No messages yet",
-								time: "--:--",
-								avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(room.name || `Room ${room.id}`)}&background=0D8ABC&color=fff`,
-								roomType: "group" as const,
-								status: "active" as const,
-							};
-						}
-					}),
-				);
-
-				if (!isMounted) {
-					return;
-				}
-
-				setChatPreviews(previews.length > 0 ? previews : [MOCK_CHAT_PREVIEW]);
-			})
-			.catch(() => {
-				if (!isMounted) {
-					return;
-				}
-
-				setChatPreviews([MOCK_CHAT_PREVIEW]);
-			});
+		mountedRef.current = true;
+		void loadChatPreviews();
 
 		return () => {
-			isMounted = false;
+			mountedRef.current = false;
 		};
-	}, []);
+	}, [loadChatPreviews]);
+
+	const refreshChats = React.useCallback(async () => {
+		setRefreshing(true);
+		try {
+			await loadChatPreviews();
+		} finally {
+			if (mountedRef.current) {
+				setRefreshing(false);
+			}
+		}
+	}, [loadChatPreviews]);
 
 	const filteredChats = React.useMemo(() => {
 		const byFilter = chatPreviews.filter((item) => {
@@ -138,6 +149,8 @@ export function useChatListData() {
 
 	return {
 		chats: filteredChats,
+		refreshing,
+		refreshChats,
 		searchQuery,
 		setSearchQuery,
 		activeFilter,

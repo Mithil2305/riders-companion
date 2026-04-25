@@ -9,7 +9,7 @@ const { assertCryptoReady } = require("./src/services/chatCryptoService");
 const app = express();
 const server = http.createServer(app);
 const port = process.env.PORT || 3000;
-const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || "150mb";
+const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || "700mb";
 
 app.use(express.json({ limit: requestBodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
@@ -55,6 +55,6 @@ app.get("/health", async (_req, res) => {
 
 setupWebSockets(server);
 
-server.listen(port, () => {
+server.listen(port,"0.0.0.0", () => {
 	console.log(`Backend running on port ${port}`);
 });

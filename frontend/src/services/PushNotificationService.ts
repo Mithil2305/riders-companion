@@ -2,35 +2,11 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { apiRequest } from "./api";
 
-let notificationHandlerConfigured = false;
+type NotificationsModule = typeof import("expo-notifications");
 
 const isPhysicalDevice = () => {
 	const appOwnership = Constants.appOwnership;
 	return appOwnership !== "expo";
-};
-
-const loadNotifications = async () => {
-	if (!isPhysicalDevice()) {
-		return null;
-	}
-
-	const Notifications = await import("expo-notifications");
-
-	if (!notificationHandlerConfigured) {
-		Notifications.setNotificationHandler({
-			handleNotification: async () => ({
-				shouldShowAlert: true,
-				shouldPlaySound: true,
-				shouldSetBadge: false,
-				shouldShowBanner: true,
-				shouldShowList: true,
-			}),
-		});
-
-		notificationHandlerConfigured = true;
-	}
-
-	return Notifications;
 };
 
 const getProjectId = () => {
@@ -52,12 +28,36 @@ const registerPushToken = async (token: string) => {
 	});
 };
 
+const getNotificationsModule =
+	async (): Promise<NotificationsModule | null> => {
+		if (!isPhysicalDevice()) {
+			return null;
+		}
+
+		try {
+			return await import("expo-notifications");
+		} catch {
+			// Expo Go on SDK 53+ no longer supports remote push notifications.
+			return null;
+		}
+	};
+
 export const initializePushNotifications = async () => {
 	try {
-		const Notifications = await loadNotifications();
+		const Notifications = await getNotificationsModule();
 		if (!Notifications) {
 			return;
 		}
+
+		Notifications.setNotificationHandler({
+			handleNotification: async () => ({
+				shouldShowAlert: true,
+				shouldPlaySound: true,
+				shouldSetBadge: false,
+				shouldShowBanner: true,
+				shouldShowList: true,
+			}),
+		});
 
 		const { status: existingStatus } =
 			await Notifications.getPermissionsAsync();

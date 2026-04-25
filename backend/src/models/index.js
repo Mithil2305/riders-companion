@@ -6,6 +6,7 @@ const UserEncryptedChat = require("./UserEncryptedChat");
 const FeedPost = require("./FeedPost");
 const FeedPostLike = require("./FeedPostLike");
 const FeedPostComment = require("./FeedPostComment");
+const FeedPostCommentLike = require("./FeedPostCommentLike");
 const Ride = require("./Ride");
 const Clip = require("./Clip");
 const ClipLike = require("./ClipLike");
@@ -30,11 +31,24 @@ FeedPostLike.belongsTo(FeedPost, { foreignKey: "feed_post_id" });
 FeedPost.hasMany(FeedPostComment, { foreignKey: "feed_post_id" });
 FeedPostComment.belongsTo(FeedPost, { foreignKey: "feed_post_id" });
 
+FeedPost.hasMany(FeedPostCommentLike, { foreignKey: "feed_post_id" });
+FeedPostCommentLike.belongsTo(FeedPost, { foreignKey: "feed_post_id" });
+
+FeedPostComment.hasMany(FeedPostCommentLike, {
+	foreignKey: "feed_post_comment_id",
+});
+FeedPostCommentLike.belongsTo(FeedPostComment, {
+	foreignKey: "feed_post_comment_id",
+});
+
 RiderAccount.hasMany(FeedPostLike, { foreignKey: "rider_id" });
 FeedPostLike.belongsTo(RiderAccount, { foreignKey: "rider_id" });
 
 RiderAccount.hasMany(FeedPostComment, { foreignKey: "rider_id" });
 FeedPostComment.belongsTo(RiderAccount, { foreignKey: "rider_id" });
+
+RiderAccount.hasMany(FeedPostCommentLike, { foreignKey: "rider_id" });
+FeedPostCommentLike.belongsTo(RiderAccount, { foreignKey: "rider_id" });
 
 RiderAccount.hasMany(Clip, { foreignKey: "rider_id" });
 Clip.belongsTo(RiderAccount, { foreignKey: "rider_id" });
@@ -109,6 +123,7 @@ module.exports = {
 	FeedPost,
 	FeedPostLike,
 	FeedPostComment,
+	FeedPostCommentLike,
 	Ride,
 	Clip,
 	ClipLike,

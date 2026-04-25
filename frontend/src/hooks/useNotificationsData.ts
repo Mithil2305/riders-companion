@@ -5,17 +5,21 @@ import { useWebSocket } from "./useWebSocket";
 
 interface UseNotificationsDataResult {
 	loading: boolean;
+	refreshing: boolean;
 	notifications: AppNotification[];
 	markAsRead: (id: string) => void;
 	dismiss: (id: string) => void;
+	refreshNotifications: () => Promise<void>;
 }
 
 export function useNotificationsData(): UseNotificationsDataResult {
 	const [loading, setLoading] = React.useState(true);
+	const [refreshing, setRefreshing] = React.useState(false);
 	const [notifications, setNotifications] = React.useState<AppNotification[]>(
 		[],
 	);
 	const { lastMessage } = useWebSocket();
+	const mountedRef = React.useRef(true);
 
 	const mapType = React.useCallback((type: string) => {
 		if (type === "MESSAGE_RECEIVED" || type === "POST_COMMENTED") {
@@ -48,39 +52,54 @@ export function useNotificationsData(): UseNotificationsDataResult {
 		[mapType],
 	);
 
-	React.useEffect(() => {
-		let mounted = true;
+	const loadNotifications = React.useCallback(async () => {
+		try {
+			const data = await apiRequest<{
+				notifications: {
+					id: string;
+					type: string;
+					title: string;
+					body: string;
+					read: boolean;
+					createdAt: string;
+				}[];
+			}>("/notifications");
 
-		apiRequest<{
-			notifications: {
-				id: string;
-				type: string;
-				title: string;
-				body: string;
-				read: boolean;
-				createdAt: string;
-			}[];
-		}>("/notifications")
-			.then((data) => {
-				if (!mounted) {
-					return;
-				}
+			if (!mountedRef.current) {
+				return;
+			}
 
-				setNotifications(data.notifications.map((item) => mapServerItem(item)));
-			})
-			.catch(() => {
+			setNotifications(data.notifications.map((item) => mapServerItem(item)));
+		} catch {
+			if (mountedRef.current) {
 				setNotifications([]);
-			})
-			.finally(() => {
-				if (mounted) {
-					setLoading(false);
-				}
-			});
+			}
+		} finally {
+			if (mountedRef.current) {
+				setLoading(false);
+			}
+		}
+	}, [mapServerItem]);
+
+	React.useEffect(() => {
+		mountedRef.current = true;
+		void loadNotifications();
 
 		return () => {
-			mounted = false;
+			mountedRef.current = false;
 		};
-	}, [mapServerItem]);
+	}, [loadNotifications]);
+
+	const refreshNotifications = React.useCallback(async () => {
+		setRefreshing(true);
+		try {
+			await loadNotifications();
+		} finally {
+			if (mountedRef.current) {
+				setRefreshing(false);
+			}
+		}
+	}, [loadNotifications]);
 
 	React.useEffect(() => {
 		if (
@@ -133,8 +152,10 @@ export function useNotificationsData(): UseNotificationsDataResult {
 
 	return {
 		loading,
+		refreshing,
 		notifications,
 		markAsRead,
 		dismiss,
+		refreshNotifications,
 	};
 }

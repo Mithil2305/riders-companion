@@ -2,6 +2,7 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { withAlpha } from '../../utils/color';
 
 interface HeaderProps {
   onBack: () => void;
@@ -16,62 +17,64 @@ export function Header({ onBack, onStartRide }: HeaderProps) {
       StyleSheet.create({
         root: {
           paddingHorizontal: metrics.md,
-          paddingTop: metrics.sm,
+          paddingTop: metrics.md,
           paddingBottom: metrics.md,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           backgroundColor: colors.background,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
         },
         left: {
-          flexDirection: 'row',
-          alignItems: 'center',
           flex: 1,
         },
-        backTap: {
-          width: metrics.icon.lg + metrics.sm,
-          height: metrics.icon.lg + metrics.sm,
-          borderRadius: metrics.radius.full,
+        titleRow: {
+          flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: metrics.sm,
-        },
-        titleWrap: {
-          justifyContent: 'center',
         },
         title: {
           color: colors.textPrimary,
-          fontSize: typography.sizes.lg,
-          fontWeight: '700',
+          fontSize: typography.sizes['2xl'],
+          fontWeight: '800',
+          letterSpacing: -0.5,
+        },
+        subtitlePill: {
+          marginTop: metrics.xs,
+          alignSelf: 'flex-start',
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: withAlpha(colors.primary, 0.12),
+          paddingHorizontal: metrics.sm,
+          paddingVertical: 4,
+          borderRadius: metrics.radius.full,
+          borderWidth: 1,
+          borderColor: withAlpha(colors.primary, 0.2),
         },
         subtitle: {
-          marginTop: 1,
-          color: colors.textSecondary,
+          color: colors.primary,
           fontSize: typography.sizes.xs,
-          fontWeight: '500',
-          letterSpacing: 1.4,
+          fontWeight: '700',
+          letterSpacing: 1.2,
+          marginLeft: 4,
         },
         cta: {
-          height: metrics.button.sm.height + 4,
+          height: 40,
           borderRadius: metrics.radius.full,
           backgroundColor: colors.primary,
-          paddingHorizontal: metrics.md,
+          paddingHorizontal: metrics.lg,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: colors.shadow,
+          shadowColor: colors.primary,
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.14,
+          shadowOpacity: 0.25,
           shadowRadius: 8,
           elevation: 4,
         },
         ctaLabel: {
           color: colors.textInverse,
           fontSize: typography.sizes.sm,
-          fontWeight: '700',
-          marginLeft: metrics.xs,
+          fontWeight: '800',
+          marginLeft: 6,
         },
       }),
     [colors, metrics, typography],
@@ -80,12 +83,11 @@ export function Header({ onBack, onStartRide }: HeaderProps) {
   return (
     <View style={styles.root}>
       <View style={styles.left}>
-        <TouchableOpacity activeOpacity={0.8} onPress={onBack} style={styles.backTap}>
-          <Ionicons color={colors.textPrimary} name="arrow-back" size={metrics.icon.lg - 2} />
-        </TouchableOpacity>
-
-        <View style={styles.titleWrap}>
+        <View style={styles.titleRow}>
           <Text style={styles.title}>Community</Text>
+        </View>
+        <View style={styles.subtitlePill}>
+          <Ionicons color={colors.primary} name="location" size={metrics.icon.sm - 2} />
           <Text style={styles.subtitle}>CHENNAI HUB</Text>
         </View>
       </View>

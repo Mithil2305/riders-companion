@@ -1,11 +1,13 @@
 import React from "react";
 import {
 	FlatList,
-	ScrollView,
+	RefreshControl,
 	StyleSheet,
+	Text,
 	View,
 	type ListRenderItemInfo,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../hooks/useTheme";
@@ -16,17 +18,21 @@ import { ActiveRideCard } from "./ActiveRideCard";
 import { Header } from "./Header";
 import { RideCard } from "./RideCard";
 import { SectionHeader } from "./SectionHeader";
-import { SuggestedGroupCard } from "./SuggestedGroupCard";
 
-type SectionKey = "suggested" | "nearby" | "myRides";
+type SectionKey = "nearby" | "myRides";
 
-const sectionOrder: SectionKey[] = ["suggested", "nearby", "myRides"];
+const sectionOrder: SectionKey[] = ["nearby", "myRides"];
 
 export function CommunityScreen() {
 	const router = useRouter();
-	const { colors, metrics } = useTheme();
-	const { activeRide, suggestedGroups, nearbyRides, myRides } =
-		useCommunityData();
+	const { colors, metrics, typography } = useTheme();
+	const {
+		activeRide,
+		nearbyRides,
+		myRides,
+		refreshing,
+		refreshCommunity,
+	} = useCommunityData();
 
 	const styles = React.useMemo(
 		() =>
@@ -46,62 +52,58 @@ export function CommunityScreen() {
 				rideListWrap: {
 					gap: metrics.md,
 				},
-				suggestedRail: {
-					marginHorizontal: -metrics.md,
-					paddingLeft: metrics.md,
-					paddingRight: metrics.md,
+				emptyStateWrap: {
+					alignItems: "center",
+					justifyContent: "center",
+					paddingVertical: metrics["3xl"],
+					paddingHorizontal: metrics.xl,
+					gap: metrics.sm,
+				},
+				emptyStateTitle: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.lg,
+					fontWeight: "600",
+					marginTop: metrics.sm,
+				},
+				emptyStateSubtitle: {
+					color: colors.textTertiary,
+					fontSize: typography.sizes.sm,
+					textAlign: "center",
 				},
 			}),
-		[colors, metrics],
+		[colors, metrics, typography],
 	);
 
 	const renderSection = React.useCallback(
 		({ item }: ListRenderItemInfo<SectionKey>) => {
-			if (item === "suggested") {
-				return (
-					<View style={styles.sectionWrap}>
-						<SectionHeader
-							actionLabel="VIEW ALL"
-							onPressAction={() => {}}
-							title="Suggested Groups"
-						/>
-						<ScrollView
-							contentContainerStyle={styles.suggestedRail}
-							horizontal
-							showsHorizontalScrollIndicator={false}
-						>
-							{suggestedGroups.map((group) => (
-								<SuggestedGroupCard
-									item={group}
-									key={group.id}
-									onPress={() => {}}
-								/>
-							))}
-						</ScrollView>
-					</View>
-				);
-			}
-
 			if (item === "nearby") {
 				return (
 					<View style={styles.sectionWrap}>
 						<SectionHeader title="Nearby Rides" />
-						<View style={styles.rideListWrap}>
-							{nearbyRides.map((ride: RideItem) => (
-								<RideCard
-									item={ride}
-									key={ride.id}
-									mode="nearby"
-									onPrimaryAction={async (rideId) => {
-										try {
-											await RideService.joinRide(rideId);
-										} catch {
-											// Keep UI stable; hook refresh picks updates on next load.
-										}
-									}}
-								/>
-							))}
-						</View>
+						{nearbyRides.length === 0 ? (
+							<View style={styles.emptyStateWrap}>
+								<Ionicons color={colors.borderDark} name="map-outline" size={48} />
+								<Text style={styles.emptyStateTitle}>No nearby rides right now.</Text>
+								<Text style={styles.emptyStateSubtitle}>Be the first to start one!</Text>
+							</View>
+						) : (
+							<View style={styles.rideListWrap}>
+								{nearbyRides.map((ride: RideItem) => (
+									<RideCard
+										item={ride}
+										key={ride.id}
+										mode="nearby"
+										onPrimaryAction={async (rideId) => {
+											try {
+												await RideService.joinRide(rideId);
+											} catch {
+												// Keep UI stable; hook refresh picks updates on next load.
+											}
+										}}
+									/>
+								))}
+							</View>
+						)}
 					</View>
 				);
 			}
@@ -131,11 +133,14 @@ export function CommunityScreen() {
 				</View>
 			);
 		},
-		[myRides, nearbyRides, styles, suggestedGroups],
+		[myRides, nearbyRides, styles, router, colors.borderDark],
 	);
 
 	return (
-		<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
+		<SafeAreaView
+			edges={["left", "right", "top", "bottom"]}
+			style={styles.container}
+		>
 			<Header
 				onBack={() => router.back()}
 				onStartRide={() => router.push("/(tabs)/ride")}
@@ -153,6 +158,15 @@ export function CommunityScreen() {
 				contentContainerStyle={styles.listContent}
 				data={sectionOrder}
 				keyExtractor={(item) => item}
+				refreshControl={
+					<RefreshControl
+						colors={[colors.primary]}
+						onRefresh={refreshCommunity}
+						progressBackgroundColor={colors.surface}
+						refreshing={refreshing}
+						tintColor={colors.primary}
+					/>
+				}
 				renderItem={renderSection}
 				showsVerticalScrollIndicator={false}
 			/>

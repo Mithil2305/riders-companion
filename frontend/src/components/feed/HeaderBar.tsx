@@ -44,6 +44,9 @@ export function HeaderBar({
 					flexDirection: "row",
 					alignItems: "center",
 				},
+				titleCreateTap: {
+					marginRight: metrics.sm,
+				},
 				title: {
 					color: colors.textPrimary,
 					fontSize: typography.sizes.lg,
@@ -89,20 +92,10 @@ export function HeaderBar({
 			) : null}
 
 			<View style={styles.left}>
-				{titleIcon ? (
-					<Image
-						source={titleIcon}
-						style={{ width: 20, height: 20, marginRight: metrics.sm }}
-					/>
-				) : null}
-				<Text style={styles.title}>{title}</Text>
-			</View>
-
-			<View style={styles.right}>
 				<Pressable
 					android_ripple={{ color: colors.overlayLight }}
 					onPress={() => router.push("/create")}
-					style={styles.iconTap}
+					style={[styles.iconTap, styles.titleCreateTap]}
 				>
 					<View style={styles.addCircle}>
 						<Ionicons
@@ -113,6 +106,16 @@ export function HeaderBar({
 					</View>
 				</Pressable>
 
+				{titleIcon ? (
+					<Image
+						source={titleIcon}
+						style={{ width: 20, height: 20, marginRight: metrics.sm }}
+					/>
+				) : null}
+				<Text style={styles.title}>{title}</Text>
+			</View>
+
+			<View style={styles.right}>
 				<Pressable
 					android_ripple={{ color: colors.overlayLight }}
 					onPress={() => router.push("/community")}

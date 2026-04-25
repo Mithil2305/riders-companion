@@ -31,6 +31,7 @@ import {
 } from "../../src/utils/accessControl";
 
 type LoginMethod = "email" | "mobile";
+const SHOW_GOOGLE_SIGNIN = false;
 
 export default function LoginScreen() {
 	const { colors, metrics, typography } = useTheme();
@@ -361,7 +362,7 @@ export default function LoginScreen() {
 			return;
 		}
 
-		setAuthError("Use the Google button below to continue with Google.");
+		setAuthError("Unsupported login method.");
 	};
 
 	const signInWithGoogle = async () => {
@@ -402,7 +403,7 @@ export default function LoginScreen() {
 			style={styles.keyboardContainer}
 		>
 			<KeyboardAvoidingView
-				behavior={Platform.OS === "ios" ? "padding" : undefined}
+				behavior={Platform.OS === "ios" ? "padding" : "height"}
 				style={styles.keyboardContainer}
 			>
 				<View style={styles.topRightToggle}>
@@ -555,31 +556,35 @@ export default function LoginScreen() {
 								<Text style={styles.errorText}>{authError}</Text>
 							) : null}
 
-							<View style={styles.googleDividerWrap}>
-								<View style={styles.dividerLine} />
-								<Text style={styles.dividerText}>or</Text>
-								<View style={styles.dividerLine} />
-							</View>
+							{SHOW_GOOGLE_SIGNIN ? (
+								<>
+									<View style={styles.googleDividerWrap}>
+										<View style={styles.dividerLine} />
+										<Text style={styles.dividerText}>or</Text>
+										<View style={styles.dividerLine} />
+									</View>
 
-							<TouchableOpacity
-								disabled={googleLoading || loading || !googleReady}
-								activeOpacity={0.9}
-								onPress={signInWithGoogle}
-								style={[
-									styles.googleBtn,
-									(googleLoading || loading || !googleReady) &&
-										styles.disabledBtn,
-								]}
-							>
-								<FontAwesome color="#DB4437" name="google" size={18} />
-								<Text style={styles.googleBtnText}>
-									{googleLoading
-										? "Signing in..."
-										: !googleReady
-											? "Google setup required"
-											: "Sign in with Google"}
-								</Text>
-							</TouchableOpacity>
+									<TouchableOpacity
+										disabled={googleLoading || loading || !googleReady}
+										activeOpacity={0.9}
+										onPress={signInWithGoogle}
+										style={[
+											styles.googleBtn,
+											(googleLoading || loading || !googleReady) &&
+												styles.disabledBtn,
+										]}
+									>
+										<FontAwesome color="#DB4437" name="google" size={18} />
+										<Text style={styles.googleBtnText}>
+											{googleLoading
+												? "Signing in..."
+												: !googleReady
+													? "Google setup required"
+													: "Sign in with Google"}
+										</Text>
+									</TouchableOpacity>
+								</>
+							) : null}
 						</View>
 					</Animated.View>
 				</ScrollView>

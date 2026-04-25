@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { API_URL } from "../services/api";
+import { getApiUrl } from "../services/api";
 import { auth } from "../config/firebase";
 
 export interface WebSocketMessage {
@@ -23,7 +23,7 @@ const defaultOptions: Required<UseWebSocketOptions> = {
 };
 
 const toWebSocketBaseUrl = () => {
-	const baseApi = API_URL.replace(/\/api\/?$/, "");
+	const baseApi = getApiUrl().replace(/\/api\/?$/, "");
 	if (baseApi.startsWith("https://")) {
 		return baseApi.replace("https://", "wss://");
 	}
@@ -137,11 +137,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 				isConnectingRef.current = false;
 				setIsConnected(false);
 
-				if (
-					!manualCloseRef.current &&
-					reconnectOnClose &&
-					autoConnect
-				) {
+				if (!manualCloseRef.current && reconnectOnClose && autoConnect) {
 					reconnectTimerRef.current = setTimeout(() => {
 						void connect();
 					}, reconnectDelayMs);
@@ -155,7 +151,13 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 			setError("Failed to connect to websocket server.");
 			return false;
 		}
-	}, [autoConnect, clearReconnectTimer, reconnectDelayMs, reconnectOnClose, url]);
+	}, [
+		autoConnect,
+		clearReconnectTimer,
+		reconnectDelayMs,
+		reconnectOnClose,
+		url,
+	]);
 
 	const sendMessage = useCallback(
 		(type: string, payload: Record<string, unknown> = {}) => {
