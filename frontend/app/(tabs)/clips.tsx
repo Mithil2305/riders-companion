@@ -104,7 +104,7 @@ function ClipFeedCard({
 				rightRail: {
 					position: "absolute",
 					right: metrics.md,
-					bottom: insets.bottom + 110,
+					bottom: insets.bottom + 40,
 					alignItems: "center",
 					gap: metrics.sm,
 					zIndex: 3,
@@ -357,7 +357,7 @@ function ClipFeedCard({
 					>
 						<Ionicons
 							color={colors.textInverse}
-							name="paper-plane"
+							name="share-outline"
 							size={metrics.icon.md}
 						/>
 					</Pressable>
@@ -375,17 +375,6 @@ function ClipFeedCard({
 				<Text numberOfLines={2} style={styles.caption}>
 					{item.caption}
 				</Text>
-
-				<View style={styles.musicRow}>
-					<Ionicons
-						color={colors.textInverse}
-						name="musical-notes-outline"
-						size={metrics.icon.sm}
-					/>
-					<Text numberOfLines={1} style={styles.music}>
-						{item.music}
-					</Text>
-				</View>
 			</View>
 		</View>
 	);
