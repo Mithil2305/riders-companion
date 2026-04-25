@@ -418,3 +418,7 @@ console.error('Unable to start server:', error);
 };
 
 startServer();
+
+---
+
+npm run db:reset-all -- --yes
