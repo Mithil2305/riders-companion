@@ -7,7 +7,6 @@ import Animated, {
 	useSharedValue,
 } from "react-native-reanimated";
 import { EmptyState, ShareSheet } from "../../src/components/common";
-import { CommentsSheet } from "../../src/components/comments";
 import {
 	EndOfFeed,
 	FeedPost,
