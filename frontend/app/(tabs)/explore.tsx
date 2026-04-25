@@ -1,32 +1,39 @@
 import React from "react"
 import {
 	Alert,
-	Image,
+	FlatList,
 	Modal,
 	Pressable,
-	ScrollView,
 	StyleSheet,
 	Text,
 	View,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import Animated from "react-native-reanimated"
+import { useRouter } from "expo-router"
+import Animated, { useSharedValue } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { ExploreGrid, SearchBar, SearchSuggestions } from "../../src/components/explore"
+import { ExploreSkeleton } from "../../src/components/explore/ExploreSkeleton"
+import { FeedPost } from "../../src/components/feed/FeedPost"
 import ClipService from "../../src/services/ClipService"
 import FeedService from "../../src/services/FeedService"
 import { useExploreData } from "../../src/hooks/useExploreData"
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation"
 import { useTheme } from "../../src/hooks/useTheme"
+import { FeedPostItem } from "../../src/types/feed"
 import { TrendingClip } from "../../src/types/explore"
+import { formatTimeAgo } from "../../src/utils/formatters"
 
 export default function ExploreScreen() {
 	const { colors, metrics, typography } = useTheme()
+	const router = useRouter()
+	const detailScrollY = useSharedValue(0)
 	const {
 		query,
 		setQuery,
 		clips,
 		clipAspects,
+		isInitialLoading,
 		searchResults,
 		isSearchLoading,
 		hasMoreClips,
@@ -36,30 +43,63 @@ export default function ExploreScreen() {
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("explore")
 	const [detailVisible, setDetailVisible] = React.useState(false)
-	const [selectedClipId, setSelectedClipId] = React.useState<string | null>(
+	const [selectedPostId, setSelectedPostId] = React.useState<string | null>(
 		null,
 	)
 	const [searchFocused, setSearchFocused] = React.useState(false)
 
-	const selectedIndex = React.useMemo(
-		() => clips.findIndex((clip) => clip.id === selectedClipId),
-		[clips, selectedClipId],
+	const allPosts = React.useMemo(
+		() => clips.filter((clip) => clip.type === "post"),
+		[clips],
 	)
 
-	const relatedClips = React.useMemo(() => {
+	const selectedIndex = React.useMemo(
+		() => allPosts.findIndex((clip) => clip.id === selectedPostId),
+		[allPosts, selectedPostId],
+	)
+
+	const relatedPosts = React.useMemo(() => {
 		if (selectedIndex < 0) {
-			return clips
+			return allPosts
 		}
 
-		const current = clips[selectedIndex]
-		const rest = clips.filter((clip) => clip.id !== current.id)
+		const current = allPosts[selectedIndex]
+		const rest = allPosts.filter((clip) => clip.id !== current.id)
 		return [current, ...rest]
-	}, [clips, selectedIndex])
+	}, [allPosts, selectedIndex])
 
-	const openClipDetail = React.useCallback((clip: TrendingClip) => {
-		setSelectedClipId(clip.id)
-		setDetailVisible(true)
-	}, [])
+	const mapExplorePostToFeedPost = React.useCallback(
+		(clip: TrendingClip): FeedPostItem => ({
+			id: clip.id,
+			user: `@${clip.creatorUsername}`,
+			avatar: clip.thumbnail,
+			image: clip.thumbnail,
+			mediaType: String(
+				clip.mediaType ?? (clip.type === "clip" ? "VIDEO" : "IMAGE"),
+			).toUpperCase(),
+			caption: clip.title,
+			likes: clip.likes,
+			comments: clip.comments,
+			time: formatTimeAgo(clip.createdAt),
+			likedByMe: clip.likedByMe,
+		}),
+		[],
+	)
+
+	const openClipDetail = React.useCallback(
+		(clip: TrendingClip) => {
+			if (clip.type === "clip") {
+				const clipId = clip.id.replace(/^clip-/, "")
+				setDetailVisible(false)
+				router.push({ pathname: "/(tabs)/clips", params: { clipId } })
+				return
+			}
+
+			setSelectedPostId(clip.id)
+			setDetailVisible(true)
+		},
+		[router],
+	)
 
 	const handleClipLongPress = React.useCallback(async (clip: TrendingClip) => {
 		const realId = clip.id.replace(/^(post-|clip-)/, "")
@@ -136,39 +176,52 @@ export default function ExploreScreen() {
 					fontWeight: "700",
 				},
 				detailList: {
-					paddingHorizontal: metrics.md,
-					gap: metrics.lg,
+					paddingTop: metrics.sm,
 					paddingBottom: metrics["3xl"],
 				},
-				detailCard: {
-					borderRadius: metrics.radius.lg,
-					borderWidth: 1,
-					borderColor: colors.border,
-					backgroundColor: colors.card,
-					padding: metrics.md,
-					gap: metrics.sm,
+				detailSeparator: {
+					height: metrics.sm,
 				},
-				media: {
-					width: "100%",
-					aspectRatio: 1,
-					borderRadius: metrics.radius.md,
-					backgroundColor: colors.surface,
-				},
-				creator: {
+				emptyTitle: {
 					color: colors.textPrimary,
 					fontSize: typography.sizes.base,
 					fontWeight: "700",
+					textAlign: "center",
+					paddingTop: metrics.xl,
 				},
-				caption: {
+				emptyHint: {
 					color: colors.textSecondary,
 					fontSize: typography.sizes.sm,
-					lineHeight: typography.sizes.sm * 1.45,
+					textAlign: "center",
+					paddingTop: metrics.xs,
 				},
 			}),
 		[colors, metrics, typography],
 	)
 
 	const showSuggestions = query.length > 0 || searchFocused
+	const shouldShowSkeleton = !showSuggestions && isInitialLoading
+
+	const renderDetailPost = React.useCallback(
+		({ item, index }: { item: TrendingClip; index: number }) => (
+			<FeedPost
+				item={mapExplorePostToFeedPost(item)}
+				index={index}
+				liked={Boolean(item.likedByMe)}
+				onToggleLike={() => {
+					void handleClipLongPress(item)
+				}}
+				onAddComment={() => {
+					Alert.alert("Comments", "Comments are available in feed and clips tabs.")
+				}}
+				onShare={() => {
+					Alert.alert("Shared", "Post shared to your friends.")
+				}}
+				scrollY={detailScrollY}
+			/>
+		),
+		[detailScrollY, handleClipLongPress, mapExplorePostToFeedPost],
+	)
 
 	return (
 		<SafeAreaView style={styles.container} edges={["top"]}>
@@ -195,6 +248,8 @@ export default function ExploreScreen() {
 							}}
 						/>
 					</View>
+				) : shouldShowSkeleton ? (
+					<ExploreSkeleton />
 				) : (
 					<ExploreGrid
 						clips={clips}
@@ -227,21 +282,26 @@ export default function ExploreScreen() {
 						<View style={{ width: 28 }} />
 					</Pressable>
 
-					<ScrollView contentContainerStyle={styles.detailList}>
-						{relatedClips.map((clip: TrendingClip) => (
-							<View key={clip.id} style={styles.detailCard}>
-								<Image
-									source={{ uri: clip.thumbnail }}
-									style={styles.media}
-									resizeMode="cover"
-								/>
-								<Text style={styles.creator}>
-									@{clip.creatorUsername}
+					<FlatList
+						contentContainerStyle={styles.detailList}
+						data={relatedPosts}
+						keyExtractor={(item) => item.id}
+						ListEmptyComponent={
+							<View>
+								<Text style={styles.emptyTitle}>No posts available</Text>
+								<Text style={styles.emptyHint}>
+									Explore more content to discover posts.
 								</Text>
-								<Text style={styles.caption}>{clip.title}</Text>
 							</View>
-						))}
-					</ScrollView>
+						}
+						onScroll={(event) => {
+							detailScrollY.value = event.nativeEvent.contentOffset.y
+						}}
+						renderItem={renderDetailPost}
+						scrollEventThrottle={16}
+						showsVerticalScrollIndicator={false}
+						ItemSeparatorComponent={() => <View style={styles.detailSeparator} />}
+					/>
 				</View>
 			</Modal>
 		</SafeAreaView>
