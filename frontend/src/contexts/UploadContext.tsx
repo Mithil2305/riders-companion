@@ -71,11 +71,16 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 			}
 
 			const id = `${Date.now()}`;
-			const typeLabel = uploadTypeLabel[input.uploadType];
+			const effectiveUploadType =
+				input.uploadType === "post" && input.selectedAsset.mediaType === "video"
+					? "clip"
+					: input.uploadType;
+			const typeLabel = uploadTypeLabel[effectiveUploadType];
+			const uploadInput = { ...input, uploadType: effectiveUploadType };
 
 			setActiveUpload({
 				id,
-				type: input.uploadType,
+				type: effectiveUploadType,
 				status: "preparing",
 				progress: 8,
 				message: `Preparing ${typeLabel}...`,
@@ -83,7 +88,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
 			void (async () => {
 				try {
-					await UploadService.uploadWithProgress(input, (networkProgress) => {
+					await UploadService.uploadWithProgress(uploadInput, (networkProgress) => {
 						setActiveUpload((current) => {
 							if (current?.id !== id) {
 								return current;
@@ -101,7 +106,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
 					setActiveUpload({
 						id,
-						type: input.uploadType,
+						type: effectiveUploadType,
 						status: "success",
 						progress: 100,
 						message: `${typeLabel[0].toUpperCase()}${typeLabel.slice(1)} uploaded successfully`,

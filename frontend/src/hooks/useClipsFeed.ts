@@ -2,12 +2,14 @@ import React from "react";
 import { ClipItem } from "../types/clips";
 import ClipService from "../services/ClipService";
 import { useUploadManager } from "../contexts/UploadContext";
+import FeedService from "../services/FeedService";
 
 interface UseClipsFeedResult {
 	clips: ClipItem[];
 	activeIndex: number;
 	refreshing: boolean;
 	setActiveIndex: (index: number) => void;
+	bumpClip: (clipId: string) => void;
 	toggleLike: (clipId: string) => void;
 	onRefresh: () => Promise<void>;
 }
@@ -22,12 +24,33 @@ const toClipItem = (
 		clip.rider?.profileImageUrl ??
 		"https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80",
 	media: clip.videoUrl,
+	createdAt: clip.createdAt,
 	caption: clip.songId ? `Now playing: ${clip.songId}` : "Ride clip",
 	likes: Number(clip.likesCount ?? 0),
 	comments: Number(clip.commentsCount ?? 0),
 	shares: Number(clip.sharesCount ?? 0),
 	music: clip.songId ?? "Original audio",
 	likedByMe: Boolean(clip.likedByMe),
+});
+
+const toLegacyClipItem = (
+	post: Awaited<ReturnType<typeof FeedService.getFeed>>["posts"][number],
+): ClipItem => ({
+	id: `post-${post.id}`,
+	riderId: post.rider?.id,
+	user: post.rider?.username ?? post.rider?.name ?? "rider",
+	avatar:
+		post.rider?.profileImageUrl ??
+		"https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80",
+	media: post.mediaUrl ?? "",
+	createdAt: post.createdAt,
+	caption: post.caption?.trim().length ? post.caption : "Ride clip",
+	likes: Number(post.likesCount ?? 0),
+	comments: Number(post.commentsCount ?? 0),
+	shares: 0,
+	music: "Original audio",
+	likedByMe: Boolean(post.likedByMe),
+	sourcePostId: post.id,
 });
 
 export function useClipsFeed(): UseClipsFeedResult {
@@ -39,12 +62,44 @@ export function useClipsFeed(): UseClipsFeedResult {
 
 	const loadClips = React.useCallback(async () => {
 		try {
-			const data = await ClipService.getClips();
+			const [clipsData, feedData] = await Promise.all([
+				ClipService.getClips(),
+				FeedService.getFeed(),
+			]);
 			if (!mountedRef.current) {
 				return;
 			}
 
-			setClips(data.clips.map(toClipItem));
+			const liveClips = clipsData.clips
+				.filter((clip) => typeof clip.videoUrl === "string" && clip.videoUrl.length > 0)
+				.map(toClipItem);
+			const legacyClips = feedData.posts
+				.filter(
+					(post) =>
+						post.mediaType === "VIDEO" &&
+						typeof post.mediaUrl === "string" &&
+						post.mediaUrl.length > 0,
+				)
+				.map(toLegacyClipItem);
+
+			const clipByKey = new Map<string, ClipItem>();
+			for (const clip of liveClips) {
+				clipByKey.set(`${clip.riderId ?? ""}:${clip.media}`, clip);
+			}
+
+			for (const clip of legacyClips) {
+				const dedupeKey = `${clip.riderId ?? ""}:${clip.media}`;
+				if (!clipByKey.has(dedupeKey)) {
+					clipByKey.set(dedupeKey, clip);
+				}
+			}
+
+			const mergedClips = [...clipByKey.values()].sort(
+				(a, b) =>
+					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+			);
+
+			setClips(mergedClips);
 		} catch {
 			if (mountedRef.current) {
 				setClips([]);
@@ -80,20 +135,29 @@ export function useClipsFeed(): UseClipsFeedResult {
 		}
 	}, [loadClips]);
 
-	const toggleLike = React.useCallback((clipId: string) => {
+	const updateClipLike = React.useCallback((clipId: string, forceLiked?: boolean) => {
 		setClips((current) => {
 			const target = current.find((item) => item.id === clipId);
 			if (!target) {
 				return current;
 			}
 
-			const nextLiked = !target.likedByMe;
+			const nextLiked =
+				typeof forceLiked === "boolean" ? forceLiked : !target.likedByMe;
+			if (target.likedByMe === nextLiked) {
+				return current;
+			}
+			const previousLikes = target.likes;
 
 			void (async () => {
 				try {
-					const result = nextLiked
-						? await ClipService.likeClip(clipId)
-						: await ClipService.unlikeClip(clipId);
+					const result = target.sourcePostId
+						? nextLiked
+							? await FeedService.likePost(target.sourcePostId)
+							: await FeedService.unlikePost(target.sourcePostId)
+						: nextLiked
+							? await ClipService.likeClip(clipId)
+							: await ClipService.unlikeClip(clipId);
 
 					setClips((latest) =>
 						latest.map((item) =>
@@ -112,7 +176,7 @@ export function useClipsFeed(): UseClipsFeedResult {
 							item.id === clipId
 								? {
 										...item,
-										likes: item.likes,
+										likes: previousLikes,
 										likedByMe: !nextLiked,
 									}
 								: item,
@@ -126,17 +190,36 @@ export function useClipsFeed(): UseClipsFeedResult {
 					? {
 							...item,
 							likedByMe: nextLiked,
+							likes: Math.max(
+								0,
+								item.likes + (nextLiked ? 1 : -1),
+							),
 						}
 					: item,
 			);
 		});
 	}, []);
 
+	const toggleLike = React.useCallback(
+		(clipId: string) => {
+			updateClipLike(clipId);
+		},
+		[updateClipLike],
+	);
+
+	const bumpClip = React.useCallback(
+		(clipId: string) => {
+			updateClipLike(clipId, true);
+		},
+		[updateClipLike],
+	);
+
 	return {
 		clips,
 		activeIndex,
 		refreshing,
 		setActiveIndex,
+		bumpClip,
 		toggleLike,
 		onRefresh,
 	};
