@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 type StorageLike = {
 	getItem: (key: string) => Promise<string | null>;
 	setItem: (key: string, value: string) => Promise<void>;
@@ -18,9 +20,6 @@ const memoryFallback: StorageLike = {
 
 const getStorage = (): StorageLike => {
 	try {
-		const AsyncStorageModule = require("@react-native-async-storage/async-storage");
-		const AsyncStorage = AsyncStorageModule.default ?? AsyncStorageModule;
-
 		if (
 			AsyncStorage &&
 			typeof AsyncStorage.getItem === "function" &&

@@ -24,6 +24,7 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 
 	const loadComments = React.useCallback(async () => {
 		if (!enabled || !contentId) {
+			setComments([]);
 			return;
 		}
 
@@ -71,47 +72,94 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 	]);
 
 	const likeComment = React.useCallback((commentId: string) => {
-		setComments((current) =>
-			current.map((comment) => {
-				if (comment.id !== commentId) {
-					return comment;
-				}
-
-				const nextLiked = !comment.likedByMe;
-				return {
-					...comment,
-					likedByMe: nextLiked,
-					likeCount: Math.max(0, comment.likeCount + (nextLiked ? 1 : -1)),
-				};
-			}),
-		);
-	}, []);
-
-	const editComment = React.useCallback(async (commentId: string, newContent: string) => {
-		const trimmed = newContent.trim();
-		if (trimmed.length === 0) {
-			throw new Error("Comment cannot be empty");
+		const targetComment = comments.find((comment) => comment.id === commentId);
+		if (!targetComment) {
+			return;
 		}
 
-		// TODO: Replace with actual API call when endpoints are provided
-		// await InteractionService.editComment(contentType, contentId, commentId, trimmed);
+		const nextLiked = !targetComment.likedByMe;
+		const previousLikeCount = targetComment.likeCount;
+		const previousLiked = targetComment.likedByMe;
 
 		setComments((current) =>
-			current.map((comment) => {
-				if (comment.id !== commentId) {
-					return comment;
-				}
-				return { ...comment, content: trimmed };
-			}),
+			current.map((comment) =>
+				comment.id === commentId
+					? {
+							...comment,
+							likedByMe: nextLiked,
+							likeCount: Math.max(
+								0,
+								comment.likeCount + (nextLiked ? 1 : -1),
+							),
+						}
+					: comment,
+			),
 		);
-	}, [contentId, contentType]);
 
-	const deleteComment = React.useCallback(async (commentId: string) => {
-		// TODO: Replace with actual API call when endpoints are provided
-		// await InteractionService.deleteComment(contentType, contentId, commentId);
+		void (async () => {
+			try {
+				const result = await InteractionService.toggleCommentLike(
+					contentType,
+					contentId,
+					commentId,
+					nextLiked,
+				);
+				if (!result) {
+					return;
+				}
 
-		setComments((current) => current.filter((comment) => comment.id !== commentId));
-	}, [contentId, contentType]);
+				setComments((current) =>
+					current.map((comment) =>
+						comment.id === commentId
+							? {
+									...comment,
+									likedByMe: result.likedByMe,
+									likeCount: result.likeCount,
+								}
+							: comment,
+					),
+				);
+			} catch {
+				setComments((current) =>
+					current.map((comment) =>
+						comment.id === commentId
+							? {
+									...comment,
+									likedByMe: previousLiked,
+									likeCount: previousLikeCount,
+								}
+							: comment,
+					),
+				);
+			}
+		})();
+	}, [comments, contentId, contentType]);
+
+	const editComment = React.useCallback(
+		async (commentId: string, newContent: string) => {
+			const updatedComment = await InteractionService.editComment(
+				contentType,
+				contentId,
+				commentId,
+				newContent,
+			);
+
+			setComments((current) =>
+				current.map((comment) =>
+					comment.id === commentId ? updatedComment : comment,
+				),
+			);
+		},
+		[contentId, contentType],
+	);
+
+	const deleteComment = React.useCallback(
+		async (commentId: string) => {
+			await InteractionService.deleteComment(contentType, contentId, commentId);
+			setComments((current) => current.filter((comment) => comment.id !== commentId));
+		},
+		[contentId, contentType],
+	);
 
 	return {
 		comments,

@@ -17,6 +17,10 @@ const Clip = sequelize.define(
 			type: DataTypes.STRING(255),
 			allowNull: false,
 		},
+		caption: {
+			type: DataTypes.TEXT,
+			allowNull: true,
+		},
 		song_id: {
 			type: DataTypes.STRING(100),
 			allowNull: true,

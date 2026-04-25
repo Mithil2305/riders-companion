@@ -9,7 +9,7 @@ interface GroupChatListProps {
 }
 
 export function GroupChatList({ data }: GroupChatListProps) {
-	const { colors, metrics } = useTheme();
+	const { metrics } = useTheme();
 	const listRef = React.useRef<FlatList<GroupChatItem>>(null);
 
 	const styles = React.useMemo(
@@ -25,7 +25,7 @@ export function GroupChatList({ data }: GroupChatListProps) {
 					paddingBottom: metrics.lg,
 				},
 			}),
-		[colors, metrics],
+		[metrics],
 	);
 
 	React.useEffect(() => {
