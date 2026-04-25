@@ -86,7 +86,8 @@ exports.listClips = async (req, res) => {
 			success: true,
 			data: { clips: payloadClips },
 		});
-	} catch (_error) {
+	} catch (error) {
+		console.error("Failed to load clips:", error);
 		return formatError(res, 500, "Failed to load clips", "CLIP_FETCH_ERR");
 	}
 };
