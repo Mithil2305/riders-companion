@@ -24,6 +24,7 @@ import {
 	SkeletonBlock,
 	StreamingVideo,
 } from "../../src/components/common";
+import { VehicleFormSheet } from "../../src/components/profile";
 import { ClipThumbnail } from "../../src/components/clips/ClipThumbnail";
 import {
 	ProfileClipItem,
@@ -32,7 +33,9 @@ import {
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import ClipService from "../../src/services/ClipService";
 import FeedService, { FeedPostPayload } from "../../src/services/FeedService";
+import GarageService from "../../src/services/GarageService";
 import { useTheme } from "../../src/hooks/useTheme";
+import type { GarageVehicleInput } from "../../src/types/profile";
 import { withAlpha } from "../../src/utils/color";
 
 type ProfileSection = "moments" | "clips" | "garage";
@@ -755,6 +758,8 @@ export default function ProfileScreen() {
 	const [selectedClipId, setSelectedClipId] = React.useState<string | null>(null);
 	const [isPostActionBusy, setIsPostActionBusy] = React.useState(false);
 	const [isClipActionBusy, setIsClipActionBusy] = React.useState(false);
+	const [isVehicleSheetVisible, setIsVehicleSheetVisible] = React.useState(false);
+	const [isAddingVehicle, setIsAddingVehicle] = React.useState(false);
 
 	const selectedPost = React.useMemo(
 		() => moments.find((post) => post.id === selectedPostId) ?? null,
@@ -925,6 +930,27 @@ export default function ProfileScreen() {
 			setRefreshing(false);
 		}
 	}, [reloadDashboard]);
+
+	const handleAddVehicle = React.useCallback(
+		async (vehicle: GarageVehicleInput) => {
+			setIsAddingVehicle(true);
+			try {
+				await GarageService.addVehicle(vehicle);
+				setIsVehicleSheetVisible(false);
+				await reloadDashboard();
+			} catch (error) {
+				Alert.alert(
+					"Unable to add vehicle",
+					error instanceof Error
+						? error.message
+						: "Try again in a moment.",
+				);
+			} finally {
+				setIsAddingVehicle(false);
+			}
+		},
+		[reloadDashboard],
+	);
 
 	const styles = React.useMemo(
 		() =>
@@ -1296,7 +1322,7 @@ export default function ProfileScreen() {
 								)
 							) : bikes.length === 0 ? (
 								<Pressable
-									onPress={() => router.push("/setup/profile")}
+									onPress={() => setIsVehicleSheetVisible(true)}
 									style={styles.garageEmpty}
 								>
 									<Ionicons
@@ -1304,7 +1330,7 @@ export default function ProfileScreen() {
 										name="add-circle"
 										size={metrics.icon.xl + 12}
 									/>
-									<Text style={styles.garageEmptyText}>Add bike</Text>
+									<Text style={styles.garageEmptyText}>Add bike or car</Text>
 								</Pressable>
 							) : (
 								<Animated.View entering={FadeInRight.duration(240)}>
@@ -1353,6 +1379,13 @@ export default function ProfileScreen() {
 					onDelete={handleDeleteSelectedClip}
 					onSaveCaption={handleSaveSelectedClipCaption}
 					visible={selectedClip != null}
+				/>
+
+				<VehicleFormSheet
+					onClose={() => setIsVehicleSheetVisible(false)}
+					onSubmit={handleAddVehicle}
+					submitting={isAddingVehicle}
+					visible={isVehicleSheetVisible}
 				/>
 			</SafeAreaView>
 		</Animated.View>
