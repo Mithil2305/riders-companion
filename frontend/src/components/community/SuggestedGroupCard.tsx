@@ -12,7 +12,7 @@ interface SuggestedGroupCardProps {
 }
 
 export function SuggestedGroupCard({ item, onPress }: SuggestedGroupCardProps) {
-  const { metrics, typography } = useTheme();
+  const { colors, metrics, typography } = useTheme();
 
   const styles = React.useMemo(
     () =>
@@ -24,7 +24,7 @@ export function SuggestedGroupCard({ item, onPress }: SuggestedGroupCardProps) {
           overflow: 'hidden',
           marginRight: metrics.md,
           marginBottom: metrics.sm,
-          shadowColor: '#000',
+          shadowColor: colors.shadow,
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: 0.15,
           shadowRadius: 12,
@@ -43,15 +43,15 @@ export function SuggestedGroupCard({ item, onPress }: SuggestedGroupCardProps) {
           flexDirection: 'row',
         },
         badge: {
-          backgroundColor: withAlpha('#FFFFFF', 0.25),
+          backgroundColor: withAlpha(colors.white, 0.24),
           paddingHorizontal: metrics.sm,
           paddingVertical: 4,
           borderRadius: metrics.radius.full,
           borderWidth: 1,
-          borderColor: withAlpha('#FFFFFF', 0.3),
+          borderColor: withAlpha(colors.white, 0.3),
         },
         badgeLabel: {
-          color: '#FFFFFF',
+          color: colors.textInverse,
           fontSize: typography.sizes.xs - 1,
           fontWeight: '800',
           letterSpacing: 0.5,
@@ -60,10 +60,10 @@ export function SuggestedGroupCard({ item, onPress }: SuggestedGroupCardProps) {
           gap: 4,
         },
         title: {
-          color: '#FFFFFF',
+          color: colors.textInverse,
           fontSize: typography.sizes.xl,
           fontWeight: '800',
-          textShadowColor: 'rgba(0,0,0,0.3)',
+          textShadowColor: withAlpha(colors.black, 0.3),
           textShadowOffset: { width: 0, height: 1 },
           textShadowRadius: 3,
         },
@@ -78,12 +78,12 @@ export function SuggestedGroupCard({ item, onPress }: SuggestedGroupCardProps) {
         },
         metaLabel: {
           marginLeft: 4,
-          color: '#E0E0E0',
+          color: withAlpha(colors.white, 0.82),
           fontSize: typography.sizes.xs,
           fontWeight: '600',
         },
       }),
-    [metrics, typography],
+    [colors, metrics, typography],
   );
 
   const activeText = item.duration.replace('Days', 'days ago').replace('Day', 'day ago');
@@ -92,7 +92,7 @@ export function SuggestedGroupCard({ item, onPress }: SuggestedGroupCardProps) {
     <TouchableOpacity activeOpacity={0.9} onPress={() => onPress(item.id)} style={styles.card}>
       <ImageBackground resizeMode="cover" source={item.image} style={styles.imageBg}>
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.85)']}
+          colors={[withAlpha(colors.black, 0), withAlpha(colors.black, 0.85)]}
           locations={[0.2, 1]}
           style={styles.gradient}
         >
@@ -109,7 +109,7 @@ export function SuggestedGroupCard({ item, onPress }: SuggestedGroupCardProps) {
                 <Text style={styles.metaLabel}>Active {activeText}</Text>
               </View>
               <View style={styles.meta}>
-                <Ionicons color="#E0E0E0" name="people" size={14} />
+                <Ionicons color={withAlpha(colors.white, 0.82)} name="people" size={14} />
                 <Text style={styles.metaLabel}>{item.riders}</Text>
               </View>
             </View>

@@ -33,6 +33,7 @@ import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import ClipService from "../../src/services/ClipService";
 import FeedService, { FeedPostPayload } from "../../src/services/FeedService";
 import { useTheme } from "../../src/hooks/useTheme";
+import { withAlpha } from "../../src/utils/color";
 
 type ProfileSection = "moments" | "clips" | "garage";
 
@@ -148,10 +149,10 @@ function MomentsGrid({
 					right: 6,
 					paddingHorizontal: 6,
 					paddingVertical: 2,
-					backgroundColor: "rgba(0,0,0,0.58)",
+					backgroundColor: colors.overlay,
 				},
 				videoPillText: {
-					color: "#fff",
+					color: colors.textInverse,
 					fontSize: 10,
 					fontWeight: "700",
 				},
@@ -294,10 +295,10 @@ function ClipsGrid({
 					right: 6,
 					paddingHorizontal: 6,
 					paddingVertical: 2,
-					backgroundColor: "rgba(0,0,0,0.58)",
+					backgroundColor: colors.overlay,
 				},
 				videoPillText: {
-					color: "#fff",
+					color: colors.textInverse,
 					fontSize: 10,
 					fontWeight: "700",
 				},
@@ -359,7 +360,7 @@ function AchievementsModal({
 			StyleSheet.create({
 				backdrop: {
 					flex: 1,
-					backgroundColor: "rgba(0,0,0,0.45)",
+					backgroundColor: colors.overlay,
 					justifyContent: "center",
 					paddingHorizontal: metrics.lg,
 				},
@@ -535,7 +536,7 @@ function ContentDetailModal({
 			StyleSheet.create({
 				backdrop: {
 					flex: 1,
-					backgroundColor: "rgba(0,0,0,0.62)",
+					backgroundColor: withAlpha(colors.black, 0.62),
 					justifyContent: "center",
 					paddingHorizontal: metrics.lg,
 				},
@@ -575,7 +576,7 @@ function ContentDetailModal({
 					borderRadius: 19,
 					alignItems: "center",
 					justifyContent: "center",
-					backgroundColor: "rgba(0,0,0,0.52)",
+					backgroundColor: withAlpha(colors.black, 0.52),
 				},
 				content: {
 					padding: metrics.md,
@@ -613,8 +614,8 @@ function ContentDetailModal({
 					borderColor: colors.primary,
 				},
 				actionBtnDanger: {
-					backgroundColor: "#c62828",
-					borderColor: "#c62828",
+					backgroundColor: colors.primary,
+					borderColor: colors.primary,
 				},
 				actionText: {
 					color: colors.textPrimary,
@@ -669,7 +670,7 @@ function ContentDetailModal({
 									/>
 								</Pressable>
 								<Pressable disabled={busy} onPress={onDelete} style={styles.iconButton}>
-									<Ionicons color="#ffb4b4" name="trash-outline" size={20} />
+									<Ionicons color={colors.primary} name="trash-outline" size={20} />
 								</Pressable>
 							</View>
 						</View>

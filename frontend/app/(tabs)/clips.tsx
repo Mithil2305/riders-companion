@@ -38,6 +38,7 @@ import {
 import {
 	getVideoPreloadRadius,
 } from "../../src/utils/videoPlayback";
+import { withAlpha } from "../../src/utils/color";
 
 function compactNumber(value: number): string {
 	if (value >= 1000) {
@@ -190,7 +191,7 @@ function ClipFeedCard({
 					borderRadius: 36,
 					alignItems: "center",
 					justifyContent: "center",
-					backgroundColor: "rgba(0,0,0,0.34)",
+					backgroundColor: withAlpha(colors.black, 0.34),
 					zIndex: 2,
 				},
 				centerIcon: {
@@ -203,9 +204,7 @@ function ClipFeedCard({
 
 	const effectiveShouldPlay = shouldPlay && !pausedByUser;
 	const liked = Boolean(item.likedByMe);
-	const likeIcon = liked
-		? require("../../assets/icons/fist-bump-color.png")
-		: require("../../assets/icons/fist-bump-white.png");
+	const likeIcon = require("../../assets/icons/fist-bump-white.png");
 	const bumpPulseStyle = useAnimatedStyle(() => ({
 		opacity: bumpPulse.value,
 		transform: [{ scale: 0.72 + bumpPulse.value * 0.56 }],
@@ -282,7 +281,11 @@ function ClipFeedCard({
 			)}
 
 			<LinearGradient
-				colors={["rgba(0,0,0,0.0)", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.75)"]}
+				colors={[
+					withAlpha(colors.black, 0),
+					withAlpha(colors.black, 0.2),
+					withAlpha(colors.black, 0.75),
+				]}
 				end={{ x: 0.5, y: 1 }}
 				start={{ x: 0.5, y: 0 }}
 				style={StyleSheet.absoluteFillObject}
@@ -293,8 +296,8 @@ function ClipFeedCard({
 			{showBumpPulse ? (
 				<Animated.View style={[styles.centerFeedback, bumpPulseStyle]}>
 					<Image
-						source={require("../../assets/icons/fist-bump-color.png")}
-						style={styles.centerIcon}
+						source={likeIcon}
+						style={[styles.centerIcon, { tintColor: colors.primary }]}
 					/>
 				</Animated.View>
 			) : null}
@@ -324,7 +327,13 @@ function ClipFeedCard({
 						}}
 						style={styles.actionIconWrap}
 					>
-						<Image source={likeIcon} style={styles.likeIconImage} />
+						<Image
+							source={likeIcon}
+							style={[
+								styles.likeIconImage,
+								{ tintColor: liked ? colors.primary : colors.textInverse },
+							]}
+						/>
 					</Pressable>
 					<Text style={styles.actionLabel}>{compactNumber(item.likes)}</Text>
 				</View>
