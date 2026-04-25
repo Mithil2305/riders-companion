@@ -1,16 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, StyleSheet, View } from "react-native";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Video, ResizeMode, AVPlaybackStatusSuccess } from "expo-av";
+import Constants from "expo-constants";
+
+// Contexts & Hooks
 import { ThemeProvider } from "../src/contexts/ThemeContext";
 import { PlaybackSettingsProvider } from "../src/contexts/PlaybackSettingsContext";
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
 import { UploadProvider } from "../src/contexts/UploadContext";
 import { useTheme } from "../src/hooks/useTheme";
-import { initializePushNotifications } from "../src/services/PushNotificationService";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Ignore if splash is already controlled by Expo runtime.
@@ -38,6 +41,8 @@ function RootNavigator() {
 	const { colors, resolvedMode } = useTheme();
 	const { isAuthenticated, isRestoring } = useAuth();
 	const [showVideoSplash, setShowVideoSplash] = useState(true);
+	
+	// Animation Refs
 	const boomScale = useRef(new Animated.Value(1.24)).current;
 	const boomOpacity = useRef(new Animated.Value(0.9)).current;
 	const appEntryY = useRef(new Animated.Value(110)).current;
@@ -53,10 +58,7 @@ function RootNavigator() {
 	}, []);
 
 	const startAppEntryAnimation = useCallback(() => {
-		if (hasStartedAppEntry.current) {
-			return;
-		}
-
+		if (hasStartedAppEntry.current) return;
 		hasStartedAppEntry.current = true;
 
 		Animated.parallel([
@@ -85,12 +87,25 @@ function RootNavigator() {
 	}, [appEntryOpacity, appEntryY]);
 
 	useEffect(() => {
-		if (!isAuthenticated) {
-			return;
-		}
+		if (!isAuthenticated || Constants.appOwnership === "expo") return;
 
-		void initializePushNotifications();
+		let cancelled = false;
+		const setupPushNotifications = async () => {
+			const { initializePushNotifications } = await import("../src/services/PushNotificationService");
+			if (!cancelled) await initializePushNotifications();
+		};
+
+		void setupPushNotifications();
+		return () => { cancelled = true; };
 	}, [isAuthenticated]);
+
+	const onPlaybackStatusUpdate = (status: any) => {
+		const playbackStatus = status as AVPlaybackStatusSuccess;
+		if (playbackStatus.didJustFinish) {
+			setShowVideoSplash(false);
+			startAppEntryAnimation();
+		}
+	};
 
 	useEffect(() => {
 		Animated.parallel([
@@ -109,27 +124,14 @@ function RootNavigator() {
 		]).start();
 
 		const fallbackTimer = setTimeout(() => {
-			if (!isRestoring) {
-				void hideNativeSplash();
+			if (showVideoSplash) {
 				setShowVideoSplash(false);
 				startAppEntryAnimation();
 			}
-		}, 2400);
+		}, 5000);
 
 		return () => clearTimeout(fallbackTimer);
-	}, [boomOpacity, boomScale, hideNativeSplash, isRestoring, startAppEntryAnimation]);
-
-	// Once restoration is complete and splash is still showing, dismiss it
-	useEffect(() => {
-		if (!isRestoring && showVideoSplash) {
-			const dismissTimer = setTimeout(() => {
-				void hideNativeSplash();
-				setShowVideoSplash(false);
-				startAppEntryAnimation();
-			}, 400);
-			return () => clearTimeout(dismissTimer);
-		}
-	}, [isRestoring, showVideoSplash, hideNativeSplash, startAppEntryAnimation]);
+	}, []);
 
 	return (
 		<>
@@ -140,27 +142,15 @@ function RootNavigator() {
 					transform: [{ translateY: appEntryY }],
 				}}
 			>
-				<Stack
-					screenOptions={{
-						headerShown: false,
-					}}
-				>
+				<Stack screenOptions={{ headerShown: false }}>
 					<Stack.Screen name="index" />
 					<Stack.Screen name="onboarding" />
 					<Stack.Screen name="(tabs)" />
 					<Stack.Screen
 						name="create"
-						options={{
-							animation: "slide_from_bottom",
-							presentation: "fullScreenModal",
-						}}
+						options={{ animation: "slide_from_bottom", presentation: "fullScreenModal" }}
 					/>
-					<Stack.Screen
-						name="auth"
-						options={{
-							animation: "fade",
-						}}
-					/>
+					<Stack.Screen name="auth" options={{ animation: "fade" }} />
 					<Stack.Screen name="setup/profile" />
 					<Stack.Screen name="chats/index" />
 					<Stack.Screen name="chats/[id]" />
@@ -171,10 +161,7 @@ function RootNavigator() {
 					<Stack.Screen name="ride-details" />
 					<Stack.Screen
 						name="settings"
-						options={{
-							presentation: "transparentModal",
-							animation: "none",
-						}}
+						options={{ presentation: "transparentModal", animation: "none" }}
 					/>
 					<Stack.Screen name="tracking" />
 					<Stack.Screen name="community" />
@@ -182,10 +169,7 @@ function RootNavigator() {
 					<Stack.Screen name="status" />
 					<Stack.Screen
 						name="status-viewer"
-						options={{
-							animation: "fade",
-							presentation: "fullScreenModal",
-						}}
+						options={{ animation: "fade", presentation: "fullScreenModal" }}
 					/>
 				</Stack>
 				<StatusBar
@@ -193,7 +177,8 @@ function RootNavigator() {
 					backgroundColor={colors.background}
 				/>
 			</Animated.View>
-			{showVideoSplash ? (
+
+			{showVideoSplash && (
 				<View style={styles.videoSplashOverlay}>
 					<Animated.View
 						style={[
@@ -204,17 +189,20 @@ function RootNavigator() {
 							},
 						]}
 					>
-						<Image
-							source={require("../assets/logo.png")}
+						<Video
+							source={require("../assets/logo.mp4")} 
 							style={styles.video}
-							resizeMode="contain"
+							resizeMode={ResizeMode.COVER}
+							shouldPlay
+							isMuted={true}
 							onLoad={() => {
 								void hideNativeSplash();
 							}}
+							onPlaybackStatusUpdate={onPlaybackStatusUpdate}
 						/>
 					</Animated.View>
 				</View>
-			) : null}
+			)}
 		</>
 	);
 }
@@ -223,7 +211,7 @@ const styles = StyleSheet.create({
 	videoSplashOverlay: {
 		...StyleSheet.absoluteFillObject,
 		zIndex: 100,
-		backgroundColor: "#e8e8e8",
+		backgroundColor: "#000000", // Usually black looks better for video backgrounds
 	},
 	videoWrap: {
 		flex: 1,

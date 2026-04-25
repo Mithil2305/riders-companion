@@ -21,6 +21,8 @@ export interface TrendingClip {
 	shares: number;
 	createdAt: string;
 	likedByMe?: boolean;
+	type: "post" | "clip";
+	mediaType?: string | null;
 }
 
 export interface ExploreGridSection {
