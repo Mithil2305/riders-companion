@@ -7,12 +7,12 @@ import Animated, {
 	useSharedValue,
 } from "react-native-reanimated";
 import { EmptyState, ShareSheet } from "../../src/components/common";
+import { CommentsSheet } from "../../src/components/comments";
 import {
 	EndOfFeed,
 	FeedPost,
 	FeedSkeleton,
 	HeaderBar,
-	CommentSheet,
 } from "../../src/components/feed";
 import { useHomeFeed } from "../../src/hooks/useHomeFeed";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
@@ -113,7 +113,7 @@ export default function HomeScreen() {
 				{...swipeHandlers}
 			>
 				<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
-					<HeaderBar showSpinner title="Moments" />
+					<HeaderBar showBottomBorder={false} showSpinner title="Moments" />
 					<FeedSkeleton />
 					<Text style={styles.loadingTitle}>
 						Loading your latest moments...
@@ -129,7 +129,11 @@ export default function HomeScreen() {
 			{...swipeHandlers}
 		>
 			<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
-				<HeaderBar showSpinner={refreshing} title="Moments" />
+				<HeaderBar
+					showBottomBorder={false}
+					showSpinner={refreshing}
+					title="Moments"
+				/>
 
 				<Animated.FlatList
 					ListEmptyComponent={
@@ -159,11 +163,12 @@ export default function HomeScreen() {
 					renderItem={renderPost}
 					showsVerticalScrollIndicator={false}
 				/>
-				<CommentSheet
-					postId={selectedPostId}
+				<CommentsSheet
+					contentId={selectedPostId}
+					contentType="feed"
 					visible={isCommentSheetVisible}
 					onClose={() => setIsCommentSheetVisible(false)}
-					onCommentAdded={(newCount: number) => {
+					onCommentsCountChange={(newCount: number) => {
 						if (selectedPostId) {
 							updateCommentCount(selectedPostId, newCount);
 						}

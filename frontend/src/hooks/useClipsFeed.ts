@@ -45,7 +45,12 @@ const toClipItem = (
 		"https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80",
 	media: clip.videoUrl,
 	createdAt: clip.createdAt,
-	caption: clip.songId ? `Now playing: ${clip.songId}` : "Ride clip",
+	caption:
+		clip.caption?.trim().length
+			? clip.caption
+			: clip.songId
+				? `Now playing: ${clip.songId}`
+				: "Ride clip",
 	likes: Number(clip.likesCount ?? 0),
 	comments: Number(clip.commentsCount ?? 0),
 	shares: Number(clip.sharesCount ?? 0),
