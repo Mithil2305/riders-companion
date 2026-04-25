@@ -44,7 +44,7 @@ export const getClipSelectionError = (asset: GalleryMediaAsset | null) => {
 
 type UploadRequest = {
 	path: "/feed" | "/clips" | "/stories";
-	body: Record<string, unknown>;
+	body: unknown;
 };
 
 export type QueuedUploadInput = {
@@ -58,7 +58,12 @@ const buildUploadRequest = async ({
 	description,
 	selectedAsset,
 }: QueuedUploadInput): Promise<UploadRequest> => {
-	if (uploadType === "clip") {
+	const effectiveUploadType =
+		uploadType === "post" && selectedAsset.mediaType === "video"
+			? "clip"
+			: uploadType;
+
+	if (effectiveUploadType === "clip") {
 		const clipSelectionError = getClipSelectionError(selectedAsset);
 		if (clipSelectionError) {
 			throw new Error(clipSelectionError);
@@ -97,8 +102,8 @@ const buildUploadRequest = async ({
 	const hashtags = extractHashtags(description);
 	const caption = description.trim();
 
-	if (uploadType === "post") {
-		const body: Parameters<FeedService["createPost"]>[0] = {
+	if (effectiveUploadType === "post") {
+		const body: Parameters<typeof FeedService.createPost>[0] = {
 			caption,
 			mediaData,
 			mediaMimeType,
@@ -111,8 +116,8 @@ const buildUploadRequest = async ({
 		};
 	}
 
-	if (uploadType === "clip") {
-		const body: Parameters<ClipService["createClip"]>[0] = {
+	if (effectiveUploadType === "clip") {
+		const body: Parameters<typeof ClipService.createClip>[0] = {
 			caption,
 			mediaData,
 			videoData: mediaData,
@@ -126,7 +131,7 @@ const buildUploadRequest = async ({
 		};
 	}
 
-	const body: Parameters<StoryService["createStory"]>[0] = {
+	const body: Parameters<typeof StoryService.createStory>[0] = {
 		caption,
 		mediaData,
 		mediaMimeType,

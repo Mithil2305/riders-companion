@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import ClipService, { ClipPayload } from "../../src/services/ClipService";
+import { ClipThumbnail } from "../../src/components/clips/ClipThumbnail";
 import FeedService, { FeedPostPayload } from "../../src/services/FeedService";
 import ProfileService from "../../src/services/ProfileService";
 import TrackerService from "../../src/services/TrackerService";
@@ -41,6 +42,10 @@ type GarageBike = {
 };
 
 type PublicSection = "moments" | "clips" | "garage";
+
+type PublicClipItem = Pick<ClipPayload, "id" | "videoUrl"> & {
+	sourcePostId?: string;
+};
 
 const FALLBACK_PROFILE: RiderProfile = {
 	id: "",
@@ -357,7 +362,7 @@ export default function RiderProfileScreen() {
 	const riderId = typeof params.id === "string" ? params.id : "";
 	const [profile, setProfile] = React.useState<RiderProfile>(FALLBACK_PROFILE);
 	const [moments, setMoments] = React.useState<FeedPostPayload[]>([]);
-	const [clips, setClips] = React.useState<ClipPayload[]>([]);
+	const [clips, setClips] = React.useState<PublicClipItem[]>([]);
 	const [garage, setGarage] = React.useState<GarageBike[]>([]);
 	const [activeSection, setActiveSection] =
 		React.useState<PublicSection>("moments");
@@ -402,16 +407,28 @@ export default function RiderProfileScreen() {
 				};
 
 				setProfile(nextProfile);
-				setMoments(
-					feedResponse.posts.filter(
-						(post) => post.rider?.id === nextProfile.id && post.mediaUrl,
-					),
+				const riderPosts = feedResponse.posts.filter(
+					(post) => post.rider?.id === nextProfile.id && post.mediaUrl,
 				);
-				setClips(
-					clipsResponse.clips.filter(
-						(clip) => clip.rider?.id === nextProfile.id && clip.videoUrl,
-					),
+				const riderMoments = riderPosts.filter(
+					(post) => post.mediaType !== "VIDEO",
 				);
+				const legacyVideoClips = riderPosts
+					.filter((post) => post.mediaType === "VIDEO" && post.mediaUrl)
+					.map((post) => ({
+						id: `post-${post.id}`,
+						videoUrl: post.mediaUrl ?? "",
+						sourcePostId: post.id,
+					}));
+				const riderClips = clipsResponse.clips
+					.filter((clip) => clip.rider?.id === nextProfile.id && clip.videoUrl)
+					.map((clip) => ({
+						id: clip.id,
+						videoUrl: clip.videoUrl,
+					}));
+
+				setMoments(riderMoments);
+				setClips([...riderClips, ...legacyVideoClips]);
 				setGarage(profileResponse.bikes ?? []);
 			} catch {
 				if (active) {
@@ -793,15 +810,23 @@ export default function RiderProfileScreen() {
 				<View style={styles.grid}>
 					{clips.map((clip) => (
 						<View key={clip.id} style={styles.tileWrap}>
-							<View style={styles.tile}>
-								<Image
-									source={{ uri: clip.videoUrl || avatarUri }}
+							<Pressable
+								onPress={() =>
+									router.push({
+										pathname: "/(tabs)/clips",
+										params: { clipId: clip.id },
+									})
+								}
+								style={styles.tile}
+							>
+								<ClipThumbnail
 									style={styles.tileImage}
+									uri={clip.videoUrl}
 								/>
 								<View style={styles.videoPill}>
 									<Text style={styles.videoPillText}>CLIP</Text>
 								</View>
-							</View>
+							</Pressable>
 						</View>
 					))}
 				</View>
@@ -967,6 +992,13 @@ export default function RiderProfileScreen() {
 									return (
 										<Pressable
 											key={section}
+											accessibilityLabel={
+												section === "moments"
+													? "Moments"
+													: section === "clips"
+														? "Clips"
+														: "Garage"
+											}
 											onPress={() => setActiveSection(section)}
 											style={[
 												styles.tabButton,
