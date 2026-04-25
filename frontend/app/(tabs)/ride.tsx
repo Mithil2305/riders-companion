@@ -65,13 +65,14 @@ export default function RideScreen() {
 				},
 				scrollContent: {
 					paddingHorizontal: 24,
-					paddingTop: 32,
+					paddingTop: 10,
 					paddingBottom: 140,
 				},
 				header: {
 					flexDirection: "row",
+					justifyContent: "center",
 					alignItems: "center",
-					marginBottom: 8,
+					marginBottom: 2,
 				},
 				headerIcon: {
 					marginRight: 10,
@@ -87,7 +88,7 @@ export default function RideScreen() {
 					fontSize: typography.sizes.sm,
 					color: colors.textSecondary,
 					lineHeight: typography.sizes.sm * typography.lineHeights.normal,
-					marginBottom: 32,
+					marginBottom: metrics.md,
 					marginLeft: 30,
 				},
 				card: {
@@ -97,7 +98,7 @@ export default function RideScreen() {
 					borderColor: colors.borderDark,
 					alignItems: "center",
 					justifyContent: "center",
-					paddingVertical: 36,
+					paddingVertical: 24,
 					paddingHorizontal: 24,
 					marginBottom: 20,
 					shadowColor: colors.shadow,
@@ -114,8 +115,8 @@ export default function RideScreen() {
 					elevation: 6,
 				},
 				cardImage: {
-					width: 140,
-					height: 140,
+					width: 180,
+					height: 180,
 					resizeMode: "contain",
 					marginBottom: 16,
 				},
@@ -138,7 +139,7 @@ export default function RideScreen() {
 					bottom: 0,
 					paddingHorizontal: 24,
 					paddingTop: 12,
-					paddingBottom: metrics.safeArea.bottom + 12,
+					paddingBottom: metrics.safeArea.bottom - 10,
 					backgroundColor: colors.background,
 					borderTopWidth: 1,
 					borderTopColor: colors.border,
@@ -172,12 +173,12 @@ export default function RideScreen() {
 					showsVerticalScrollIndicator={false}
 				>
 					<View style={styles.header}>
-						<Ionicons
+						{/* <Ionicons
 							name="send"
 							size={20}
 							color={colors.primary}
 							style={styles.headerIcon}
-						/>
+						/> */}
 						<Text style={styles.title}>Choose your ride</Text>
 					</View>
 					<Text style={styles.subtitle}>
