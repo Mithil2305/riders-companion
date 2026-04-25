@@ -116,6 +116,8 @@ const normalizeCaption = (value) => {
 	return trimmed.length === 0 ? "" : trimmed;
 };
 
+const canModifyComment = (comment, riderId) => comment.rider_id === riderId;
+
 exports.getHomeFeed = async (req, res) => {
 	try {
 		const posts = await FeedPost.findAll({
@@ -410,6 +412,112 @@ exports.unlikeComment = async (req, res) => {
 	return res.status(200).json({
 		success: true,
 		data: { commentId: comment.id, liked: false, likesCount },
+	});
+};
+
+exports.updateComment = async (req, res) => {
+	const post = await FeedPost.findByPk(req.params.postId, {
+		attributes: ["id"],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	const comment = await FeedPostComment.findOne({
+		where: {
+			id: req.params.commentId,
+			feed_post_id: post.id,
+		},
+		include: [
+			{
+				model: RiderAccount,
+				attributes: ["id", "name", "username", "profile_image_url"],
+			},
+		],
+	});
+
+	if (!comment) {
+		return formatError(res, 404, "Comment not found", "FEED_COMMENT_NOT_FOUND");
+	}
+
+	if (!canModifyComment(comment, req.user.id)) {
+		return formatError(
+			res,
+			403,
+			"You can only edit your own comments",
+			"FEED_COMMENT_EDIT_FORBIDDEN",
+		);
+	}
+
+	const commentText = validateCommentText(req.body.commentText);
+	if (!commentText) {
+		return formatError(
+			res,
+			400,
+			"commentText must be 1-2000 characters",
+			"FEED_COMMENT_INVALID",
+		);
+	}
+
+	comment.comment_text = commentText;
+	await comment.save();
+
+	return res.status(200).json({
+		success: true,
+		data: {
+			postId: post.id,
+			comment: await toCommentPayload(comment, req.user.id),
+		},
+	});
+};
+
+exports.deleteComment = async (req, res) => {
+	const post = await FeedPost.findByPk(req.params.postId, {
+		attributes: ["id"],
+	});
+
+	if (!post) {
+		return formatError(res, 404, "Post not found", "FEED_POST_NOT_FOUND");
+	}
+
+	const comment = await FeedPostComment.findOne({
+		where: {
+			id: req.params.commentId,
+			feed_post_id: post.id,
+		},
+		attributes: ["id", "rider_id"],
+	});
+
+	if (!comment) {
+		return formatError(res, 404, "Comment not found", "FEED_COMMENT_NOT_FOUND");
+	}
+
+	if (!canModifyComment(comment, req.user.id)) {
+		return formatError(
+			res,
+			403,
+			"You can only delete your own comments",
+			"FEED_COMMENT_DELETE_FORBIDDEN",
+		);
+	}
+
+	await FeedPostCommentLike.destroy({
+		where: { feed_post_comment_id: comment.id },
+	});
+	await comment.destroy();
+
+	const commentsCount = await FeedPostComment.count({
+		where: { feed_post_id: post.id },
+	});
+
+	return res.status(200).json({
+		success: true,
+		data: {
+			postId: post.id,
+			commentId: comment.id,
+			commentsCount,
+		},
 	});
 };
 

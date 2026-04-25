@@ -75,11 +75,11 @@ export function FormInput({
 					borderRadius: metrics.radius.lg,
 					borderWidth: 1.2,
 					borderColor: colors.border,
-					backgroundColor: colors.card,
+					backgroundColor: colors.inputBackground,
 					flexDirection: "row",
 					alignItems: "center",
 					paddingHorizontal: metrics.md,
-					shadowColor: colors.primary,
+					shadowColor: colors.focusRing,
 					shadowOffset: { width: 0, height: 0 },
 				},
 				input: {

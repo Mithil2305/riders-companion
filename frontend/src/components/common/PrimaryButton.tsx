@@ -66,7 +66,8 @@ export function PrimaryButton({
 					elevation: 5,
 				},
 				disabled: {
-					opacity: 0.68,
+					backgroundColor: colors.buttonDisabledBg,
+					opacity: 0.74,
 				},
 				buttonText: {
 					color: colors.buttonPrimaryText,
@@ -74,6 +75,9 @@ export function PrimaryButton({
 					fontWeight: "700",
 					letterSpacing: 0.4,
 					lineHeight: 22,
+				},
+				buttonTextDisabled: {
+					color: colors.buttonDisabledText,
 				},
 			}),
 		[colors, metrics, typography],
@@ -97,7 +101,9 @@ export function PrimaryButton({
 			{loading ? (
 				<ActivityIndicator color={colors.buttonPrimaryText} />
 			) : (
-				<Text style={styles.buttonText}>{title}</Text>
+				<Text style={[styles.buttonText, isDisabled && styles.buttonTextDisabled]}>
+					{title}
+				</Text>
 			)}
 		</AnimatedPressable>
 	);

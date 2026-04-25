@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { ChatFilter } from '../../types/chat';
 
-const FILTERS: Array<{ key: ChatFilter; label: string }> = [
+const FILTERS: { key: ChatFilter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'personal', label: 'Personal' },
   { key: 'group', label: 'Group' },

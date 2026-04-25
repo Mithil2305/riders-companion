@@ -14,7 +14,6 @@ import Animated, {
 	FadeInDown,
 	type SharedValue,
 	interpolate,
-	interpolateColor,
 	runOnJS,
 	useAnimatedStyle,
 	useSharedValue,
@@ -22,6 +21,7 @@ import Animated, {
 	withTiming,
 } from "react-native-reanimated";
 import { useTheme } from "../../hooks/useTheme";
+import { StreamingVideo } from "../common";
 import { FeedPostItem } from "../../types/feed";
 
 interface FeedPostProps {
@@ -48,7 +48,16 @@ export function FeedPost({
 	scrollY,
 }: FeedPostProps) {
 	const { colors, metrics, typography, resolvedMode } = useTheme();
-	const [imageLoading, setImageLoading] = React.useState(true);
+	const likeCount = item.likes;
+	const isVideoPost = item.mediaType === "VIDEO";
+	const [imageLoading, setImageLoading] = React.useState(
+		item.mediaType !== "VIDEO",
+	);
+	const [imageAspectRatio, setImageAspectRatio] = React.useState(
+		item.aspectRatio && Number.isFinite(item.aspectRatio) && item.aspectRatio > 0
+			? item.aspectRatio
+			: 1,
+	);
 	const [showBumpPulse, setShowBumpPulse] = React.useState(false);
 	const lastTapRef = React.useRef(0);
 
@@ -60,6 +69,33 @@ export function FeedPost({
 	React.useEffect(() => {
 		likeProgress.value = withTiming(liked ? 1 : 0, { duration: 220 });
 	}, [likeProgress, liked]);
+
+	React.useEffect(() => {
+		if (isVideoPost) {
+			return;
+		}
+
+		if (
+			item.aspectRatio &&
+			Number.isFinite(item.aspectRatio) &&
+			item.aspectRatio > 0
+		) {
+			setImageAspectRatio(item.aspectRatio);
+			return;
+		}
+
+		Image.getSize(
+			item.image,
+			(width, height) => {
+				if (width > 0 && height > 0) {
+					setImageAspectRatio(width / height);
+				}
+			},
+			() => {
+				setImageAspectRatio(1);
+			},
+		);
+	}, [isVideoPost, item.aspectRatio, item.image]);
 
 	const imageAnimatedStyle = useAnimatedStyle(() => ({
 		transform: [{ scale: imageScale.value }],
@@ -108,11 +144,9 @@ export function FeedPost({
 			StyleSheet.create({
 				card: {
 					backgroundColor:
-						colors.background === "#181515" ? colors.card : colors.surface,
+						resolvedMode === "dark" ? colors.background : colors.surfaceRaised,
 					marginBottom: metrics.lg,
 					paddingBottom: metrics.md,
-					borderBottomWidth: 1,
-					borderBottomColor: colors.borderDark,
 				},
 				header: {
 					flexDirection: "row",
@@ -143,10 +177,8 @@ export function FeedPost({
 				},
 				mediaWrap: {
 					width: "100%",
-					height: metrics.screenWidth * 0.9,
 					backgroundColor: colors.surface,
 					overflow: "hidden",
-					// borderRadius: colors.background === '#181515' ? 0 : metrics.radius.md,
 				},
 				media: {
 					width: "100%",
@@ -202,17 +234,18 @@ export function FeedPost({
 					top: "42%",
 				},
 			}),
-		[colors, metrics, typography],
+		[colors, metrics, resolvedMode, typography],
 	);
 
-	const likeCount = item.likes;
+	const mediaWrapStyle = isVideoPost
+		? { height: metrics.screenWidth * 0.9 }
+		: { aspectRatio: imageAspectRatio };
 
 	const defaultFistBumpIcon: ImageSourcePropType =
-		resolvedMode === "dark"
-			? require("../../../assets/icons/fist-bump-white.png")
-			: require("../../../assets/icons/fist-bump.png");
+		require("../../../assets/icons/fist-bump-white.png");
 
-	const activeFistBumpIcon: ImageSourcePropType = require("../../../assets/icons/fist-bump-color.png");
+	const activeFistBumpIcon: ImageSourcePropType =
+		require("../../../assets/icons/fist-bump-white.png");
 
 	const runBumpPulse = React.useCallback(() => {
 		setShowBumpPulse(true);
@@ -268,17 +301,30 @@ export function FeedPost({
 				onPressOut={() => {
 					imageScale.value = withSpring(1, { damping: 14, stiffness: 200 });
 				}}
-				style={styles.mediaWrap}
+				style={[styles.mediaWrap, mediaWrapStyle]}
 			>
-				<Animated.Image
-					fadeDuration={150}
-					onLoadEnd={() => setImageLoading(false)}
-					progressiveRenderingEnabled
-					source={{ uri: item.image }}
-					style={[styles.media, parallaxStyle, imageAnimatedStyle]}
-				/>
+				{isVideoPost ? (
+					<Animated.View style={[styles.media, parallaxStyle, imageAnimatedStyle]}>
+						<StreamingVideo
+							contentFit="cover"
+							muted
+							shouldPlay={false}
+							style={styles.media}
+							uri={item.image}
+						/>
+					</Animated.View>
+				) : (
+					<Animated.Image
+						fadeDuration={150}
+						onLoadEnd={() => setImageLoading(false)}
+						progressiveRenderingEnabled
+						resizeMode="contain"
+						source={{ uri: item.image }}
+						style={[styles.media, parallaxStyle, imageAnimatedStyle]}
+					/>
+				)}
 
-				{imageLoading ? (
+				{imageLoading && !isVideoPost ? (
 					<View style={styles.imageLoading}>
 						<ActivityIndicator color={colors.primary} />
 					</View>
@@ -291,7 +337,11 @@ export function FeedPost({
 					>
 						<Image
 							source={activeFistBumpIcon}
-							style={{ width: metrics.icon.xl * 1.5, height: metrics.icon.xl * 1.5 }}
+							style={{
+								width: metrics.icon.xl * 1.5,
+								height: metrics.icon.xl * 1.5,
+								tintColor: colors.primary,
+							}}
 						/>
 					</Animated.View>
 				) : null}
@@ -331,13 +381,18 @@ export function FeedPost({
 				>
 					<Image
 						source={liked ? activeFistBumpIcon : defaultFistBumpIcon}
-						style={{ width: metrics.icon.md + 6, height: metrics.icon.md + 6 }}
+						style={{
+							width: metrics.icon.md + 6,
+							height: metrics.icon.md + 6,
+							tintColor: liked ? colors.primary : colors.textPrimary,
+						}}
 					/>
 				</Pressable>
 			</View>
 
 			<View style={styles.metaWrap}>
 				<AnimatedPressable
+					style={likeAnimatedStyle}
 					onPress={() => {
 						onToggleLike(item.id);
 					}}

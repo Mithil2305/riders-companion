@@ -12,6 +12,8 @@ export interface FeedPostPayload {
 	caption: string | null;
 	mediaUrl: string | null;
 	mediaType: string | null;
+	width?: number | null;
+	height?: number | null;
 	createdAt: string;
 	rider?: FeedAuthorPayload;
 	likesCount: number;
@@ -108,6 +110,25 @@ class FeedService {
 		return apiRequest<{ commentId: string; liked: boolean; likesCount: number }>(`/feed/${postId}/comments/${commentId}/likes`, {
 			method: "DELETE"
 		});
+	}
+
+	async updateComment(postId: string, commentId: string, commentText: string) {
+		return apiRequest<{ postId: string; comment: CommentPayload }>(
+			`/feed/${postId}/comments/${commentId}`,
+			{
+				method: "PATCH",
+				body: { commentText },
+			},
+		);
+	}
+
+	async deleteComment(postId: string, commentId: string) {
+		return apiRequest<{ postId: string; commentId: string; commentsCount: number }>(
+			`/feed/${postId}/comments/${commentId}`,
+			{
+				method: "DELETE",
+			},
+		);
 	}
 }
 
