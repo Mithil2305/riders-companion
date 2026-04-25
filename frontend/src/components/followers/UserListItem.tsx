@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text } from 'react-native';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -14,11 +14,12 @@ interface UserListItemProps {
   user: TrackerUser;
   index: number;
   onToggleFollow: (userId: string) => void;
+  onOpenProfile?: (userId: string) => void;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function UserListItem({ user, index, onToggleFollow }: UserListItemProps) {
+export function UserListItem({ user, index, onToggleFollow, onOpenProfile }: UserListItemProps) {
   const { colors, metrics, typography } = useTheme();
   const scale = useSharedValue(1);
   const progress = useSharedValue(user.isFollowing ? 1 : 0);
@@ -87,11 +88,13 @@ export function UserListItem({ user, index, onToggleFollow }: UserListItemProps)
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 70).duration(260)} style={styles.card}>
-      <Image source={{ uri: user.avatar }} style={styles.avatar} />
-      <View style={styles.info}>
+      <Pressable onPress={() => onOpenProfile?.(user.id)}>
+        <Image source={{ uri: user.avatar }} style={styles.avatar} />
+      </Pressable>
+      <Pressable onPress={() => onOpenProfile?.(user.id)} style={styles.info}>
         <Text style={styles.name}>{user.name}</Text>
         <Text style={styles.sub}>{user.isFollowing ? 'Following' : 'Rider nearby'}</Text>
-      </View>
+      </Pressable>
       <AnimatedPressable
         onPress={() => onToggleFollow(user.id)}
         onPressIn={() => {

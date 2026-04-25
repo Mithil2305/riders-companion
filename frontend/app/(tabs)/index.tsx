@@ -1,19 +1,19 @@
 import React from "react";
 import { RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import Animated, {
 	useAnimatedScrollHandler,
 	useSharedValue,
 } from "react-native-reanimated";
-import { EmptyState } from "../../src/components/common";
+import { EmptyState, ShareSheet } from "../../src/components/common";
 import {
 	EndOfFeed,
 	FeedPost,
 	FeedSkeleton,
 	HeaderBar,
+	CommentSheet,
 } from "../../src/components/feed";
-import { CommentsSheet } from "../../src/components/comments";
-import { ShareSheet } from "../../src/components/share";
 import { useHomeFeed } from "../../src/hooks/useHomeFeed";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { useTheme } from "../../src/hooks/useTheme";
@@ -21,6 +21,7 @@ import { FeedPostItem } from "../../src/types/feed";
 
 export default function HomeScreen() {
 	const { colors, metrics, typography } = useTheme();
+	const router = useRouter();
 	const {
 		loading,
 		refreshing,
@@ -28,15 +29,31 @@ export default function HomeScreen() {
 		likedPostIds,
 		onRefresh,
 		toggleLike,
+		updateCommentCount,
 	} = useHomeFeed();
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("home");
 	const scrollY = useSharedValue(0);
-	const [activeCommentsPostId, setActiveCommentsPostId] = React.useState<
-		string | null
-	>(null);
-	const [activeSharePostId, setActiveSharePostId] = React.useState<string | null>(
-		null,
+
+	const [selectedPostId, setSelectedPostId] = React.useState<string | null>(null);
+	const [isCommentSheetVisible, setIsCommentSheetVisible] = React.useState(false);
+	const [isShareSheetVisible, setIsShareSheetVisible] = React.useState(false);
+
+	const openCommentSheet = React.useCallback((postId: string) => {
+		setSelectedPostId(postId);
+		setIsCommentSheetVisible(true);
+	}, []);
+
+	const openShareSheet = React.useCallback((postId: string) => {
+		setSelectedPostId(postId);
+		setIsShareSheetVisible(true);
+	}, []);
+
+	const openProfile = React.useCallback(
+		(riderId: string) => {
+			router.push(`/rider/${riderId}`);
+		},
+		[router],
 	);
 
 	const onScroll = useAnimatedScrollHandler({
@@ -51,13 +68,14 @@ export default function HomeScreen() {
 				index={index}
 				item={item}
 				liked={Boolean(likedPostIds[item.id])}
-				onOpenComments={(postId) => setActiveCommentsPostId(postId)}
-				onOpenShare={(postId) => setActiveSharePostId(postId)}
+				onAddComment={openCommentSheet}
+				onOpenProfile={openProfile}
+				onShare={openShareSheet}
 				onToggleLike={toggleLike}
 				scrollY={scrollY}
 			/>
 		),
-		[likedPostIds, scrollY, toggleLike],
+		[openCommentSheet, openProfile, openShareSheet, likedPostIds, scrollY, toggleLike],
 	);
 
 	const styles = React.useMemo(
@@ -141,22 +159,27 @@ export default function HomeScreen() {
 					renderItem={renderPost}
 					showsVerticalScrollIndicator={false}
 				/>
-
-				{activeCommentsPostId ? (
-					<CommentsSheet
-						onClose={() => setActiveCommentsPostId(null)}
-						postId={activeCommentsPostId}
-						visible={Boolean(activeCommentsPostId)}
-					/>
-				) : null}
-
-				{activeSharePostId ? (
-					<ShareSheet
-						onClose={() => setActiveSharePostId(null)}
-						postId={activeSharePostId}
-						visible={Boolean(activeSharePostId)}
-					/>
-				) : null}
+				<CommentSheet
+					postId={selectedPostId}
+					visible={isCommentSheetVisible}
+					onClose={() => setIsCommentSheetVisible(false)}
+					onCommentAdded={(newCount: number) => {
+						if (selectedPostId) {
+							updateCommentCount(selectedPostId, newCount);
+						}
+					}}
+				/>
+				<ShareSheet
+					postId={selectedPostId}
+					visible={isShareSheetVisible}
+					onClose={() => setIsShareSheetVisible(false)}
+					users={[{
+						id: "admin1",
+						name: "Admin",
+						username: "admin__riders",
+						avatar: "https://i.pravatar.cc/100?img=68"
+					}]}
+				/>
 			</SafeAreaView>
 		</Animated.View>
 	);

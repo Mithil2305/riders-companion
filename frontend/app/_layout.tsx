@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
-import { ResizeMode, Video, type AVPlaybackStatus } from "expo-av";
+import { Animated, Easing, Image, StyleSheet, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
-import Constants from "expo-constants";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "../src/contexts/ThemeContext";
+import { PlaybackSettingsProvider } from "../src/contexts/PlaybackSettingsContext";
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
+import { UploadProvider } from "../src/contexts/UploadContext";
 import { useTheme } from "../src/hooks/useTheme";
+import { initializePushNotifications } from "../src/services/PushNotificationService";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Ignore if splash is already controlled by Expo runtime.
@@ -20,9 +21,13 @@ export default function RootLayout() {
 		<GestureHandlerRootView style={{ flex: 1 }}>
 			<SafeAreaProvider>
 				<ThemeProvider>
-					<AuthProvider>
-						<RootNavigator />
-					</AuthProvider>
+					<PlaybackSettingsProvider>
+						<AuthProvider>
+							<UploadProvider>
+								<RootNavigator />
+							</UploadProvider>
+						</AuthProvider>
+					</PlaybackSettingsProvider>
 				</ThemeProvider>
 			</SafeAreaProvider>
 		</GestureHandlerRootView>
@@ -31,10 +36,10 @@ export default function RootLayout() {
 
 function RootNavigator() {
 	const { colors, resolvedMode } = useTheme();
-	const { isAuthenticated } = useAuth();
+	const { isAuthenticated, isRestoring } = useAuth();
 	const [showVideoSplash, setShowVideoSplash] = useState(true);
-	const boomScale = useRef(new Animated.Value(1.56)).current;
-	const boomOpacity = useRef(new Animated.Value(0)).current;
+	const boomScale = useRef(new Animated.Value(1.24)).current;
+	const boomOpacity = useRef(new Animated.Value(0.9)).current;
 	const appEntryY = useRef(new Animated.Value(110)).current;
 	const appEntryOpacity = useRef(new Animated.Value(0)).current;
 	const hasStartedAppEntry = useRef(false);
@@ -80,78 +85,51 @@ function RootNavigator() {
 	}, [appEntryOpacity, appEntryY]);
 
 	useEffect(() => {
-		if (!isAuthenticated || Constants.appOwnership === "expo") {
+		if (!isAuthenticated) {
 			return;
 		}
 
-		let cancelled = false;
-
-		const setupPushNotifications = async () => {
-			const { initializePushNotifications } = await import(
-				"../src/services/PushNotificationService"
-			);
-
-			if (!cancelled) {
-				await initializePushNotifications();
-			}
-		};
-
-		void setupPushNotifications();
-
-		return () => {
-			cancelled = true;
-		};
+		void initializePushNotifications();
 	}, [isAuthenticated]);
 
 	useEffect(() => {
 		Animated.parallel([
-			Animated.spring(boomScale, {
+			Animated.timing(boomScale, {
 				toValue: 1,
-				damping: 12,
-				stiffness: 260,
-				mass: 0.8,
+				duration: 360,
+				easing: Easing.out(Easing.cubic),
 				useNativeDriver: true,
 			}),
 			Animated.timing(boomOpacity, {
 				toValue: 1,
-				duration: 220,
-				easing: Easing.out(Easing.cubic),
+				duration: 260,
+				easing: Easing.out(Easing.quad),
 				useNativeDriver: true,
 			}),
 		]).start();
 
 		const fallbackTimer = setTimeout(() => {
-			void hideNativeSplash();
-			setShowVideoSplash(false);
-			startAppEntryAnimation();
-		}, 7000);
-
-		return () => clearTimeout(fallbackTimer);
-	}, [boomOpacity, boomScale, hideNativeSplash, startAppEntryAnimation]);
-
-	const onVideoReady = useCallback(() => {
-		void hideNativeSplash();
-	}, [hideNativeSplash]);
-
-	const onVideoError = useCallback(() => {
-		void hideNativeSplash();
-		setShowVideoSplash(false);
-		startAppEntryAnimation();
-	}, [hideNativeSplash, startAppEntryAnimation]);
-
-	const onPlaybackStatusUpdate = useCallback(
-		(status: AVPlaybackStatus) => {
-			if (!status.isLoaded) {
-				return;
-			}
-
-			if (status.didJustFinish) {
+			if (!isRestoring) {
+				void hideNativeSplash();
 				setShowVideoSplash(false);
 				startAppEntryAnimation();
 			}
-		},
-		[startAppEntryAnimation],
-	);
+		}, 2400);
+
+		return () => clearTimeout(fallbackTimer);
+	}, [boomOpacity, boomScale, hideNativeSplash, isRestoring, startAppEntryAnimation]);
+
+	// Once restoration is complete and splash is still showing, dismiss it
+	useEffect(() => {
+		if (!isRestoring && showVideoSplash) {
+			const dismissTimer = setTimeout(() => {
+				void hideNativeSplash();
+				setShowVideoSplash(false);
+				startAppEntryAnimation();
+			}, 400);
+			return () => clearTimeout(dismissTimer);
+		}
+	}, [isRestoring, showVideoSplash, hideNativeSplash, startAppEntryAnimation]);
 
 	return (
 		<>
@@ -188,6 +166,7 @@ function RootNavigator() {
 					<Stack.Screen name="chats/[id]" />
 					<Stack.Screen name="group-chat/[id]" />
 					<Stack.Screen name="rider/[id]" />
+					<Stack.Screen name="post/[postId]" />
 					<Stack.Screen name="solo-ride/[id]" />
 					<Stack.Screen name="ride-details" />
 					<Stack.Screen
@@ -225,17 +204,13 @@ function RootNavigator() {
 							},
 						]}
 					>
-						<Video
-							source={require("../assets/logo.mp4")}
+						<Image
+							source={require("../assets/logo.png")}
 							style={styles.video}
-							resizeMode={ResizeMode.COVER}
-							shouldPlay
-							isLooping={false}
-							isMuted
-							rate={1.06}
-							onReadyForDisplay={onVideoReady}
-							onError={onVideoError}
-							onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+							resizeMode="contain"
+							onLoad={() => {
+								void hideNativeSplash();
+							}}
 						/>
 					</Animated.View>
 				</View>

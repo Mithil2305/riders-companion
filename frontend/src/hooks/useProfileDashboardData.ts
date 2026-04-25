@@ -1,9 +1,17 @@
 import React from "react";
 import { Badge, GarageBike, ProfileUser } from "../types/profile";
+import ClipService from "../services/ClipService";
 import FeedService from "../services/FeedService";
 import ProfileService from "../services/ProfileService";
 import TrackerService from "../services/TrackerService";
 import type { FeedPostPayload } from "../services/FeedService";
+import { useUploadManager } from "../contexts/UploadContext";
+
+export type ProfileClipItem = {
+	id: string;
+	videoUrl: string;
+	sourcePostId?: string;
+};
 
 interface UseProfileDashboardDataResult {
 	loading: boolean;
@@ -12,6 +20,8 @@ interface UseProfileDashboardDataResult {
 	bikes: GarageBike[];
 	moments: FeedPostPayload[];
 	momentsCount: number;
+	clips: ProfileClipItem[];
+	clipsCount: number;
 	trackersCount: number;
 	trackingCount: number;
 	reloadDashboard: () => Promise<void>;
@@ -32,12 +42,15 @@ const EMPTY_USER: ProfileUser = {
 };
 
 export function useProfileDashboardData(): UseProfileDashboardDataResult {
+	const { lastCompletedUploadAt } = useUploadManager();
 	const [loading, setLoading] = React.useState(true);
 	const [user, setUser] = React.useState<ProfileUser>(EMPTY_USER);
 	const [badges] = React.useState<Badge[]>([]);
 	const [bikes, setBikes] = React.useState<GarageBike[]>([]);
 	const [moments, setMoments] = React.useState<FeedPostPayload[]>([]);
 	const [momentsCount, setMomentsCount] = React.useState(0);
+	const [clips, setClips] = React.useState<ProfileClipItem[]>([]);
+	const [clipsCount, setClipsCount] = React.useState(0);
 	const [trackersCount, setTrackersCount] = React.useState(0);
 	const [trackingCount, setTrackingCount] = React.useState(0);
 	const mountedRef = React.useRef(true);
@@ -74,7 +87,10 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 				})),
 			);
 
-			const feedData = await FeedService.getFeed();
+			const [feedData, clipsData] = await Promise.all([
+				FeedService.getFeed(),
+				ClipService.getClips(),
+			]);
 			if (!mountedRef.current) {
 				return;
 			}
@@ -85,8 +101,25 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 					typeof post.mediaUrl === "string" &&
 					post.mediaUrl.length > 0,
 			);
-			setMoments(ownPosts);
-			setMomentsCount(ownPosts.length);
+			const ownMoments = ownPosts.filter((post) => post.mediaType !== "VIDEO");
+			const legacyVideoClips = ownPosts
+				.filter((post) => post.mediaType === "VIDEO" && post.mediaUrl)
+				.map((post) => ({
+					id: `post-${post.id}`,
+					videoUrl: post.mediaUrl ?? "",
+					sourcePostId: post.id,
+				}));
+			const ownClips = clipsData.clips
+				.filter((clip) => clip.rider?.id === profile.id && clip.videoUrl)
+				.map((clip) => ({
+					id: clip.id,
+					videoUrl: clip.videoUrl,
+				}));
+
+			setMoments(ownMoments);
+			setMomentsCount(ownMoments.length);
+			setClips([...ownClips, ...legacyVideoClips]);
+			setClipsCount(ownClips.length + legacyVideoClips.length);
 
 			if (profile.id) {
 				const [followers, following] = await Promise.all([
@@ -117,6 +150,14 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 		};
 	}, [loadDashboard]);
 
+	React.useEffect(() => {
+		if (lastCompletedUploadAt <= 0) {
+			return;
+		}
+
+		void loadDashboard();
+	}, [lastCompletedUploadAt, loadDashboard]);
+
 	return {
 		loading,
 		user,
@@ -124,6 +165,8 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 		bikes,
 		moments,
 		momentsCount,
+		clips,
+		clipsCount,
 		trackersCount,
 		trackingCount,
 		reloadDashboard: loadDashboard,

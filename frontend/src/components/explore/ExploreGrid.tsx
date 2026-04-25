@@ -3,6 +3,7 @@ import {
 	ActivityIndicator,
 	FlatList,
 	Image,
+	RefreshControl,
 	StyleSheet,
 	View,
 } from "react-native";
@@ -16,6 +17,8 @@ interface ExploreGridProps {
 	onEndReached: () => void;
 	hasMore: boolean;
 	isLoadingMore: boolean;
+	refreshing?: boolean;
+	onRefresh?: () => void;
 	onSelectClip?: (clip: TrendingClip) => void;
 	onLongPressClip?: (clip: TrendingClip) => void;
 }
@@ -27,6 +30,8 @@ export function ExploreGrid({
 	onEndReached,
 	hasMore,
 	isLoadingMore,
+	refreshing = false,
+	onRefresh,
 	onSelectClip,
 	onLongPressClip,
 }: ExploreGridProps) {
@@ -182,6 +187,17 @@ export function ExploreGrid({
 			}}
 			onEndReachedThreshold={0.5}
 			renderItem={renderSection}
+			refreshControl={
+				onRefresh ? (
+					<RefreshControl
+						colors={[colors.primary]}
+						onRefresh={onRefresh}
+						progressBackgroundColor={colors.surface}
+						refreshing={refreshing}
+						tintColor={colors.primary}
+					/>
+				) : undefined
+			}
 			showsVerticalScrollIndicator={false}
 			windowSize={5}
 		/>

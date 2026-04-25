@@ -14,6 +14,7 @@ import Animated, { FadeInRight } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
 	Checkbox,
+	EmailVerificationModal,
 	FormInput,
 	PrimaryButton,
 	ThemeToggleButton,
@@ -29,6 +30,8 @@ import {
 	hasCompletedProfile,
 	isPrivilegedAccount,
 } from "../../src/utils/accessControl";
+
+const SHOW_GOOGLE_SIGNIN = false;
 
 export default function SignupScreen() {
 	const { colors, metrics, typography } = useTheme();
@@ -71,6 +74,8 @@ export default function SignupScreen() {
 	const [agree, setAgree] = React.useState(false);
 	const [loading, setLoading] = React.useState(false);
 	const [googleLoading, setGoogleLoading] = React.useState(false);
+	const [showVerification, setShowVerification] = React.useState(false);
+	const signedInUserRef = React.useRef<{ firebaseUid: string; email?: string; profileSetupCompletedAt?: string | null } | null>(null);
 	const [authError, setAuthError] = React.useState<string | null>(null);
 	const [errors, setErrors] = React.useState<{
 		name?: string;
@@ -277,7 +282,9 @@ export default function SignupScreen() {
 				mobileNumber.trim(),
 			);
 			setLoading(false);
-			await routeAfterAuth(signedInUser);
+			// Store user data and show email verification popup before routing
+			signedInUserRef.current = signedInUser;
+			setShowVerification(true);
 		} catch (error) {
 			setLoading(false);
 			setAuthError(
@@ -292,7 +299,7 @@ export default function SignupScreen() {
 			style={styles.keyboardContainer}
 		>
 			<KeyboardAvoidingView
-				behavior={Platform.OS === "ios" ? "padding" : undefined}
+				behavior={Platform.OS === "ios" ? "padding" : "height"}
 				style={styles.keyboardContainer}
 			>
 				<View style={styles.topRightToggle}>
@@ -400,31 +407,35 @@ export default function SignupScreen() {
 								title="Create Account"
 							/>
 
-							<View style={styles.googleDividerWrap}>
-								<View style={styles.dividerLine} />
-								<Text style={styles.dividerText}>or</Text>
-								<View style={styles.dividerLine} />
-							</View>
+							{SHOW_GOOGLE_SIGNIN ? (
+								<>
+									<View style={styles.googleDividerWrap}>
+										<View style={styles.dividerLine} />
+										<Text style={styles.dividerText}>or</Text>
+										<View style={styles.dividerLine} />
+									</View>
 
-							<TouchableOpacity
-								disabled={googleLoading || loading || !googleReady}
-								activeOpacity={0.9}
-								onPress={signInWithGoogle}
-								style={[
-									styles.googleBtn,
-									(googleLoading || loading || !googleReady) &&
-										styles.disabledBtn,
-								]}
-							>
-								<FontAwesome color="#DB4437" name="google" size={18} />
-								<Text style={styles.googleBtnText}>
-									{googleLoading
-										? "Signing in..."
-										: !googleReady
-											? "Google setup required"
-											: "Continue with Google"}
-								</Text>
-							</TouchableOpacity>
+									<TouchableOpacity
+										disabled={googleLoading || loading || !googleReady}
+										activeOpacity={0.9}
+										onPress={signInWithGoogle}
+										style={[
+											styles.googleBtn,
+											(googleLoading || loading || !googleReady) &&
+												styles.disabledBtn,
+										]}
+									>
+										<FontAwesome color="#DB4437" name="google" size={18} />
+										<Text style={styles.googleBtnText}>
+											{googleLoading
+												? "Signing in..."
+												: !googleReady
+													? "Google setup required"
+													: "Continue with Google"}
+										</Text>
+									</TouchableOpacity>
+								</>
+							) : null}
 
 							{authError != null ? (
 								<Text style={styles.errorText}>{authError}</Text>
@@ -433,6 +444,23 @@ export default function SignupScreen() {
 					</Animated.View>
 				</ScrollView>
 			</KeyboardAvoidingView>
+
+			<EmailVerificationModal
+				email={email.trim()}
+				onDismiss={async () => {
+					setShowVerification(false);
+					try {
+						if (signedInUserRef.current) {
+							await routeAfterAuth(signedInUserRef.current);
+						} else {
+							router.replace("/(tabs)");
+						}
+					} catch {
+						router.replace("/(tabs)");
+					}
+				}}
+				visible={showVerification}
+			/>
 		</SafeAreaView>
 	);
 }

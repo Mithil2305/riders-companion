@@ -179,6 +179,8 @@ exports.getClipComments = async (req, res) => {
 				id: comment.id,
 				commentText: comment.comment_text,
 				createdAt: comment.created_at,
+				likesCount: 0,
+				likedByMe: false,
 				rider: {
 					id: comment.RiderAccount?.id,
 					name: comment.RiderAccount?.name,
@@ -213,6 +215,15 @@ exports.addClipComment = async (req, res) => {
 		comment_text: commentText,
 	});
 
+	const commentWithRider = await ClipComment.findByPk(createdComment.id, {
+		include: [
+			{
+				model: RiderAccount,
+				attributes: ["id", "name", "username", "profile_image_url"],
+			},
+		],
+	});
+
 	const commentsCount = await ClipComment.count({
 		where: { clip_id: clip.id },
 	});
@@ -221,11 +232,28 @@ exports.addClipComment = async (req, res) => {
 		success: true,
 		data: {
 			clipId: clip.id,
-			comment: {
-				id: createdComment.id,
-				commentText: createdComment.comment_text,
-				createdAt: createdComment.created_at,
-			},
+			comment: commentWithRider
+				? {
+						id: commentWithRider.id,
+						commentText: commentWithRider.comment_text,
+						createdAt: commentWithRider.created_at,
+						likesCount: 0,
+						likedByMe: false,
+						rider: {
+							id: commentWithRider.RiderAccount?.id,
+							name: commentWithRider.RiderAccount?.name,
+							username: commentWithRider.RiderAccount?.username,
+							profileImageUrl:
+								commentWithRider.RiderAccount?.profile_image_url,
+						},
+					}
+				: {
+						id: createdComment.id,
+						commentText: createdComment.comment_text,
+						createdAt: createdComment.created_at,
+						likesCount: 0,
+						likedByMe: false,
+					},
 			commentsCount,
 		},
 	});

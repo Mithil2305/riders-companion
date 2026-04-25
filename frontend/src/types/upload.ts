@@ -1,4 +1,4 @@
-export type UploadType = "post" | "story" | "reel";
+export type UploadType = "post" | "story" | "clip";
 
 export type ComposerStep = "picker" | "details";
 
@@ -8,6 +8,7 @@ export interface GalleryMediaAsset {
 	mediaType: "photo" | "video";
 	filename?: string;
 	duration?: number;
+	fileSize?: number;
 }
 
 export interface GalleryAlbum {
