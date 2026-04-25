@@ -15,7 +15,6 @@ interface PersonalChatMenuSheetProps {
   visible: boolean;
   onClose: () => void;
   onSelectAction: (action: PersonalChatMenuAction) => void;
-  isMuted?: boolean;
   isBlocked?: boolean;
 }
 
@@ -23,29 +22,20 @@ export function PersonalChatMenuSheet({
   visible,
   onClose,
   onSelectAction,
-  isMuted = false,
   isBlocked = false,
 }: PersonalChatMenuSheetProps) {
   const { colors, metrics, typography } = useTheme();
 
   const items: MenuItem[] = React.useMemo(
     () => [
-      { id: "voice-call", label: "Voice Call", icon: "call-outline" },
-      { id: "video-call", label: "Video Call", icon: "videocam-outline" },
-      { id: "clear-chat", label: "Clear Chat", icon: "trash-outline" },
       {
-        id: "mute-notifications",
-        label: isMuted ? "Unmute Notifications" : "Mute Notifications",
-        icon: isMuted ? "notifications-outline" : "notifications-off-outline",
-      },
-      {
-        id: "block-user",
-        label: isBlocked ? "User Blocked" : "Block User",
+        id: "toggle-block-user",
+        label: isBlocked ? "Unblock User" : "Block User",
         icon: "ban-outline",
         tone: "danger",
       },
     ],
-    [isBlocked, isMuted],
+    [isBlocked],
   );
 
   const styles = React.useMemo(

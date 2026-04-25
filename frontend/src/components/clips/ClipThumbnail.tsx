@@ -1,21 +1,41 @@
 import React from "react";
-import { StyleProp, ViewStyle } from "react-native";
-import { StreamingVideo } from "../common";
+import { Image, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../hooks/useTheme";
 
 export function ClipThumbnail({
 	style,
 	uri,
 }: {
 	style: StyleProp<ViewStyle>;
-	uri: string;
+	uri?: string | null;
 }) {
+	const { colors, metrics } = useTheme();
+
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				container: {
+					backgroundColor: colors.surface,
+					alignItems: "center",
+					justifyContent: "center",
+					overflow: "hidden",
+				},
+				image: {
+					width: "100%",
+					height: "100%",
+				},
+			}),
+		[colors],
+	);
+
 	return (
-		<StreamingVideo
-			contentFit="cover"
-			muted
-			shouldPlay
-			style={style}
-			uri={uri}
-		/>
+		<View style={[styles.container, style]}>
+			{uri ? (
+				<Image resizeMode="cover" source={{ uri }} style={styles.image} />
+			) : (
+				<Ionicons color={colors.textSecondary} name="videocam-outline" size={metrics.icon.lg} />
+			)}
+		</View>
 	);
 }

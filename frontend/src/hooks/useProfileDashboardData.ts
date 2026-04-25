@@ -10,6 +10,7 @@ import { useUploadManager } from "../contexts/UploadContext";
 export type ProfileClipItem = {
 	id: string;
 	videoUrl: string;
+	thumbnailUrl?: string | null;
 	caption?: string | null;
 	sourcePostId?: string;
 };
@@ -108,6 +109,7 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 				.map((post) => ({
 					id: `post-${post.id}`,
 					videoUrl: post.mediaUrl ?? "",
+					thumbnailUrl: null,
 					caption: post.caption,
 					sourcePostId: post.id,
 				}));
@@ -116,6 +118,7 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 				.map((clip) => ({
 					id: clip.id,
 					videoUrl: clip.videoUrl,
+					thumbnailUrl: clip.thumbnailUrl,
 					caption: clip.caption,
 				}));
 

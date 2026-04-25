@@ -25,6 +25,10 @@ const Clip = sequelize.define(
 			type: DataTypes.STRING(100),
 			allowNull: true,
 		},
+		thumbnail_url: {
+			type: DataTypes.STRING(512),
+			allowNull: true,
+		},
 	},
 	{
 		tableName: "clip",

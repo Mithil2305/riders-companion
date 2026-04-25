@@ -4,6 +4,7 @@ import { apiRequest } from "./api";
 export interface ClipPayload {
 	id: string;
 	videoUrl: string;
+	thumbnailUrl?: string | null;
 	caption?: string | null;
 	songId?: string | null;
 	createdAt: string;

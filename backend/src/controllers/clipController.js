@@ -21,6 +21,7 @@ const toClipPayload = async (clip, viewerId) => {
 		videoUrl: clip.video_url,
 		caption: clip.caption,
 		songId: clip.song_id,
+		thumbnailUrl: clip.thumbnail_url,
 		createdAt: clip.created_at,
 		rider: {
 			id: clip.RiderAccount?.id,
@@ -117,10 +118,12 @@ exports.createClip = async (req, res) => {
 		});
 
 		const videoUrl = uploadedMedia?.url || req.body.videoUrl || null;
+		const thumbnailUrl = uploadedMedia?.thumbnailUrl || null;
 
 		const createdClip = await Clip.create({
 			rider_id: req.user.id,
 			video_url: videoUrl,
+			thumbnail_url: thumbnailUrl,
 			caption: typeof req.body.caption === "string" ? req.body.caption : null,
 			song_id:
 				typeof req.body.songId === "string"
@@ -138,6 +141,7 @@ exports.createClip = async (req, res) => {
 				payload: {
 					...req.body,
 					videoUrl,
+					thumbnailUrl,
 				},
 			},
 		});

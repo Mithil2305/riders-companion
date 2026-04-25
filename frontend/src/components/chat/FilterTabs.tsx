@@ -8,6 +8,7 @@ const FILTERS: { key: ChatFilter; label: string }[] = [
   { key: 'personal', label: 'Personal' },
   { key: 'group', label: 'Group' },
   { key: 'ended', label: 'Ended' },
+  { key: 'blocked', label: 'Blocked' },
 ];
 
 interface FilterTabsProps {
