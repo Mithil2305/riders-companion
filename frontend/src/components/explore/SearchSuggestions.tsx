@@ -104,7 +104,9 @@ function SuggestionRow({
 				</View>
 				<Text style={styles.subtitle} numberOfLines={1}>
 					{user.name}
-					{user.followersCount ? ` • ${formatFollowers(user.followersCount)} followers` : ""}
+					{user.followersCount
+						? ` - ${formatFollowers(user.followersCount)} trackers`
+						: ""}
 				</Text>
 			</View>
 		</Pressable>

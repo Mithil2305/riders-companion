@@ -725,23 +725,29 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		openInvite();
 	}, [closeMenu, isRideEnded, openInvite]);
 
-	const followRider = React.useCallback((riderId: string) => {
+	const toggleTrackRider = React.useCallback((riderId: string) => {
 		if (!riderId) {
 			return;
 		}
 
-		void TrackerService.followRider(riderId)
+		const nextTracking = !rideMembers.find((member) => member.id === riderId)?.isFollowing;
+
+		void (nextTracking
+			? TrackerService.trackRider(riderId)
+			: TrackerService.untrackRider(riderId))
 			.then(() => {
 				setRideMembers((prev) =>
 					prev.map((member) =>
-						member.id === riderId ? { ...member, isFollowing: true } : member,
+						member.id === riderId
+							? { ...member, isFollowing: nextTracking }
+							: member,
 					),
 				);
 			})
 			.catch(() => {
-				// Keep UI stable when follow API fails.
+				// Keep UI stable when track state update fails.
 			});
-	}, []);
+	}, [rideMembers]);
 
 	return {
 		menuVisible,
@@ -771,7 +777,7 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		openInvite,
 		closeInvite,
 		inviteFromMenu,
-		followRider,
+		toggleTrackRider,
 		endRide,
 		sendMessage,
 	};

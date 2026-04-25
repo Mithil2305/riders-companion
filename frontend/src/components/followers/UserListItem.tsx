@@ -13,13 +13,13 @@ import { useTheme } from '../../hooks/useTheme';
 interface UserListItemProps {
   user: TrackerUser;
   index: number;
-  onToggleFollow: (userId: string) => void;
+  onToggleTrack: (userId: string) => void;
   onOpenProfile?: (userId: string) => void;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function UserListItem({ user, index, onToggleFollow, onOpenProfile }: UserListItemProps) {
+export function UserListItem({ user, index, onToggleTrack, onOpenProfile }: UserListItemProps) {
   const { colors, metrics, typography } = useTheme();
   const scale = useSharedValue(1);
   const progress = useSharedValue(user.isFollowing ? 1 : 0);
@@ -93,10 +93,10 @@ export function UserListItem({ user, index, onToggleFollow, onOpenProfile }: Use
       </Pressable>
       <Pressable onPress={() => onOpenProfile?.(user.id)} style={styles.info}>
         <Text style={styles.name}>{user.name}</Text>
-        <Text style={styles.sub}>{user.isFollowing ? 'Following' : 'Rider nearby'}</Text>
+        <Text style={styles.sub}>{user.isFollowing ? 'Tracking' : 'Rider nearby'}</Text>
       </Pressable>
       <AnimatedPressable
-        onPress={() => onToggleFollow(user.id)}
+        onPress={() => onToggleTrack(user.id)}
         onPressIn={() => {
           scale.value = withSpring(0.95, { damping: 12, stiffness: 220 });
         }}
@@ -105,7 +105,7 @@ export function UserListItem({ user, index, onToggleFollow, onOpenProfile }: Use
         }}
         style={[styles.followButton, buttonStyle]}
       >
-        <Text style={styles.followText}>{user.isFollowing ? 'Following' : 'Follow'}</Text>
+        <Text style={styles.followText}>{user.isFollowing ? 'Untrack' : 'Track'}</Text>
       </AnimatedPressable>
     </Animated.View>
   );

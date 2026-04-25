@@ -13,7 +13,7 @@ class TrackerService {
 		);
 	}
 
-	async followRider(riderId: string) {
+	async trackRider(riderId: string) {
 		return apiRequest<{ riderId: string; following: boolean }>(
 			`/tracker/${riderId}/follow`,
 			{
@@ -22,7 +22,7 @@ class TrackerService {
 		);
 	}
 
-	async unfollowRider(riderId: string) {
+	async untrackRider(riderId: string) {
 		return apiRequest<{ riderId: string; following: boolean }>(
 			`/tracker/${riderId}/follow`,
 			{
