@@ -12,7 +12,7 @@ interface UseTrackingDataResult {
 	followers: TrackerUser[];
 	following: TrackerUser[];
 	setActiveTab: (nextTab: TrackingTabKey) => void;
-	toggleFollowState: (userId: string) => void;
+	toggleTrackState: (userId: string) => void;
 	refreshTracking: () => Promise<void>;
 }
 
@@ -107,7 +107,7 @@ export function useTrackingData(
 		};
 	}, [loadTracking]);
 
-	const toggleFollowState = React.useCallback((userId: string) => {
+	const toggleTrackState = React.useCallback((userId: string) => {
 		const user =
 			followers.find((item) => item.id === userId) ??
 			following.find((item) => item.id === userId);
@@ -132,9 +132,9 @@ export function useTrackingData(
 		void (async () => {
 			try {
 				if (nextFollowing) {
-					await TrackerService.followRider(userId);
+					await TrackerService.trackRider(userId);
 				} else {
-					await TrackerService.unfollowRider(userId);
+					await TrackerService.untrackRider(userId);
 				}
 				await loadTracking();
 			} catch {
@@ -172,7 +172,7 @@ export function useTrackingData(
 		followers,
 		following,
 		setActiveTab,
-		toggleFollowState,
+		toggleTrackState,
 		refreshTracking,
 	};
 }

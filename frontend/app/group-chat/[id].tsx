@@ -65,7 +65,7 @@ export default function GroupChatScreen() {
 		closeMenu,
 		closeInvite,
 		inviteFromMenu,
-		followRider,
+		toggleTrackRider,
 		endRide,
 		sendMessage,
 	} = useGroupChatScreen(roomId, roomStatus);
@@ -270,7 +270,7 @@ export default function GroupChatScreen() {
 			<GroupRideDetailsModal
 				groupName={roomTitle}
 				onClose={() => setRideDetailsVisible(false)}
-				onFollow={followRider}
+				onToggleTrack={toggleTrackRider}
 				onOpenProfile={(riderId) => {
 					setRideDetailsVisible(false);
 					router.push(`/rider/${riderId}`);

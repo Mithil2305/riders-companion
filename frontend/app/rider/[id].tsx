@@ -367,7 +367,7 @@ export default function RiderProfileScreen() {
 	const [activeSection, setActiveSection] =
 		React.useState<PublicSection>("moments");
 	const [isLoading, setIsLoading] = React.useState(true);
-	const [isFollowBusy, setIsFollowBusy] = React.useState(false);
+	const [isTrackBusy, setIsTrackBusy] = React.useState(false);
 	const [showAchievements, setShowAchievements] = React.useState(false);
 
 	React.useEffect(() => {
@@ -720,13 +720,13 @@ export default function RiderProfileScreen() {
 		[colors, metrics, typography],
 	);
 
-	const toggleFollow = React.useCallback(async () => {
-		if (!profile.id || profile.isMe || isFollowBusy) {
+	const toggleTrack = React.useCallback(async () => {
+		if (!profile.id || profile.isMe || isTrackBusy) {
 			return;
 		}
 
 		const nextFollowing = !profile.isFollowing;
-		setIsFollowBusy(true);
+		setIsTrackBusy(true);
 		setProfile((prev) => ({
 			...prev,
 			isFollowing: nextFollowing,
@@ -737,9 +737,9 @@ export default function RiderProfileScreen() {
 
 		try {
 			if (nextFollowing) {
-				await TrackerService.followRider(profile.id);
+				await TrackerService.trackRider(profile.id);
 			} else {
-				await TrackerService.unfollowRider(profile.id);
+				await TrackerService.untrackRider(profile.id);
 			}
 		} catch {
 			setProfile((prev) => ({
@@ -750,9 +750,9 @@ export default function RiderProfileScreen() {
 					: prev.followersCount + 1,
 			}));
 		} finally {
-			setIsFollowBusy(false);
+			setIsTrackBusy(false);
 		}
-	}, [isFollowBusy, profile.id, profile.isFollowing, profile.isMe]);
+	}, [isTrackBusy, profile.id, profile.isFollowing, profile.isMe]);
 
 	const openMessage = React.useCallback(() => {
 		if (!profile.id || profile.isMe) {
@@ -921,11 +921,11 @@ export default function RiderProfileScreen() {
 							<View style={styles.actionRow}>
 								<View style={styles.actionHalf}>
 									<ProfileActionButton
-										disabled={isFollowBusy || isLoading}
+										disabled={isTrackBusy || isLoading}
 										icon={profile.isFollowing ? "person-remove-outline" : "person-add-outline"}
-										label={profile.isFollowing ? "Unfollow" : "Follow"}
-										loading={isFollowBusy}
-										onPress={() => void toggleFollow()}
+										label={profile.isFollowing ? "Untrack" : "Track"}
+										loading={isTrackBusy}
+										onPress={() => void toggleTrack()}
 										variant={profile.isFollowing ? "secondary" : "primary"}
 									/>
 								</View>

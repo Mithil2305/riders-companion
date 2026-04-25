@@ -90,42 +90,20 @@ class InteractionService {
 		contentType: InteractionContentType,
 		contentId: string,
 		commentText: string,
-		currentUsername?: string,
-		currentUserAvatarUrl?: string,
+		_currentUsername?: string,
+		_currentUserAvatarUrl?: string,
 	) {
 		const trimmed = commentText.trim();
 		if (trimmed.length === 0) {
 			throw new Error("Comment cannot be empty");
 		}
 
-		let createdComment: FeedCommentPayload | ClipCommentPayload | undefined;
 		if (contentType === "feed") {
-			const response = await FeedService.commentOnPost(contentId, trimmed);
-			createdComment = response.comment;
-		} else {
-			const response = await ClipService.commentOnClip(contentId, trimmed);
-			createdComment = response.comment;
+			await FeedService.commentOnPost(contentId, trimmed);
+			return;
 		}
 
-		if (createdComment) {
-			return toCommentModel(createdComment);
-		}
-
-		const username = currentUsername?.trim() || "you";
-
-		return {
-			id: `${contentType}-${contentId}-${Date.now()}`,
-			content: trimmed,
-			timeLabel: "now",
-			likeCount: 0,
-			likedByMe: false,
-			author: {
-				id: "me",
-				name: username,
-				username,
-				avatarUrl: currentUserAvatarUrl ?? DEFAULT_AVATAR,
-			},
-		} satisfies CommentModel;
+		await ClipService.commentOnClip(contentId, trimmed);
 	}
 
 	async editComment(
