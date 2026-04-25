@@ -7,13 +7,13 @@ import Animated, {
 	useSharedValue,
 } from "react-native-reanimated";
 import { EmptyState, ShareSheet } from "../../src/components/common";
-import { CommentsSheet } from "../../src/components/comments";
 import {
 	EndOfFeed,
 	FeedPost,
 	FeedSkeleton,
 	HeaderBar,
 } from "../../src/components/feed";
+import { CommentsSheet } from "../../src/components/comments";
 import { useHomeFeed } from "../../src/hooks/useHomeFeed";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { useTheme } from "../../src/hooks/useTheme";

@@ -17,6 +17,7 @@ import Animated, {
 	withTiming,
 } from "react-native-reanimated"
 import { useTheme } from "../../hooks/useTheme"
+import { StreamingVideo } from "../common"
 import { TrendingClip } from "../../types/explore"
 
 const { width: SCREEN_W } = Dimensions.get("window")
@@ -36,6 +37,7 @@ interface MasonryGridProps {
 interface MasonryItem {
 	clip: TrendingClip
 	height: number
+	index: number
 }
 
 interface MasonryColumn {
@@ -60,6 +62,30 @@ function MasonryTile({
 	const imageOpacity = useSharedValue(0)
 	const [loading, setLoading] = React.useState(true)
 	const isVideo = item.clip.type === "clip" || item.clip.mediaType === "video"
+	const [previewPlaying, setPreviewPlaying] = React.useState(false)
+
+	React.useEffect(() => {
+		if (isVideo) {
+			setLoading(false)
+			imageOpacity.value = 1
+		}
+	}, [imageOpacity, isVideo, item.clip.id])
+
+	React.useEffect(() => {
+		if (!isVideo || item.index > 5) {
+			setPreviewPlaying(false)
+			return
+		}
+
+		setPreviewPlaying(true)
+		const timer = setTimeout(() => {
+			setPreviewPlaying(false)
+		}, 2600)
+
+		return () => {
+			clearTimeout(timer)
+		}
+	}, [isVideo, item.index, item.clip.id])
 
 	const pressStyle = useAnimatedStyle(() => ({
 		transform: [{ scale: scale.value }],
@@ -91,18 +117,30 @@ function MasonryTile({
 				pressStyle,
 			]}
 		>
-			<AnimatedImage
-				source={{ uri: item.clip.thumbnail }}
-				style={[{ width: "100%", height: "100%" }, imageStyle]}
-				resizeMode="cover"
-				onLoad={() => {
-					setLoading(false)
-					imageOpacity.value = withTiming(1, {
-						duration: 220,
-						easing: Easing.out(Easing.quad),
-					})
-				}}
-			/>
+			{isVideo ? (
+				<Animated.View style={[{ width: "100%", height: "100%" }, imageStyle]}>
+					<StreamingVideo
+						contentFit="cover"
+						muted
+						shouldPlay={previewPlaying}
+						style={{ width: "100%", height: "100%" }}
+						uri={item.clip.thumbnail}
+					/>
+				</Animated.View>
+			) : (
+				<AnimatedImage
+					source={{ uri: item.clip.thumbnail }}
+					style={[{ width: "100%", height: "100%" }, imageStyle]}
+					resizeMode="cover"
+					onLoad={() => {
+						setLoading(false)
+						imageOpacity.value = withTiming(1, {
+							duration: 220,
+							easing: Easing.out(Easing.quad),
+						})
+					}}
+				/>
+			)}
 			{loading && (
 				<View
 					style={{
@@ -153,7 +191,7 @@ export function MasonryGrid({
 			totalHeight: 0,
 		}))
 
-		clips.forEach((clip) => {
+		clips.forEach((clip, index) => {
 			const shortestIdx = cols.reduce(
 				(min, col, i) => (col.totalHeight < cols[min].totalHeight ? i : min),
 				0,
@@ -163,7 +201,7 @@ export function MasonryGrid({
 			const rawHeight = aspect ? columnWidth / aspect : columnWidth
 			const height = Math.max(100, Math.min(380, rawHeight))
 
-			cols[shortestIdx].items.push({ clip, height })
+			cols[shortestIdx].items.push({ clip, height, index })
 			cols[shortestIdx].totalHeight += height + GAP
 		})
 
