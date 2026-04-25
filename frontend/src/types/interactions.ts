@@ -13,6 +13,9 @@ export interface CommentModel {
 	likeCount: number;
 	likedByMe: boolean;
 	author: CommentAuthorModel;
+	parentId?: string;
+	replies?: CommentModel[];
+	replyCount?: number;
 }
 
 export interface ShareUser {
