@@ -21,6 +21,7 @@ export interface CommentModel {
 export interface ShareUser {
 	id: string;
 	name: string;
+	user: string;
 	username: string;
 	avatarUrl: string;
 }

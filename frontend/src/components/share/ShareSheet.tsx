@@ -169,8 +169,8 @@ export function ShareSheet({
           backgroundColor: colors.surface,
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
-          minHeight: metrics.screenHeight * 0.8,
-          maxHeight: metrics.screenHeight * 0.92,
+          minHeight: metrics.screenHeight * 0.5,
+          maxHeight: metrics.screenHeight * 0.85,
         },
         header: {
           flexDirection: 'row',
@@ -313,7 +313,7 @@ export function ShareSheet({
 
           <View style={styles.separator} />
 
-          <ScrollView contentContainerStyle={[styles.body, { paddingBottom: Math.max(insets.bottom, metrics.md) }]}>
+          <ScrollView contentContainerStyle={[styles.body, ]}>
             <View style={styles.searchWrap}>
               <Ionicons color={colors.textSecondary} name="search" size={metrics.icon.md} />
               <TextInput
