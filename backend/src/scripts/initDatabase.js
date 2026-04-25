@@ -47,9 +47,12 @@ async function createDatabaseIfMissing() {
 
 async function syncTables() {
 	const { sequelize } = require("../models");
+	const { syncDatabaseSchema } = require("../utils/databaseSync");
 	await sequelize.authenticate();
-	await sequelize.sync();
-	console.log("All tables created/synced successfully.");
+	const { alter } = await syncDatabaseSchema(sequelize);
+	console.log(
+		`All tables created/synced successfully${alter ? " with alter" : ""}.`,
+	);
 }
 
 async function run() {
