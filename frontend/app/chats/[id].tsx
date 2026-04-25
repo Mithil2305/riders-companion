@@ -9,7 +9,13 @@ import { useTheme } from '../../src/hooks/useTheme';
 export default function ChatRoomScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { id } = useLocalSearchParams();
+  const params = useLocalSearchParams<{
+    id?: string;
+    name?: string;
+    avatar?: string;
+    username?: string;
+  }>();
+  const { id } = params;
   const roomId = typeof id === 'string' ? id : '1';
   const {
     meta,
@@ -26,6 +32,22 @@ export default function ChatRoomScreen() {
     isMuted,
     isBlocked,
   } = useChat(roomId);
+
+  const displayMeta = React.useMemo(
+    () => ({
+      ...meta,
+      name: typeof params.name === 'string' && params.name.trim().length > 0 ? params.name : meta.name,
+      avatar:
+        typeof params.avatar === 'string' && params.avatar.trim().length > 0
+          ? params.avatar
+          : meta.avatar,
+      rideTogetherLabel:
+        typeof params.username === 'string' && params.username.trim().length > 0
+          ? `RIDER: @${params.username}`
+          : meta.rideTogetherLabel,
+    }),
+    [meta, params.avatar, params.name, params.username],
+  );
 
   const styles = React.useMemo(
     () =>
@@ -46,14 +68,14 @@ export default function ChatRoomScreen() {
         style={styles.container}
       >
         <ChatHeader
-          avatarUri={meta.avatar}
-          isOnline={meta.isOnline}
+          avatarUri={displayMeta.avatar}
+          isOnline={displayMeta.isOnline}
           onBack={() => router.back()}
           onPressMenu={openMenu}
-          rideLabel={meta.rideTogetherLabel}
+          rideLabel={displayMeta.rideTogetherLabel}
           showSpinner={isLoading}
-          statusLabel={meta.isOnline ? 'Online' : 'Offline'}
-          title={meta.name}
+          statusLabel={displayMeta.isOnline ? 'Online' : 'Offline'}
+          title={displayMeta.name}
         />
         <MessageList messages={listData} />
         <ChatInput disabled={isBlocked} onChangeText={setDraft} onSend={sendMessage} onSendImage={sendImage} value={draft} />

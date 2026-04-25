@@ -129,6 +129,13 @@ type ApiRequestOptions = {
 	allowRetryOnTimeout?: boolean;
 };
 
+type ApiUploadRequestOptions = {
+	method?: "POST" | "PATCH";
+	body: unknown;
+	timeoutMs?: number;
+	onUploadProgress?: (progress: number) => void;
+};
+
 const getAuthToken = async () => {
 	const user = auth?.currentUser;
 	if (!user) {
@@ -226,6 +233,125 @@ export async function apiRequest<T>(
 				options.allowRetryOnTimeout ?? true,
 				candidate,
 			);
+			activeApiUrl = candidate;
+			return data;
+		} catch (error) {
+			if (
+				error instanceof Error &&
+				(error.name === "AbortError" || error instanceof TypeError)
+			) {
+				lastNetworkError = error;
+				continue;
+			}
+
+			throw error;
+		}
+	}
+
+	const tried = candidates.join(", ");
+	if (lastNetworkError?.name === "AbortError") {
+		throw new Error(
+			`Request timed out while contacting backend. Tried: ${tried}. Ensure backend is running and reachable on your current LAN IP.`,
+		);
+	}
+
+	throw new Error(
+		`Cannot reach backend from app. Tried: ${tried}. Set EXPO_PUBLIC_API_URL or start frontend/backend on same network.`,
+	);
+}
+
+export async function apiUploadRequest<T>(
+	path: string,
+	options: ApiUploadRequestOptions,
+): Promise<T> {
+	const execute = async (baseUrl: string): Promise<T> => {
+		const token = await getAuthToken();
+
+		return new Promise<T>((resolve, reject) => {
+			const xhr = new XMLHttpRequest();
+			const timeoutMs = options.timeoutMs ?? 30000;
+
+			xhr.open(options.method ?? "POST", `${baseUrl}${path}`);
+			xhr.timeout = timeoutMs;
+			xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+			xhr.setRequestHeader("Content-Type", "application/json");
+
+			xhr.upload.onprogress = (event) => {
+				if (!event.lengthComputable) {
+					return;
+				}
+
+				const progress = Math.max(
+					0,
+					Math.min(100, Math.round((event.loaded / event.total) * 100)),
+				);
+				options.onUploadProgress?.(progress);
+			};
+
+			xhr.onerror = () => {
+				reject(new TypeError("Network request failed"));
+			};
+
+			xhr.ontimeout = () => {
+				const error = new Error("Upload request timed out");
+				error.name = "AbortError";
+				reject(error);
+			};
+
+			xhr.onload = () => {
+				const rawBody = xhr.responseText ?? "";
+				let data: {
+					success: boolean;
+					data?: T;
+					message?: string;
+				} | null = null;
+
+				try {
+					data = JSON.parse(rawBody) as {
+						success: boolean;
+						data?: T;
+						message?: string;
+					};
+				} catch {
+					if (xhr.status === 413) {
+						reject(
+							new Error(
+								"Upload is too large for the server. Please use a smaller file or shorter video.",
+							),
+						);
+						return;
+					}
+
+					const trimmed = rawBody.trim();
+					const preview =
+						trimmed.length > 140 ? `${trimmed.slice(0, 140)}...` : trimmed;
+					reject(
+						new Error(
+							`Request failed (${xhr.status}) with a non-JSON response: ${preview}`,
+						),
+					);
+					return;
+				}
+
+				if (xhr.status < 200 || xhr.status >= 300 || !data.success || data.data == null) {
+					reject(new Error(data.message ?? "Request failed"));
+					return;
+				}
+
+				options.onUploadProgress?.(100);
+				resolve(data.data);
+			};
+
+			xhr.send(JSON.stringify(options.body));
+		});
+	};
+
+	const candidates = getApiBaseCandidates();
+	let lastNetworkError: Error | null = null;
+
+	for (const candidate of candidates) {
+		try {
+			const data = await execute(candidate);
 			activeApiUrl = candidate;
 			return data;
 		} catch (error) {

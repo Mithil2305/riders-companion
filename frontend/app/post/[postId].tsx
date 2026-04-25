@@ -4,6 +4,7 @@ import {
 	Alert,
 	Image,
 	Pressable,
+	ScrollView,
 	StyleSheet,
 	Text,
 	View,
@@ -40,6 +41,22 @@ const formatRelativeTime = (isoDate: string) => {
 	return `${diffDays}d ago`;
 };
 
+function isSameAuthor(candidate: FeedPostPayload, selected: FeedPostPayload) {
+	if (candidate.id === selected.id) {
+		return false;
+	}
+
+	if (candidate.rider?.id && selected.rider?.id) {
+		return candidate.rider.id === selected.rider.id;
+	}
+
+	if (candidate.rider?.username && selected.rider?.username) {
+		return candidate.rider.username === selected.rider.username;
+	}
+
+	return false;
+}
+
 function PostVideo({ uri }: { uri: string }) {
 	const player = useVideoPlayer(uri, (instance) => {
 		instance.loop = true;
@@ -56,150 +73,46 @@ function PostVideo({ uri }: { uri: string }) {
 	);
 }
 
-export default function PostDetailsPage() {
+function PostCard({
+	item,
+	isSelected,
+	showOwnerActions,
+	deleting,
+	onPressEdit,
+	onPressDelete,
+	onOpenProfile,
+}: {
+	item: FeedPostPayload;
+	isSelected: boolean;
+	showOwnerActions: boolean;
+	deleting: boolean;
+	onPressEdit: () => void;
+	onPressDelete: () => void;
+	onOpenProfile: () => void;
+}) {
 	const { colors, metrics, typography } = useTheme();
-	const router = useRouter();
-	const params = useLocalSearchParams<{ postId?: string }>();
-	const postId = typeof params.postId === "string" ? params.postId : "";
-
-	const [loading, setLoading] = React.useState(true);
-	const [deleting, setDeleting] = React.useState(false);
-	const [post, setPost] = React.useState<FeedPostPayload | null>(null);
-	const [myRiderId, setMyRiderId] = React.useState<string | null>(null);
-
-	const isOwner = post?.rider?.id != null && post.rider.id === myRiderId;
-
-	React.useEffect(() => {
-		let mounted = true;
-
-		const load = async () => {
-			if (!postId) {
-				if (mounted) {
-					setLoading(false);
-				}
-				return;
-			}
-
-			try {
-				const [postData, profileData] = await Promise.all([
-					FeedService.getPostById(postId),
-					ProfileService.getMyProfile(),
-				]);
-
-				if (!mounted) {
-					return;
-				}
-
-				setPost(postData.post);
-				setMyRiderId(profileData.profile.id);
-			} catch (error) {
-				if (!mounted) {
-					return;
-				}
-				Alert.alert(
-					"Unable to open post",
-					error instanceof Error ? error.message : "Post could not be loaded.",
-				);
-				router.back();
-			} finally {
-				if (mounted) {
-					setLoading(false);
-				}
-			}
-		};
-
-		void load();
-
-		return () => {
-			mounted = false;
-		};
-	}, [postId, router]);
-
-	const onPressEdit = React.useCallback(() => {
-		if (!post) {
-			return;
-		}
-
-		router.push({
-			pathname: "/create",
-			params: {
-				editPostId: post.id,
-				editCaption: post.caption ?? "",
-				editMediaUrl: post.mediaUrl ?? "",
-				editMediaType: post.mediaType ?? "IMAGE",
-			},
-		});
-	}, [post, router]);
-
-	const onPressDelete = React.useCallback(() => {
-		if (!post) {
-			return;
-		}
-
-		Alert.alert("Delete post", "Delete this post permanently?", [
-			{ text: "Cancel", style: "cancel" },
-			{
-				text: "Delete",
-				style: "destructive",
-				onPress: async () => {
-					setDeleting(true);
-					try {
-						await FeedService.deletePost(post.id);
-						router.replace("/(tabs)/profile");
-					} catch (error) {
-						Alert.alert(
-							"Delete failed",
-							error instanceof Error
-								? error.message
-								: "Unable to delete this post right now.",
-						);
-					} finally {
-						setDeleting(false);
-					}
-				},
-			},
-		]);
-	}, [post, router]);
 
 	const styles = React.useMemo(
 		() =>
 			StyleSheet.create({
-				container: {
-					flex: 1,
-					backgroundColor: colors.background,
-				},
-				header: {
-					height: 56,
-					paddingHorizontal: metrics.md,
-					borderBottomWidth: 1,
-					borderBottomColor: colors.borderDark,
-					flexDirection: "row",
-					alignItems: "center",
-					justifyContent: "space-between",
-				},
-				headerTitle: {
-					color: colors.textPrimary,
-					fontSize: typography.sizes.lg,
-					fontWeight: "700",
-				},
-				spacer: {
-					width: 24,
-					height: 24,
-				},
-				loadingWrap: {
-					flex: 1,
-					alignItems: "center",
-					justifyContent: "center",
-				},
 				card: {
-					flex: 1,
+					backgroundColor: colors.card,
+				},
+				selectedLabel: {
+					paddingHorizontal: metrics.md,
+					paddingTop: metrics.md,
+					color: colors.primary,
+					fontSize: typography.sizes.xs,
+					fontWeight: "700",
+					textTransform: "uppercase",
+					letterSpacing: 0.4,
 				},
 				postHeader: {
 					flexDirection: "row",
 					alignItems: "center",
 					gap: metrics.sm,
 					paddingHorizontal: metrics.md,
-					paddingTop: metrics.md,
+					paddingTop: isSelected ? metrics.xs : metrics.md,
 					paddingBottom: metrics.sm,
 				},
 				avatar: {
@@ -234,7 +147,7 @@ export default function PostDetailsPage() {
 					width: 34,
 					height: 34,
 					borderRadius: 17,
-					backgroundColor: "rgba(0,0,0,0.45)",
+					backgroundColor: colors.overlay,
 					alignItems: "center",
 					justifyContent: "center",
 				},
@@ -262,19 +175,250 @@ export default function PostDetailsPage() {
 					fontSize: typography.sizes.sm,
 				},
 				deleteButton: {
-					marginTop: "auto",
-					marginHorizontal: metrics.md,
-					marginBottom: metrics.lg,
-					height: 48,
+					marginTop: metrics.sm,
+					height: 44,
 					borderRadius: metrics.radius.md,
-					backgroundColor: "#c62828",
+					backgroundColor: colors.primary,
 					alignItems: "center",
 					justifyContent: "center",
 				},
 				deleteButtonText: {
-					color: "#fff",
+					color: colors.textInverse,
 					fontSize: typography.sizes.base,
 					fontWeight: "700",
+				},
+			}),
+		[colors, isSelected, metrics, typography],
+	);
+
+	const authorLabel = item.rider?.username
+		? `@${item.rider.username}`
+		: (item.rider?.name ?? "rider");
+
+	return (
+		<View style={styles.card}>
+			{isSelected ? <Text style={styles.selectedLabel}>Selected post</Text> : null}
+
+			<View style={styles.postHeader}>
+				<Pressable disabled={!item.rider?.id} onPress={onOpenProfile}>
+					<Image
+						source={{ uri: item.rider?.profileImageUrl ?? FALLBACK_AVATAR }}
+						style={styles.avatar}
+					/>
+				</Pressable>
+				<Pressable disabled={!item.rider?.id} onPress={onOpenProfile}>
+					<Text style={styles.username}>{authorLabel}</Text>
+					<Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
+				</Pressable>
+			</View>
+
+			<View style={styles.mediaWrap}>
+				{item.mediaType === "VIDEO" ? (
+					<PostVideo uri={item.mediaUrl || ""} />
+				) : (
+					<Image source={{ uri: item.mediaUrl || "" }} style={styles.media} />
+				)}
+
+				{showOwnerActions ? (
+					<Pressable onPress={onPressEdit} style={styles.editIcon}>
+						<Ionicons color={colors.textInverse} name="create-outline" size={18} />
+					</Pressable>
+				) : null}
+			</View>
+
+			<View style={styles.metaWrap}>
+				<Text style={styles.likes}>{Number(item.likesCount ?? 0)} bumps</Text>
+				<Text style={styles.caption}>
+					<Text style={styles.captionUser}>{authorLabel} </Text>
+					{item.caption ?? ""}
+				</Text>
+				<Text style={styles.comments}>
+					View all {Number(item.commentsCount ?? 0)} comments
+				</Text>
+
+				{showOwnerActions ? (
+					<Pressable
+						disabled={deleting}
+						onPress={onPressDelete}
+						style={styles.deleteButton}
+					>
+						<Text style={styles.deleteButtonText}>
+							{deleting ? "Deleting..." : "Delete Post Permanently"}
+						</Text>
+					</Pressable>
+				) : null}
+			</View>
+		</View>
+	);
+}
+
+export default function PostDetailsPage() {
+	const { colors, metrics, typography } = useTheme();
+	const router = useRouter();
+	const params = useLocalSearchParams<{ postId?: string }>();
+	const postId = typeof params.postId === "string" ? params.postId : "";
+
+	const [loading, setLoading] = React.useState(true);
+	const [deleting, setDeleting] = React.useState(false);
+	const [posts, setPosts] = React.useState<FeedPostPayload[]>([]);
+	const [myRiderId, setMyRiderId] = React.useState<string | null>(null);
+
+	const selectedPost = posts[0] ?? null;
+	const relatedPosts = posts.slice(1);
+	const isOwner =
+		selectedPost?.rider?.id != null && selectedPost.rider.id === myRiderId;
+
+	React.useEffect(() => {
+		let mounted = true;
+
+		const load = async () => {
+			if (!postId) {
+				if (mounted) {
+					setLoading(false);
+				}
+				return;
+			}
+
+			try {
+				const [postData, profileData, feedData] = await Promise.all([
+					FeedService.getPostById(postId),
+					ProfileService.getMyProfile(),
+					FeedService.getFeed(),
+				]);
+
+				if (!mounted) {
+					return;
+				}
+
+				const primaryPost = postData.post;
+				const sameAuthorPosts = feedData.posts.filter(
+					(candidate) => Boolean(candidate.mediaUrl) && isSameAuthor(candidate, primaryPost),
+				);
+
+				setPosts([primaryPost, ...sameAuthorPosts]);
+				setMyRiderId(profileData.profile.id);
+			} catch (error) {
+				if (!mounted) {
+					return;
+				}
+				Alert.alert(
+					"Unable to open post",
+					error instanceof Error ? error.message : "Post could not be loaded.",
+				);
+				router.back();
+			} finally {
+				if (mounted) {
+					setLoading(false);
+				}
+			}
+		};
+
+		void load();
+
+		return () => {
+			mounted = false;
+		};
+	}, [postId, router]);
+
+	const onPressEdit = React.useCallback(() => {
+		if (!selectedPost) {
+			return;
+		}
+
+		router.push({
+			pathname: "/create",
+			params: {
+				editPostId: selectedPost.id,
+				editCaption: selectedPost.caption ?? "",
+				editMediaUrl: selectedPost.mediaUrl ?? "",
+				editMediaType: selectedPost.mediaType ?? "IMAGE",
+			},
+		});
+	}, [router, selectedPost]);
+
+	const onPressDelete = React.useCallback(() => {
+		if (!selectedPost) {
+			return;
+		}
+
+		Alert.alert("Delete post", "Delete this post permanently?", [
+			{ text: "Cancel", style: "cancel" },
+			{
+				text: "Delete",
+				style: "destructive",
+				onPress: async () => {
+					setDeleting(true);
+					try {
+						await FeedService.deletePost(selectedPost.id);
+						router.replace("/(tabs)/profile");
+					} catch (error) {
+						Alert.alert(
+							"Delete failed",
+							error instanceof Error
+								? error.message
+								: "Unable to delete this post right now.",
+						);
+					} finally {
+						setDeleting(false);
+					}
+				},
+			},
+		]);
+	}, [router, selectedPost]);
+
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				container: {
+					flex: 1,
+					backgroundColor: colors.background,
+				},
+				header: {
+					height: 56,
+					paddingHorizontal: metrics.md,
+					borderBottomWidth: 1,
+					borderBottomColor: colors.borderDark,
+					flexDirection: "row",
+					alignItems: "center",
+					justifyContent: "space-between",
+				},
+				headerTitle: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.lg,
+					fontWeight: "700",
+				},
+				spacer: {
+					width: 24,
+					height: 24,
+				},
+				loadingWrap: {
+					flex: 1,
+					alignItems: "center",
+					justifyContent: "center",
+				},
+				scrollContent: {
+					paddingBottom: metrics.xl,
+				},
+				divider: {
+					height: 10,
+					backgroundColor: colors.background,
+				},
+				relatedHeader: {
+					paddingHorizontal: metrics.md,
+					paddingVertical: metrics.md,
+					gap: metrics.xs,
+				},
+				relatedTitle: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.base,
+					fontWeight: "700",
+				},
+				relatedSubtitle: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.sm,
+				},
+				notFoundText: {
+					color: colors.textSecondary,
 				},
 			}),
 		[colors, metrics, typography],
@@ -300,7 +444,7 @@ export default function PostDetailsPage() {
 		);
 	}
 
-	if (!post || !post.mediaUrl) {
+	if (!selectedPost || !selectedPost.mediaUrl) {
 		return (
 			<SafeAreaView
 				edges={["left", "right", "top", "bottom"]}
@@ -314,7 +458,7 @@ export default function PostDetailsPage() {
 					<View style={styles.spacer} />
 				</View>
 				<View style={styles.loadingWrap}>
-					<Text style={{ color: colors.textSecondary }}>Post not found.</Text>
+					<Text style={styles.notFoundText}>Post not found.</Text>
 				</View>
 			</SafeAreaView>
 		);
@@ -333,73 +477,56 @@ export default function PostDetailsPage() {
 				<View style={styles.spacer} />
 			</View>
 
-			<View style={styles.card}>
-				<View style={styles.postHeader}>
-					<Pressable
-						disabled={!post.rider?.id}
-						onPress={() => post.rider?.id && router.push(`/rider/${post.rider.id}`)}
-					>
-						<Image
-							source={{ uri: post.rider?.profileImageUrl ?? FALLBACK_AVATAR }}
-							style={styles.avatar}
-						/>
-					</Pressable>
-					<Pressable
-						disabled={!post.rider?.id}
-						onPress={() => post.rider?.id && router.push(`/rider/${post.rider.id}`)}
-					>
-						<Text style={styles.username}>
-							{post.rider?.username
-								? `@${post.rider.username}`
-								: (post.rider?.name ?? "rider")}
-						</Text>
-						<Text style={styles.time}>
-							{formatRelativeTime(post.createdAt)}
-						</Text>
-					</Pressable>
-				</View>
+			<ScrollView
+				contentContainerStyle={styles.scrollContent}
+				showsVerticalScrollIndicator={false}
+			>
+				<PostCard
+					deleting={deleting}
+					isSelected
+					item={selectedPost}
+					onOpenProfile={() =>
+						selectedPost.rider?.id && router.push(`/rider/${selectedPost.rider.id}`)
+					}
+					onPressDelete={onPressDelete}
+					onPressEdit={onPressEdit}
+					showOwnerActions={isOwner}
+				/>
 
-				<View style={styles.mediaWrap}>
-					{post.mediaType === "VIDEO" ? (
-						<PostVideo uri={post.mediaUrl} />
-					) : (
-						<Image source={{ uri: post.mediaUrl }} style={styles.media} />
-					)}
+				{relatedPosts.length > 0 ? (
+					<>
+						<View style={styles.divider} />
+						<View style={styles.relatedHeader}>
+							<Text style={styles.relatedTitle}>
+								More from{" "}
+								{selectedPost.rider?.username
+									? `@${selectedPost.rider.username}`
+									: (selectedPost.rider?.name ?? "this rider")}
+							</Text>
+							<Text style={styles.relatedSubtitle}>
+								Scroll to keep browsing posts from the same profile.
+							</Text>
+						</View>
 
-					{isOwner ? (
-						<Pressable onPress={onPressEdit} style={styles.editIcon}>
-							<Ionicons color="#fff" name="create-outline" size={18} />
-						</Pressable>
-					) : null}
-				</View>
-
-				<View style={styles.metaWrap}>
-					<Text style={styles.likes}>{Number(post.likesCount ?? 0)} bumps</Text>
-					<Text style={styles.caption}>
-						<Text style={styles.captionUser}>
-							{post.rider?.username
-								? `@${post.rider.username}`
-								: (post.rider?.name ?? "rider")}
-						</Text>
-						{post.caption ?? ""}
-					</Text>
-					<Text style={styles.comments}>
-						View all {Number(post.commentsCount ?? 0)} comments
-					</Text>
-				</View>
-
-				{isOwner ? (
-					<Pressable
-						disabled={deleting}
-						onPress={onPressDelete}
-						style={styles.deleteButton}
-					>
-						<Text style={styles.deleteButtonText}>
-							{deleting ? "Deleting..." : "Delete Post Permanently"}
-						</Text>
-					</Pressable>
+						{relatedPosts.map((item) => (
+							<React.Fragment key={item.id}>
+								<PostCard
+									deleting={false}
+									isSelected={false}
+									item={item}
+									onOpenProfile={() =>
+										item.rider?.id && router.push(`/rider/${item.rider.id}`)
+									}
+									onPressDelete={() => undefined}
+									onPressEdit={() => undefined}
+									showOwnerActions={false}
+								/>
+								<View style={styles.divider} />
+							</React.Fragment>
+						))}
+					</>
 				) : null}
-			</View>
+			</ScrollView>
 		</SafeAreaView>
 	);
 }

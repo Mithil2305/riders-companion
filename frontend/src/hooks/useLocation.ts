@@ -43,7 +43,7 @@ export function useLocation(options: UseLocationOptions = {}) {
         altitude: location.coords.altitude,
         accuracy: location.coords.accuracy,
       });
-    } catch (err) {
+    } catch {
       setError('Error getting location');
     } finally {
       setLoading(false);

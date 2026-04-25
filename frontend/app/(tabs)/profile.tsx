@@ -12,7 +12,6 @@ import {
 	View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { VideoView, useVideoPlayer } from "expo-video";
 import Animated, {
 	FadeIn,
 	FadeInDown,
@@ -20,26 +19,36 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { EmptyState, SkeletonBlock } from "../../src/components/common";
-import { useProfileDashboardData } from "../../src/hooks/useProfileDashboardData";
+import {
+	EmptyState,
+	SkeletonBlock,
+	StreamingVideo,
+} from "../../src/components/common";
+import { ClipThumbnail } from "../../src/components/clips/ClipThumbnail";
+import {
+	ProfileClipItem,
+	useProfileDashboardData,
+} from "../../src/hooks/useProfileDashboardData";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
+import ClipService from "../../src/services/ClipService";
 import FeedService, { FeedPostPayload } from "../../src/services/FeedService";
 import { useTheme } from "../../src/hooks/useTheme";
+import { withAlpha } from "../../src/utils/color";
 
-type ProfileSection = "moments" | "garage";
+type ProfileSection = "moments" | "clips" | "garage";
 
 type AchievementTier = {
-	emoji: string;
+	icon: React.ComponentProps<typeof Ionicons>["name"];
 	label: string;
 	thresholdKm: number;
 };
 
 const ACHIEVEMENT_TIERS: AchievementTier[] = [
-	{ emoji: "🥉", label: "Bronze", thresholdKm: 10000 },
-	{ emoji: "🥈", label: "Silver", thresholdKm: 14000 },
-	{ emoji: "🥇", label: "Gold", thresholdKm: 19000 },
-	{ emoji: "💎", label: "Crystal", thresholdKm: 25000 },
-	{ emoji: "👑", label: "Elite", thresholdKm: 30000 },
+	{ icon: "medal-outline", label: "Bronze", thresholdKm: 10000 },
+	{ icon: "ribbon-outline", label: "Silver", thresholdKm: 14000 },
+	{ icon: "trophy-outline", label: "Gold", thresholdKm: 19000 },
+	{ icon: "diamond-outline", label: "Crystal", thresholdKm: 25000 },
+	{ icon: "shield-checkmark-outline", label: "Elite", thresholdKm: 30000 },
 ];
 
 const sectionMap: Record<
@@ -47,6 +56,7 @@ const sectionMap: Record<
 	{ label: string; icon: React.ComponentProps<typeof Ionicons>["name"] }
 > = {
 	moments: { label: "Moments", icon: "grid-outline" },
+	clips: { label: "Clips", icon: "videocam-outline" },
 	garage: { label: "Garage", icon: "car-outline" },
 };
 
@@ -70,13 +80,13 @@ function AchievementsButton({ onPress }: { onPress: () => void }) {
 		() =>
 			StyleSheet.create({
 				button: {
-					minHeight: metrics.button.md.height,
-					borderRadius: 26,
+					minHeight: 46,
+					borderRadius: metrics.radius.full,
 					alignItems: "center",
 					justifyContent: "center",
 					flexDirection: "row",
 					gap: metrics.sm,
-					paddingHorizontal: metrics.md,
+					paddingHorizontal: metrics.lg,
 					alignSelf: "center",
 					backgroundColor: colors.primary,
 				},
@@ -91,7 +101,8 @@ function AchievementsButton({ onPress }: { onPress: () => void }) {
 
 	return (
 		<Pressable onPress={onPress} style={styles.button}>
-			<Text style={styles.text}>🏆 Achievements</Text>
+			<Ionicons color={colors.textInverse} name="trophy-outline" size={18} />
+			<Text style={styles.text}>Achievements</Text>
 		</Pressable>
 	);
 }
@@ -138,10 +149,10 @@ function MomentsGrid({
 					right: 6,
 					paddingHorizontal: 6,
 					paddingVertical: 2,
-					backgroundColor: "rgba(0,0,0,0.58)",
+					backgroundColor: colors.overlay,
 				},
 				videoPillText: {
-					color: "#fff",
+					color: colors.textInverse,
 					fontSize: 10,
 					fontWeight: "700",
 				},
@@ -245,6 +256,76 @@ function GarageList({
 	);
 }
 
+function ClipsGrid({
+	clips,
+	onPressClip,
+}: {
+	clips: ProfileClipItem[];
+	onPressClip: (clip: ProfileClipItem) => void;
+}) {
+	const { colors, metrics } = useTheme();
+
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				wrap: {
+					flexDirection: "row",
+					flexWrap: "wrap",
+					marginTop: metrics.sm,
+					marginHorizontal: -1,
+				},
+				tileWrap: {
+					width: "33.3333%",
+					padding: 1,
+				},
+				tile: {
+					width: "100%",
+					aspectRatio: 1,
+					borderRadius: 0,
+					overflow: "hidden",
+					backgroundColor: colors.surface,
+				},
+				image: {
+					width: "100%",
+					height: "100%",
+				},
+				videoPill: {
+					position: "absolute",
+					top: 6,
+					right: 6,
+					paddingHorizontal: 6,
+					paddingVertical: 2,
+					backgroundColor: colors.overlay,
+				},
+				videoPillText: {
+					color: colors.textInverse,
+					fontSize: 10,
+					fontWeight: "700",
+				},
+			}),
+		[colors, metrics],
+	);
+
+	return (
+		<View style={styles.wrap}>
+			{clips.map((clip, index) => {
+				const key = `${clip.id}-${index}`;
+
+				return (
+					<View key={key} style={styles.tileWrap}>
+						<Pressable onPress={() => onPressClip(clip)} style={styles.tile}>
+							<ClipThumbnail style={styles.image} uri={clip.videoUrl} />
+							<View style={styles.videoPill}>
+								<Text style={styles.videoPillText}>CLIP</Text>
+							</View>
+						</Pressable>
+					</View>
+				);
+			})}
+		</View>
+	);
+}
+
 function AchievementsModal({
 	visible,
 	onClose,
@@ -261,9 +342,10 @@ function AchievementsModal({
 
 	const tierRows = React.useMemo(() => {
 		return ACHIEVEMENT_TIERS.map((tier, index) => {
-			const prev = index === 0 ? 0 : ACHIEVEMENT_TIERS[index - 1].thresholdKm;
-			const range = Math.max(1, tier.thresholdKm - prev);
-			const fill = Math.max(0, Math.min(1, (totalKm - prev) / range));
+			const previous =
+				index === 0 ? 0 : ACHIEVEMENT_TIERS[index - 1].thresholdKm;
+			const range = Math.max(1, tier.thresholdKm - previous);
+			const fill = Math.max(0, Math.min(1, (totalKm - previous) / range));
 
 			return {
 				...tier,
@@ -278,7 +360,7 @@ function AchievementsModal({
 			StyleSheet.create({
 				backdrop: {
 					flex: 1,
-					backgroundColor: "rgba(0,0,0,0.45)",
+					backgroundColor: colors.overlay,
 					justifyContent: "center",
 					paddingHorizontal: metrics.lg,
 				},
@@ -316,9 +398,6 @@ function AchievementsModal({
 					paddingVertical: metrics.xs + 2,
 					gap: metrics.sm,
 				},
-				emoji: {
-					fontSize: typography.sizes.base + 4,
-				},
 				rowMiddle: {
 					flex: 1,
 					gap: 4,
@@ -344,7 +423,7 @@ function AchievementsModal({
 				},
 				closeButton: {
 					marginTop: metrics.sm,
-					minHeight: metrics.button.md.height,
+					minHeight: 46,
 					borderRadius: metrics.radius.full,
 					alignItems: "center",
 					justifyContent: "center",
@@ -371,8 +450,8 @@ function AchievementsModal({
 					<Text style={styles.title}>Achievements</Text>
 					<Text style={styles.subtitle}>
 						{progress.current
-							? `${progress.current.emoji} ${progress.current.label}`
-							: "🏁 Start riding"}
+							? `${progress.current.label} tier unlocked`
+							: "Start riding to unlock the first tier"}
 					</Text>
 					<View style={styles.overallTrack}>
 						<View
@@ -385,18 +464,25 @@ function AchievementsModal({
 					<Text style={styles.subtitle}>
 						{Math.round(totalKm).toLocaleString()} km
 						{progress.next
-							? ` • ${progress.remainingKm.toLocaleString()} km to ${progress.next.emoji}`
-							: " • Max tier reached"}
+							? ` - ${progress.remainingKm.toLocaleString()} km to ${progress.next.label}`
+							: " - Max tier reached"}
 					</Text>
 
 					{tierRows.map((tier) => (
 						<View key={tier.label} style={styles.listItem}>
-							<Text style={styles.emoji}>{tier.emoji}</Text>
+							<Ionicons
+								color={tier.done ? colors.primary : colors.textSecondary}
+								name={tier.icon}
+								size={20}
+							/>
 							<View style={styles.rowMiddle}>
 								<Text style={styles.badgeName}>{tier.label}</Text>
 								<View style={styles.tierTrack}>
 									<View
-										style={[styles.tierFill, { width: `${tier.fill * 100}%` }]}
+										style={[
+											styles.tierFill,
+											{ width: `${tier.fill * 100}%` },
+										]}
 									/>
 								</View>
 							</View>
@@ -415,37 +501,25 @@ function AchievementsModal({
 	);
 }
 
-function PostVideo({ uri }: { uri: string }) {
-	const player = useVideoPlayer(uri, (instance) => {
-		instance.loop = true;
-		instance.play();
-	});
-
-	return (
-		<VideoView
-			contentFit="contain"
-			nativeControls
-			player={player}
-			style={{ width: "100%", height: 320 }}
-		/>
-	);
-}
-
-function PostDetailModal({
+function ContentDetailModal({
 	visible,
-	post,
 	onClose,
-	onCreate,
 	onDelete,
 	onSaveCaption,
+	caption,
+	contentLabel,
+	mediaType,
+	mediaUrl,
 	busy,
 }: {
 	visible: boolean;
-	post: FeedPostPayload | null;
 	onClose: () => void;
-	onCreate: () => void;
-	onDelete: (postId: string) => void;
-	onSaveCaption: (postId: string, caption: string) => Promise<void>;
+	onDelete: () => void;
+	onSaveCaption: (caption: string) => Promise<void>;
+	caption?: string | null;
+	contentLabel: "post" | "clip";
+	mediaType: "IMAGE" | "VIDEO";
+	mediaUrl: string;
 	busy: boolean;
 }) {
 	const { colors, metrics, typography } = useTheme();
@@ -453,20 +527,18 @@ function PostDetailModal({
 	const [captionDraft, setCaptionDraft] = React.useState("");
 
 	React.useEffect(() => {
-		if (post) {
-			setCaptionDraft(post.caption ?? "");
-		}
+		setCaptionDraft(caption ?? "");
 		setIsEditing(false);
-	}, [post]);
+	}, [caption, visible]);
 
 	const styles = React.useMemo(
 		() =>
 			StyleSheet.create({
 				backdrop: {
 					flex: 1,
-					backgroundColor: "rgba(0,0,0,0.62)",
+					backgroundColor: withAlpha(colors.black, 0.62),
 					justifyContent: "center",
-					paddingHorizontal: metrics.md,
+					paddingHorizontal: metrics.lg,
 				},
 				card: {
 					borderRadius: metrics.radius.lg,
@@ -477,10 +549,34 @@ function PostDetailModal({
 					width: "100%",
 					height: 320,
 					backgroundColor: colors.surface,
+					position: "relative",
 				},
 				image: {
 					width: "100%",
 					height: "100%",
+				},
+				mediaActionRow: {
+					position: "absolute",
+					top: metrics.sm,
+					left: metrics.sm,
+					right: metrics.sm,
+					flexDirection: "row",
+					alignItems: "center",
+					justifyContent: "space-between",
+					zIndex: 2,
+				},
+				mediaActionGroup: {
+					flexDirection: "row",
+					alignItems: "center",
+					gap: metrics.sm,
+				},
+				iconButton: {
+					width: 38,
+					height: 38,
+					borderRadius: 19,
+					alignItems: "center",
+					justifyContent: "center",
+					backgroundColor: withAlpha(colors.black, 0.52),
 				},
 				content: {
 					padding: metrics.md,
@@ -507,7 +603,7 @@ function PostDetailModal({
 					flexWrap: "wrap",
 				},
 				actionBtn: {
-					paddingHorizontal: metrics.md,
+					paddingHorizontal: metrics.lg,
 					paddingVertical: metrics.xs + 4,
 					borderRadius: metrics.radius.full,
 					borderWidth: 1,
@@ -518,8 +614,8 @@ function PostDetailModal({
 					borderColor: colors.primary,
 				},
 				actionBtnDanger: {
-					backgroundColor: "#c62828",
-					borderColor: "#c62828",
+					backgroundColor: colors.primary,
+					borderColor: colors.primary,
 				},
 				actionText: {
 					color: colors.textPrimary,
@@ -533,7 +629,7 @@ function PostDetailModal({
 		[colors, metrics, typography],
 	);
 
-	if (!post) {
+	if (!visible || !mediaUrl) {
 		return null;
 	}
 
@@ -547,14 +643,37 @@ function PostDetailModal({
 			<View style={styles.backdrop}>
 				<View style={styles.card}>
 					<View style={styles.mediaWrap}>
-						{post.mediaType === "VIDEO" ? (
-							<PostVideo uri={post.mediaUrl || ""} />
-						) : (
-							<Image
-								source={{ uri: post.mediaUrl || "" }}
+						{mediaType === "VIDEO" ? (
+							<StreamingVideo
+								contentFit="contain"
+								shouldPlay={visible}
 								style={styles.image}
+								uri={mediaUrl}
 							/>
+						) : (
+							<Image resizeMode="contain" source={{ uri: mediaUrl }} style={styles.image} />
 						)}
+						<View style={styles.mediaActionRow}>
+							<Pressable onPress={onClose} style={styles.iconButton}>
+								<Ionicons color={colors.textInverse} name="close" size={20} />
+							</Pressable>
+							<View style={styles.mediaActionGroup}>
+								<Pressable
+									disabled={busy}
+									onPress={() => setIsEditing((current) => !current)}
+									style={styles.iconButton}
+								>
+									<Ionicons
+										color={colors.textInverse}
+										name={isEditing ? "close-outline" : "create-outline"}
+										size={20}
+									/>
+								</Pressable>
+								<Pressable disabled={busy} onPress={onDelete} style={styles.iconButton}>
+									<Ionicons color={colors.primary} name="trash-outline" size={20} />
+								</Pressable>
+							</View>
+						</View>
 					</View>
 					<View style={styles.content}>
 						{isEditing ? (
@@ -568,24 +687,15 @@ function PostDetailModal({
 							/>
 						) : (
 							<Text style={styles.caption}>
-								{post.caption || "No description"}
+								{caption || "No description"}
 							</Text>
 						)}
 
 						<View style={styles.actionsRow}>
-							<Pressable
-								onPress={onCreate}
-								style={[styles.actionBtn, styles.actionBtnPrimary]}
-							>
-								<Text style={[styles.actionText, styles.actionTextPrimary]}>
-									Create
-								</Text>
-							</Pressable>
-
 							{isEditing ? (
 								<Pressable
 									disabled={busy}
-									onPress={() => void onSaveCaption(post.id, captionDraft)}
+									onPress={() => void onSaveCaption(captionDraft)}
 									style={[styles.actionBtn, styles.actionBtnPrimary]}
 								>
 									<Text style={[styles.actionText, styles.actionTextPrimary]}>
@@ -593,21 +703,14 @@ function PostDetailModal({
 									</Text>
 								</Pressable>
 							) : (
-								<Pressable
-									onPress={() => setIsEditing(true)}
-									style={styles.actionBtn}
-								>
+								<Pressable onPress={() => setIsEditing(true)} style={styles.actionBtn}>
 									<Text style={styles.actionText}>Edit Description</Text>
 								</Pressable>
 							)}
 
-							<Pressable
-								disabled={busy}
-								onPress={() => onDelete(post.id)}
-								style={[styles.actionBtn, styles.actionBtnDanger]}
-							>
+							<Pressable disabled={busy} onPress={onDelete} style={[styles.actionBtn, styles.actionBtnDanger]}>
 								<Text style={[styles.actionText, styles.actionTextPrimary]}>
-									Delete
+									Delete {contentLabel}
 								</Text>
 							</Pressable>
 
@@ -633,6 +736,7 @@ export default function ProfileScreen() {
 		bikes,
 		moments,
 		momentsCount,
+		clips,
 		trackersCount,
 		trackingCount,
 		reloadDashboard,
@@ -645,11 +749,17 @@ export default function ProfileScreen() {
 	const [selectedPostId, setSelectedPostId] = React.useState<string | null>(
 		null,
 	);
+	const [selectedClipId, setSelectedClipId] = React.useState<string | null>(null);
 	const [isPostActionBusy, setIsPostActionBusy] = React.useState(false);
+	const [isClipActionBusy, setIsClipActionBusy] = React.useState(false);
 
 	const selectedPost = React.useMemo(
 		() => moments.find((post) => post.id === selectedPostId) ?? null,
 		[moments, selectedPostId],
+	);
+	const selectedClip = React.useMemo(
+		() => clips.find((clip) => clip.id === selectedClipId) ?? null,
+		[clips, selectedClipId],
 	);
 
 	const stats = React.useMemo(
@@ -677,9 +787,18 @@ export default function ProfileScreen() {
 
 	const openPostPage = React.useCallback(
 		(postId: string) => {
-			router.push(`/post/${postId}`);
+			setSelectedClipId(null);
+			setSelectedPostId(postId);
 		},
-		[router],
+		[],
+	);
+
+	const openClip = React.useCallback(
+		(clip: ProfileClipItem) => {
+			setSelectedPostId(null);
+			setSelectedClipId(clip.id);
+		},
+		[],
 	);
 
 	const handleSavePostCaption = React.useCallback(
@@ -732,6 +851,69 @@ export default function ProfileScreen() {
 		[reloadDashboard],
 	);
 
+	const handleSaveSelectedClipCaption = React.useCallback(
+		async (caption: string) => {
+			if (!selectedClip) {
+				return;
+			}
+
+			setIsClipActionBusy(true);
+			try {
+				if (selectedClip.sourcePostId) {
+					await FeedService.updatePost(selectedClip.sourcePostId, { caption });
+				} else {
+					await ClipService.updateClip(selectedClip.id, { caption });
+				}
+				await reloadDashboard();
+			} catch (error) {
+				Alert.alert(
+					"Update failed",
+					error instanceof Error
+						? error.message
+						: "Unable to update description.",
+				);
+			} finally {
+				setIsClipActionBusy(false);
+			}
+		},
+		[reloadDashboard, selectedClip],
+	);
+
+	const handleDeleteSelectedClip = React.useCallback(() => {
+		if (!selectedClip) {
+			return;
+		}
+
+		Alert.alert("Delete clip", "This will permanently remove this clip.", [
+			{ text: "Cancel", style: "cancel" },
+			{
+				text: "Delete",
+				style: "destructive",
+				onPress: async () => {
+					setIsClipActionBusy(true);
+					try {
+						if (selectedClip.sourcePostId) {
+							await FeedService.deletePost(selectedClip.sourcePostId);
+						} else {
+							await ClipService.deleteClip(selectedClip.id);
+						}
+						setSelectedClipId(null);
+						await reloadDashboard();
+					} catch (error) {
+						Alert.alert(
+							"Delete failed",
+							error instanceof Error
+								? error.message
+								: "Unable to delete this clip.",
+						);
+					} finally {
+						setIsClipActionBusy(false);
+					}
+				},
+			},
+		]);
+	}, [reloadDashboard, selectedClip]);
+
 	const onRefresh = React.useCallback(async () => {
 		setRefreshing(true);
 		try {
@@ -749,7 +931,7 @@ export default function ProfileScreen() {
 					backgroundColor: colors.background,
 				},
 				header: {
-					paddingHorizontal: metrics.md,
+					paddingHorizontal: metrics.lg,
 					paddingVertical: metrics.md,
 					backgroundColor: colors.background,
 					flexDirection: "row",
@@ -793,7 +975,7 @@ export default function ProfileScreen() {
 					backgroundColor: colors.surface,
 				},
 				content: {
-					paddingHorizontal: metrics.md,
+					paddingHorizontal: metrics.lg,
 					paddingTop: metrics.md,
 				},
 				identityBlock: {
@@ -859,22 +1041,11 @@ export default function ProfileScreen() {
 					alignItems: "center",
 					justifyContent: "center",
 					paddingVertical: metrics.sm,
-					gap: metrics.xs,
-					flexDirection: "row",
 					borderBottomWidth: 3,
 					borderBottomColor: "transparent",
 				},
 				tabButtonActive: {
 					borderBottomColor: colors.primary,
-				},
-				tabText: {
-					fontSize: typography.sizes.sm,
-					fontWeight: "500",
-					color: colors.textSecondary,
-				},
-				tabTextActive: {
-					color: colors.primary,
-					fontWeight: "700",
 				},
 				sectionContent: {
 					marginTop: metrics.lg,
@@ -1070,6 +1241,7 @@ export default function ProfileScreen() {
 									(sectionKey) => (
 										<Pressable
 											key={sectionKey}
+											accessibilityLabel={sectionMap[sectionKey].label}
 											onPress={() => setActiveSection(sectionKey)}
 											style={[
 												styles.tabButton,
@@ -1085,14 +1257,6 @@ export default function ProfileScreen() {
 												name={sectionMap[sectionKey].icon}
 												size={metrics.icon.md}
 											/>
-											<Text
-												style={[
-													styles.tabText,
-													activeSection === sectionKey && styles.tabTextActive,
-												]}
-											>
-												{sectionMap[sectionKey].label}
-											</Text>
 										</Pressable>
 									),
 								)}
@@ -1113,6 +1277,18 @@ export default function ProfileScreen() {
 								) : (
 									<Animated.View entering={FadeInRight.duration(240)}>
 										<MomentsGrid onPressPost={openPostPage} posts={moments} />
+									</Animated.View>
+								)
+							) : activeSection === "clips" ? (
+								clips.length === 0 ? (
+									<EmptyState
+										icon="videocam-outline"
+										subtitle="Share ride videos to fill your clips."
+										title="No clips yet"
+									/>
+								) : (
+									<Animated.View entering={FadeInRight.duration(240)}>
+										<ClipsGrid clips={clips} onPressClip={openClip} />
 									</Animated.View>
 								)
 							) : bikes.length === 0 ? (
@@ -1148,16 +1324,35 @@ export default function ProfileScreen() {
 					visible={showAchievements}
 				/>
 
-				<PostDetailModal
+				<ContentDetailModal
 					busy={isPostActionBusy}
+					caption={selectedPost?.caption}
+					contentLabel="post"
+					mediaType={selectedPost?.mediaType === "VIDEO" ? "VIDEO" : "IMAGE"}
+					mediaUrl={selectedPost?.mediaUrl ?? ""}
 					onClose={() => setSelectedPostId(null)}
-					onCreate={() => router.push("/create")}
-					onDelete={handleDeletePost}
-					onSaveCaption={handleSavePostCaption}
-					post={selectedPost}
+					onDelete={() => selectedPost && handleDeletePost(selectedPost.id)}
+					onSaveCaption={(caption) =>
+						selectedPost
+							? handleSavePostCaption(selectedPost.id, caption)
+							: Promise.resolve()
+					}
 					visible={selectedPost != null}
+				/>
+
+				<ContentDetailModal
+					busy={isClipActionBusy}
+					caption={selectedClip?.caption}
+					contentLabel="clip"
+					mediaType="VIDEO"
+					mediaUrl={selectedClip?.videoUrl ?? ""}
+					onClose={() => setSelectedClipId(null)}
+					onDelete={handleDeleteSelectedClip}
+					onSaveCaption={handleSaveSelectedClipCaption}
+					visible={selectedClip != null}
 				/>
 			</SafeAreaView>
 		</Animated.View>
 	);
 }
+

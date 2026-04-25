@@ -23,7 +23,7 @@ function formatDateHumanReadable(dateStr: string): string {
 			minute: '2-digit',
 		};
 		return d.toLocaleDateString("en-US", options).replace(',', '').replace(' PM', ' PM').replace(' AM', ' AM');
-	} catch (e) {
+	} catch {
 		return dateStr;
 	}
 }
@@ -75,14 +75,14 @@ export function RideCard({ item, mode, onPrimaryAction }: RideCardProps) {
 					width: 8,
 					height: 8,
 					borderRadius: 4,
-					backgroundColor: '#4CAF50',
+					backgroundColor: colors.textSecondary,
 					marginRight: metrics.sm,
 				},
 				dotEnd: {
 					width: 8,
 					height: 8,
 					borderRadius: 4,
-					backgroundColor: '#D32F2F',
+					backgroundColor: colors.primary,
 					marginRight: metrics.sm,
 				},
 				dottedLine: {
@@ -152,11 +152,11 @@ export function RideCard({ item, mode, onPrimaryAction }: RideCardProps) {
 					borderColor: isMyRide ? colors.borderDark : colors.primary,
 					alignItems: "center",
 					justifyContent: "center",
-					backgroundColor: colors.background,
+					backgroundColor: isMyRide ? colors.surface : colors.primary,
 					paddingHorizontal: metrics.lg,
 				},
 				actionLabel: {
-					color: isMyRide ? colors.textTertiary : colors.primary,
+					color: isMyRide ? colors.textPrimary : colors.textInverse,
 					fontSize: typography.sizes.sm,
 					fontWeight: "700",
 				},

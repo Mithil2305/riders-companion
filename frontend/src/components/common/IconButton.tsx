@@ -48,7 +48,7 @@ export function IconButton({
           justifyContent: 'center',
         },
       }),
-    [colors, metrics],
+    [active, colors, metrics],
   );
 
   return (
