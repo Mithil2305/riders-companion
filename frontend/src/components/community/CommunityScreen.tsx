@@ -143,7 +143,12 @@ export function CommunityScreen() {
 		>
 			<Header
 				onBack={() => router.back()}
-				onStartRide={() => router.push("/(tabs)/ride")}
+				onStartRide={() =>
+					router.push({
+						pathname: "/ride-details",
+						params: { rideType: "group" },
+					})
+				}
 			/>
 
 			<FlatList
