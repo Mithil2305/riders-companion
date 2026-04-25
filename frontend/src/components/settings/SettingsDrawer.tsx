@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
+import { usePlaybackSettings } from '../../hooks/usePlaybackSettings';
 
 type DrawerItem = {
   id: 'profile' | 'notifications' | 'privacy' | 'help';
@@ -37,6 +38,8 @@ interface SettingsDrawerProps {
   avatarLetter?: string;
   version?: string;
   build?: string;
+  dataSaverEnabled?: boolean;
+  onToggleDataSaver?: () => void;
 }
 
 const accountItems: DrawerItem[] = [
@@ -214,8 +217,11 @@ export function SettingsDrawer({
   avatarLetter = 'G',
   version = 'Version 2.0.1',
   build = 'Build 2024.01',
+  dataSaverEnabled,
+  onToggleDataSaver,
 }: SettingsDrawerProps) {
   const { colors, metrics, typography, resolvedMode, setMode } = useTheme();
+  const playbackSettings = usePlaybackSettings();
   const { width } = useWindowDimensions();
 
   const drawerWidth = Math.min(width * 0.88, 420);
@@ -266,6 +272,10 @@ export function SettingsDrawer({
   }, [onClose, openProgress]);
 
   const isDarkModeEnabled = resolvedMode === 'dark';
+  const isDataSaverEnabled =
+    typeof dataSaverEnabled === 'boolean'
+      ? dataSaverEnabled
+      : playbackSettings.dataSaverEnabled;
 
   const toggleTheme = React.useCallback(() => {
     const nextMode = isDarkModeEnabled ? 'light' : 'dark';
@@ -378,6 +388,9 @@ export function SettingsDrawer({
           color: colors.textSecondary,
           fontSize: typography.sizes.sm,
         },
+        settingsStack: {
+          gap: metrics.sm,
+        },
         switchRoot: {
           width: 46,
           height: 28,
@@ -473,7 +486,6 @@ export function SettingsDrawer({
       colors,
       isDarkModeEnabled,
       metrics,
-      resolvedMode,
       softSurface,
       typography,
     ],
@@ -509,6 +521,42 @@ export function SettingsDrawer({
                   </View>
                   <Pressable onPress={toggleTheme} style={styles.switchRoot}>
                     <Animated.View style={[styles.switchThumb, animatedSwitchThumbStyle]} />
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={styles.appearanceCard}>
+                <View style={styles.appearanceRow}>
+                  <View style={styles.appearanceIconWrap}>
+                    <Ionicons color={colors.primary} name="cellular-outline" size={metrics.icon.md} />
+                  </View>
+                  <View style={styles.appearanceTextWrap}>
+                    <Text style={styles.appearanceTitle}>Data Saver</Text>
+                    <Text style={styles.appearanceSubtitle}>
+                      {isDataSaverEnabled
+                        ? 'Smaller buffer and lighter preloading for clips'
+                        : 'Preload nearby clips for faster playback'}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={onToggleDataSaver ?? (() => void playbackSettings.toggleDataSaver())}
+                    style={[
+                      styles.switchRoot,
+                      {
+                        backgroundColor: isDataSaverEnabled
+                          ? colors.primary
+                          : colors.background,
+                      },
+                    ]}
+                  >
+                    <Animated.View
+                      style={[
+                        styles.switchThumb,
+                        {
+                          transform: [{ translateX: isDataSaverEnabled ? 18 : 0 }],
+                        },
+                      ]}
+                    />
                   </Pressable>
                 </View>
               </View>

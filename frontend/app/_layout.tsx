@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "../src/contexts/ThemeContext";
+import { PlaybackSettingsProvider } from "../src/contexts/PlaybackSettingsContext";
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
 import { UploadProvider } from "../src/contexts/UploadContext";
 import { useTheme } from "../src/hooks/useTheme";
@@ -20,11 +21,13 @@ export default function RootLayout() {
 		<GestureHandlerRootView style={{ flex: 1 }}>
 			<SafeAreaProvider>
 				<ThemeProvider>
-					<AuthProvider>
-						<UploadProvider>
-							<RootNavigator />
-						</UploadProvider>
-					</AuthProvider>
+					<PlaybackSettingsProvider>
+						<AuthProvider>
+							<UploadProvider>
+								<RootNavigator />
+							</UploadProvider>
+						</AuthProvider>
+					</PlaybackSettingsProvider>
 				</ThemeProvider>
 			</SafeAreaProvider>
 		</GestureHandlerRootView>

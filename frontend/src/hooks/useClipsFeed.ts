@@ -11,8 +11,28 @@ interface UseClipsFeedResult {
 	setActiveIndex: (index: number) => void;
 	bumpClip: (clipId: string) => void;
 	toggleLike: (clipId: string) => void;
+	updateCommentCount: (clipId: string, count: number) => void;
+	incrementShareCount: (clipId: string) => void;
 	onRefresh: () => Promise<void>;
 }
+
+const mergeClips = (liveClips: ClipItem[], legacyClips: ClipItem[]) => {
+	const clipByKey = new Map<string, ClipItem>();
+	for (const clip of liveClips) {
+		clipByKey.set(`${clip.riderId ?? ""}:${clip.media}`, clip);
+	}
+
+	for (const clip of legacyClips) {
+		const dedupeKey = `${clip.riderId ?? ""}:${clip.media}`;
+		if (!clipByKey.has(dedupeKey)) {
+			clipByKey.set(dedupeKey, clip);
+		}
+	}
+
+	return [...clipByKey.values()].sort(
+		(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+	);
+};
 
 const toClipItem = (
 	clip: Awaited<ReturnType<typeof ClipService.getClips>>["clips"][number],
@@ -62,44 +82,43 @@ export function useClipsFeed(): UseClipsFeedResult {
 
 	const loadClips = React.useCallback(async () => {
 		try {
-			const [clipsData, feedData] = await Promise.all([
-				ClipService.getClips(),
-				FeedService.getFeed(),
-			]);
+			const liveClipsPromise = ClipService.getClips()
+				.then((clipsData) =>
+					clipsData.clips
+						.filter(
+							(clip) =>
+								typeof clip.videoUrl === "string" && clip.videoUrl.length > 0,
+						)
+						.map(toClipItem),
+				)
+				.catch(() => [] as ClipItem[]);
+
+			const legacyClipsPromise = FeedService.getFeed()
+				.then((feedData) =>
+					feedData.posts
+						.filter(
+							(post) =>
+								post.mediaType === "VIDEO" &&
+								typeof post.mediaUrl === "string" &&
+								post.mediaUrl.length > 0,
+						)
+						.map(toLegacyClipItem),
+				)
+				.catch(() => [] as ClipItem[]);
+
+			const liveClips = await liveClipsPromise;
 			if (!mountedRef.current) {
 				return;
 			}
 
-			const liveClips = clipsData.clips
-				.filter((clip) => typeof clip.videoUrl === "string" && clip.videoUrl.length > 0)
-				.map(toClipItem);
-			const legacyClips = feedData.posts
-				.filter(
-					(post) =>
-						post.mediaType === "VIDEO" &&
-						typeof post.mediaUrl === "string" &&
-						post.mediaUrl.length > 0,
-				)
-				.map(toLegacyClipItem);
+			setClips(mergeClips(liveClips, []));
 
-			const clipByKey = new Map<string, ClipItem>();
-			for (const clip of liveClips) {
-				clipByKey.set(`${clip.riderId ?? ""}:${clip.media}`, clip);
+			const legacyClips = await legacyClipsPromise;
+			if (!mountedRef.current) {
+				return;
 			}
 
-			for (const clip of legacyClips) {
-				const dedupeKey = `${clip.riderId ?? ""}:${clip.media}`;
-				if (!clipByKey.has(dedupeKey)) {
-					clipByKey.set(dedupeKey, clip);
-				}
-			}
-
-			const mergedClips = [...clipByKey.values()].sort(
-				(a, b) =>
-					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-			);
-
-			setClips(mergedClips);
+			setClips(mergeClips(liveClips, legacyClips));
 		} catch {
 			if (mountedRef.current) {
 				setClips([]);
@@ -214,6 +233,24 @@ export function useClipsFeed(): UseClipsFeedResult {
 		[updateClipLike],
 	);
 
+	const updateCommentCount = React.useCallback((clipId: string, count: number) => {
+		setClips((current) =>
+			current.map((clip) =>
+				clip.id === clipId ? { ...clip, comments: count } : clip,
+			),
+		);
+	}, []);
+
+	const incrementShareCount = React.useCallback((clipId: string) => {
+		setClips((current) =>
+			current.map((clip) =>
+				clip.id === clipId
+					? { ...clip, shares: Math.max(0, clip.shares + 1) }
+					: clip,
+			),
+		);
+	}, []);
+
 	return {
 		clips,
 		activeIndex,
@@ -221,6 +258,8 @@ export function useClipsFeed(): UseClipsFeedResult {
 		setActiveIndex,
 		bumpClip,
 		toggleLike,
+		updateCommentCount,
+		incrementShareCount,
 		onRefresh,
 	};
 }

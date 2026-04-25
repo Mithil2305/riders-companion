@@ -7,3 +7,4 @@ export { EmptyState } from './EmptyState';
 export { SkeletonBlock } from './SkeletonBlock';
 export { EmailVerificationModal } from './EmailVerificationModal';
 export { ShareSheet } from './ShareSheet';
+export { StreamingVideo } from './StreamingVideo';
