@@ -23,6 +23,16 @@ export interface GarageBike {
   image: string;
 }
 
+export type GarageVehicleType = "bike" | "car";
+
+export interface GarageVehicleInput {
+  vehicleType: GarageVehicleType;
+  brand: string;
+  model: string;
+  year: number;
+  imageUri?: string;
+}
+
 export interface TrackerUser {
   id: string;
   name: string;

@@ -4,6 +4,7 @@ import {
 	Dimensions,
 	Image,
 	Pressable,
+	RefreshControl,
 	ScrollView,
 	StyleSheet,
 	View,
@@ -30,6 +31,8 @@ interface MasonryGridProps {
 	onEndReached?: () => void
 	hasMore?: boolean
 	isLoadingMore?: boolean
+	refreshing?: boolean
+	onRefresh?: () => Promise<void>
 	onSelectClip?: (clip: TrendingClip) => void
 	onLongPressClip?: (clip: TrendingClip) => void
 }
@@ -175,6 +178,8 @@ export function MasonryGrid({
 	onEndReached,
 	hasMore,
 	isLoadingMore,
+	refreshing = false,
+	onRefresh,
 	onSelectClip,
 	onLongPressClip,
 }: MasonryGridProps) {
@@ -237,6 +242,19 @@ export function MasonryGrid({
 			onScroll={handleScroll}
 			scrollEventThrottle={400}
 			showsVerticalScrollIndicator={false}
+			refreshControl={
+				onRefresh ? (
+					<RefreshControl
+						colors={[colors.primary]}
+						onRefresh={() => {
+							void onRefresh()
+						}}
+						progressBackgroundColor={colors.surface}
+						refreshing={refreshing}
+						tintColor={colors.primary}
+					/>
+				) : undefined
+			}
 		>
 			<View style={{ flexDirection: "row", gap: GAP }}>
 				{columns.map((col, colIdx) => (

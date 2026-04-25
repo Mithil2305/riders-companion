@@ -61,23 +61,7 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 			);
 
 			if (replyingTo) {
-				// Add as reply to parent comment
-				const replyWithParent = { ...created, parentId: replyingTo.id };
-				setComments((current) =>
-					current.map((comment) => {
-						if (comment.id === replyingTo.id) {
-							return {
-								...comment,
-								replies: [...(comment.replies || []), replyWithParent],
-								replyCount: (comment.replyCount || 0) + 1,
-							};
-						}
-						return comment;
-					}),
-				);
 				setReplyingTo(null);
-			} else {
-				setComments((current) => [created, ...current]);
 			}
 			setDraft("");
 			await loadComments();

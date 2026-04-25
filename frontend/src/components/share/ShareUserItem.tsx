@@ -50,7 +50,7 @@ export function ShareUserItem({ user, onPress }: ShareUserItemProps) {
         {user.name}
       </Text>
       <Text numberOfLines={1} style={styles.username}>
-        {user.username}
+        {user.user}
       </Text>
     </Pressable>
   );
