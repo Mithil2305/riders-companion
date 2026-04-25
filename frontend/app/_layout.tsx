@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "../src/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
+import { UploadProvider } from "../src/contexts/UploadContext";
 import { useTheme } from "../src/hooks/useTheme";
 import { initializePushNotifications } from "../src/services/PushNotificationService";
 
@@ -20,7 +21,9 @@ export default function RootLayout() {
 			<SafeAreaProvider>
 				<ThemeProvider>
 					<AuthProvider>
-						<RootNavigator />
+						<UploadProvider>
+							<RootNavigator />
+						</UploadProvider>
 					</AuthProvider>
 				</ThemeProvider>
 			</SafeAreaProvider>

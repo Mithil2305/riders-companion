@@ -1,6 +1,7 @@
 import React from "react";
 import { FeedPostItem, Story } from "../types/feed";
 import FeedService, { FeedPostPayload } from "../services/FeedService";
+import { useUploadManager } from "../contexts/UploadContext";
 
 interface UseHomeFeedResult {
 	loading: boolean;
@@ -59,6 +60,7 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 };
 
 export function useHomeFeed(): UseHomeFeedResult {
+	const { lastCompletedUploadAt } = useUploadManager();
 	const [loading, setLoading] = React.useState(true);
 	const [refreshing, setRefreshing] = React.useState(false);
 	const [posts, setPosts] = React.useState<FeedPostItem[]>([]);
@@ -110,6 +112,14 @@ export function useHomeFeed(): UseHomeFeedResult {
 			mounted = false;
 		};
 	}, [loadFeed]);
+
+	React.useEffect(() => {
+		if (lastCompletedUploadAt <= 0) {
+			return;
+		}
+
+		void loadFeed();
+	}, [lastCompletedUploadAt, loadFeed]);
 
 	const onRefresh = React.useCallback(async () => {
 		setRefreshing(true);

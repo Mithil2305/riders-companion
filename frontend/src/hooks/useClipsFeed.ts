@@ -1,6 +1,7 @@
 import React from "react";
 import { ClipItem } from "../types/clips";
 import ClipService from "../services/ClipService";
+import { useUploadManager } from "../contexts/UploadContext";
 
 interface UseClipsFeedResult {
 	clips: ClipItem[];
@@ -30,6 +31,7 @@ const toClipItem = (
 });
 
 export function useClipsFeed(): UseClipsFeedResult {
+	const { lastCompletedUploadAt } = useUploadManager();
 	const [activeIndex, setActiveIndex] = React.useState(0);
 	const [clips, setClips] = React.useState<ClipItem[]>([]);
 	const [refreshing, setRefreshing] = React.useState(false);
@@ -58,6 +60,14 @@ export function useClipsFeed(): UseClipsFeedResult {
 			mountedRef.current = false;
 		};
 	}, [loadClips]);
+
+	React.useEffect(() => {
+		if (lastCompletedUploadAt <= 0) {
+			return;
+		}
+
+		void loadClips();
+	}, [lastCompletedUploadAt, loadClips]);
 
 	const onRefresh = React.useCallback(async () => {
 		setRefreshing(true);

@@ -2,7 +2,6 @@ import React from "react";
 import {
 	FlatList,
 	RefreshControl,
-	ScrollView,
 	StyleSheet,
 	Text,
 	View,
@@ -19,18 +18,16 @@ import { ActiveRideCard } from "./ActiveRideCard";
 import { Header } from "./Header";
 import { RideCard } from "./RideCard";
 import { SectionHeader } from "./SectionHeader";
-import { SuggestedGroupCard } from "./SuggestedGroupCard";
 
-type SectionKey = "suggested" | "nearby" | "myRides";
+type SectionKey = "nearby" | "myRides";
 
-const sectionOrder: SectionKey[] = ["suggested", "nearby", "myRides"];
+const sectionOrder: SectionKey[] = ["nearby", "myRides"];
 
 export function CommunityScreen() {
 	const router = useRouter();
 	const { colors, metrics, typography } = useTheme();
 	const {
 		activeRide,
-		suggestedGroups,
 		nearbyRides,
 		myRides,
 		refreshing,
@@ -54,11 +51,6 @@ export function CommunityScreen() {
 				},
 				rideListWrap: {
 					gap: metrics.md,
-				},
-				suggestedRail: {
-					marginHorizontal: -metrics.md,
-					paddingLeft: metrics.md,
-					paddingRight: metrics.md,
 				},
 				emptyStateWrap: {
 					alignItems: "center",
@@ -84,31 +76,6 @@ export function CommunityScreen() {
 
 	const renderSection = React.useCallback(
 		({ item }: ListRenderItemInfo<SectionKey>) => {
-			if (item === "suggested") {
-				return (
-					<View style={styles.sectionWrap}>
-						<SectionHeader
-							actionLabel="VIEW ALL"
-							onPressAction={() => {}}
-							title="Suggested Groups"
-						/>
-						<ScrollView
-							contentContainerStyle={styles.suggestedRail}
-							horizontal
-							showsHorizontalScrollIndicator={false}
-						>
-							{suggestedGroups.map((group) => (
-								<SuggestedGroupCard
-									item={group}
-									key={group.id}
-									onPress={() => {}}
-								/>
-							))}
-						</ScrollView>
-					</View>
-				);
-			}
-
 			if (item === "nearby") {
 				return (
 					<View style={styles.sectionWrap}>
@@ -166,7 +133,7 @@ export function CommunityScreen() {
 				</View>
 			);
 		},
-		[myRides, nearbyRides, styles, suggestedGroups],
+		[myRides, nearbyRides, styles, router, colors.borderDark],
 	);
 
 	return (
