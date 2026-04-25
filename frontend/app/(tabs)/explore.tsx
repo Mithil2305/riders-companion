@@ -4,7 +4,6 @@ import {
 	Image,
 	Modal,
 	Pressable,
-	RefreshControl,
 	ScrollView,
 	StyleSheet,
 	Text,
@@ -13,10 +12,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import Animated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { ExploreGrid, SearchBar, ExploreSkeleton } from "../../src/components/explore";
+import { ExploreGrid, SearchBar } from "../../src/components/explore";
 import ClipService from "../../src/services/ClipService";
-import ProfileService from "../../src/services/ProfileService";
 import { useExploreData } from "../../src/hooks/useExploreData";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { useTheme } from "../../src/hooks/useTheme";
@@ -24,7 +21,6 @@ import { TrendingClip } from "../../src/types/explore";
 
 export default function ExploreScreen() {
 	const { colors, metrics, typography } = useTheme();
-	const router = useRouter();
 	const {
 		query,
 		setQuery,
@@ -32,9 +28,7 @@ export default function ExploreScreen() {
 		gridSections,
 		hasMoreClips,
 		isLoadingMore,
-		refreshing,
 		loadMoreClips,
-		onRefresh,
 	} = useExploreData();
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("explore");
@@ -42,26 +36,6 @@ export default function ExploreScreen() {
 	const [selectedClipId, setSelectedClipId] = React.useState<string | null>(
 		null,
 	);
-	const [suggestedUsers, setSuggestedUsers] = React.useState<any[]>([]);
-
-	React.useEffect(() => {
-		if (!query.trim()) {
-			setSuggestedUsers([]);
-			return;
-		}
-
-		const delayDebounceFn = setTimeout(() => {
-			void ProfileService.searchRiders(query.trim())
-				.then((res) => {
-					setSuggestedUsers(res.users ?? []);
-				})
-				.catch(() => {
-					setSuggestedUsers([]);
-				});
-		}, 300);
-
-		return () => clearTimeout(delayDebounceFn);
-	}, [query]);
 
 	const selectedIndex = React.useMemo(
 		() => clips.findIndex((clip) => clip.id === selectedClipId),
@@ -125,47 +99,6 @@ export default function ExploreScreen() {
 				searchWrap: {
 					paddingHorizontal: metrics.md,
 					paddingBottom: metrics.sm,
-					zIndex: 10,
-				},
-				suggestionDropdown: {
-					position: "absolute",
-					top: 60,
-					left: metrics.md,
-					right: metrics.md,
-					backgroundColor: colors.card,
-					borderRadius: metrics.radius.md,
-					borderWidth: 1,
-					borderColor: colors.borderDark,
-					maxHeight: 250,
-					zIndex: 20,
-					shadowColor: "#000",
-					shadowOffset: { width: 0, height: 4 },
-					shadowOpacity: 0.1,
-					shadowRadius: 10,
-					elevation: 5,
-				},
-				suggestionItem: {
-					flexDirection: "row",
-					alignItems: "center",
-					padding: metrics.md,
-					borderBottomWidth: 1,
-					borderBottomColor: colors.borderDark,
-					gap: metrics.sm,
-				},
-				suggestionAvatar: {
-					width: 40,
-					height: 40,
-					borderRadius: 20,
-					backgroundColor: colors.surface,
-				},
-				suggestionName: {
-					color: colors.textPrimary,
-					fontSize: typography.sizes.base,
-					fontWeight: "600",
-				},
-				suggestionUsername: {
-					color: colors.textTertiary,
-					fontSize: typography.sizes.sm,
 				},
 				detailBackdrop: {
 					flex: 1,
@@ -225,38 +158,15 @@ export default function ExploreScreen() {
 			<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
 				<View style={styles.searchWrap}>
 					<SearchBar onChangeText={setQuery} value={query} />
-					{query.trim().length > 0 && suggestedUsers.length > 0 && (
-						<ScrollView style={styles.suggestionDropdown} keyboardShouldPersistTaps="handled">
-							{suggestedUsers.map((u) => (
-								<Pressable key={u.id} style={styles.suggestionItem} onPress={() => {
-									setQuery("");
-									setSuggestedUsers([]);
-									router.push(`/rider/${u.id}`);
-								}}>
-									<Image source={{ uri: u.profileImageUrl || "https://i.pravatar.cc/100" }} style={styles.suggestionAvatar} />
-									<View>
-										<Text style={styles.suggestionName}>{u.name}</Text>
-										<Text style={styles.suggestionUsername}>@{u.username}</Text>
-									</View>
-								</Pressable>
-							))}
-						</ScrollView>
-					)}
 				</View>
-				{clips.length === 0 && !refreshing ? (
-					<ExploreSkeleton />
-				) : (
-					<ExploreGrid
-						sections={gridSections}
-						hasMore={hasMoreClips}
-						isLoadingMore={isLoadingMore}
-						refreshing={refreshing}
-						onLongPressClip={handleClipLongPress}
-						onSelectClip={openClipDetail}
-						onEndReached={loadMoreClips}
-						onRefresh={onRefresh}
-					/>
-				)}
+				<ExploreGrid
+					sections={gridSections}
+					hasMore={hasMoreClips}
+					isLoadingMore={isLoadingMore}
+					onLongPressClip={handleClipLongPress}
+					onSelectClip={openClipDetail}
+					onEndReached={loadMoreClips}
+				/>
 
 				<Modal
 					animationType="slide"
@@ -275,18 +185,7 @@ export default function ExploreScreen() {
 							</Pressable>
 						</View>
 
-						<ScrollView
-							contentContainerStyle={styles.detailList}
-							refreshControl={
-								<RefreshControl
-									colors={[colors.primary]}
-									onRefresh={onRefresh}
-									progressBackgroundColor={colors.surface}
-									refreshing={refreshing}
-									tintColor={colors.primary}
-								/>
-							}
-						>
+						<ScrollView contentContainerStyle={styles.detailList}>
 							{relatedClips.map((clip) => (
 								<View key={clip.id} style={styles.detailCard}>
 									<Image
