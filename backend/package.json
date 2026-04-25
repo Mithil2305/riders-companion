@@ -9,6 +9,7 @@
 		"start": "node server.js",
 		"db:init": "node src/scripts/initDatabase.js",
 		"db:sync": "node src/scripts/syncTables.js",
+		"db:reset-all": "node src/scripts/resetAllData.js",
 		"seed:admin": "node src/scripts/seedAdminAccount.js",
 		"seed:admin-sample": "node src/scripts/seedAdminProfileAndFeed.js",
 		"chat:auth-id": "node src/scripts/generateAuthId.js"
