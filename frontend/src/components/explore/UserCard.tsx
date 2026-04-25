@@ -18,10 +18,10 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function UserCard({ item, index }: UserCardProps) {
   const { colors, metrics, typography } = useTheme();
-  const followScale = useSharedValue(1);
+  const trackScale = useSharedValue(1);
 
-  const followStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: followScale.value }],
+  const trackStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: trackScale.value }],
   }));
 
   const styles = React.useMemo(
@@ -76,14 +76,14 @@ export function UserCard({ item, index }: UserCardProps) {
 
         <AnimatedPressable
           onPressIn={() => {
-            followScale.value = withSpring(0.95, { damping: 14, stiffness: 260 });
+            trackScale.value = withSpring(0.95, { damping: 14, stiffness: 260 });
           }}
           onPressOut={() => {
-            followScale.value = withSpring(1, { damping: 14, stiffness: 260 });
+            trackScale.value = withSpring(1, { damping: 14, stiffness: 260 });
           }}
-          style={[styles.follow, followStyle]}
+          style={[styles.follow, trackStyle]}
         >
-          <Text style={styles.followText}>Follow</Text>
+          <Text style={styles.followText}>Track</Text>
         </AnimatedPressable>
       </View>
     </Animated.View>
