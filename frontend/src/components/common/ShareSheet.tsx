@@ -43,9 +43,18 @@ interface ShareSheetProps {
 	visible: boolean;
 	onClose: () => void;
 	users?: ShareUser[];
+	resourceType?: "post" | "clip";
+	onShared?: () => void;
 }
 
-export function ShareSheet({ postId, visible, onClose, users = [] }: ShareSheetProps) {
+export function ShareSheet({
+	postId,
+	visible,
+	onClose,
+	users = [],
+	resourceType = "post",
+	onShared,
+}: ShareSheetProps) {
 	const { colors, metrics, typography } = useTheme();
 	const insets = useSafeAreaInsets();
 	const translateY = useSharedValue(SCREEN_HEIGHT);
@@ -95,35 +104,40 @@ export function ShareSheet({ postId, visible, onClose, users = [] }: ShareSheetP
 	}));
 
 	const getPostUrl = useCallback(() => {
-		return `riderscompanion://post/${postId}`;
-	}, [postId]);
+		const path = resourceType === "clip" ? "clip" : "post";
+		return `riderscompanion://${path}/${postId}`;
+	}, [postId, resourceType]);
 
 	const handleOpenInApp = useCallback(() => {
 		if (!postId) return;
+		onShared?.();
 		void Linking.openURL(getPostUrl());
 		dismiss();
-	}, [dismiss, getPostUrl, postId]);
+	}, [dismiss, getPostUrl, onShared, postId]);
 
 	const handleCopyLink = useCallback(async () => {
 		await Clipboard.setStringAsync(getPostUrl());
+		onShared?.();
 		dismiss();
-	}, [getPostUrl, dismiss]);
+	}, [dismiss, getPostUrl, onShared]);
 
 	const handleNativeShare = useCallback(() => {
 		void Share.share({
-			message: `Open this Rider's Companion post: ${getPostUrl()}`,
+			message: `Open this Rider's Companion ${resourceType}: ${getPostUrl()}`,
 			url: getPostUrl(),
 		});
+		onShared?.();
 		dismiss();
-	}, [dismiss, getPostUrl]);
+	}, [dismiss, getPostUrl, onShared, resourceType]);
 
 	const handleShareWhatsApp = useCallback(() => {
 		const url = `whatsapp://send?text=${encodeURIComponent(getPostUrl())}`;
 		void Linking.openURL(url).catch(() => {
 			// WhatsApp not installed
 		});
+		onShared?.();
 		dismiss();
-	}, [getPostUrl, dismiss]);
+	}, [dismiss, getPostUrl, onShared]);
 
 	const styles = React.useMemo(
 		() =>

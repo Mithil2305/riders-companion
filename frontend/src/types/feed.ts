@@ -11,6 +11,7 @@ export interface FeedPostItem {
 	user: string;
 	avatar: string;
 	image: string;
+	mediaType?: string | null;
 	caption: string;
 	likes: number;
 	comments: number;
