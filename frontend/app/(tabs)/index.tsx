@@ -6,7 +6,8 @@ import Animated, {
 	useAnimatedScrollHandler,
 	useSharedValue,
 } from "react-native-reanimated";
-import { EmptyState, ShareSheet } from "../../src/components/common";
+import { EmptyState } from "../../src/components/common";
+import { ShareSheet } from "../../src/components/share";
 import {
 	EndOfFeed,
 	FeedPost,
@@ -183,12 +184,6 @@ export default function HomeScreen() {
 					postId={selectedPostId}
 					visible={isShareSheetVisible}
 					onClose={() => setIsShareSheetVisible(false)}
-					users={[{
-						id: "admin1",
-						name: "Admin",
-						username: "admin__riders",
-						avatar: "https://i.pravatar.cc/100?img=68"
-					}]}
 				/>
 			</SafeAreaView>
 		</Animated.View>
