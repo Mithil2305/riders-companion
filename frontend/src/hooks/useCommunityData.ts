@@ -1,7 +1,13 @@
 import React from "react";
 import RideService from "../services/RideService";
 import type { CommunityData, RideItem } from "../types/community";
-import { communityMockData } from "../utils/mocks/community";
+
+const EMPTY_COMMUNITY_DATA: CommunityData = {
+	activeRide: null,
+	suggestedGroups: [],
+	nearbyRides: [],
+	myRides: [],
+};
 
 const toTagChips = (details: {
 	includesFood?: boolean;
@@ -68,7 +74,7 @@ const toRideItem = (
 });
 
 export function useCommunityData() {
-	const [data, setData] = React.useState<CommunityData>(communityMockData);
+	const [data, setData] = React.useState<CommunityData>(EMPTY_COMMUNITY_DATA);
 	const [loading, setLoading] = React.useState(true);
 	const [refreshing, setRefreshing] = React.useState(false);
 	const mountedRef = React.useRef(true);
@@ -89,10 +95,7 @@ export function useCommunityData() {
 							title: `${payload.activeRide.details.source || "Source"} -> ${payload.activeRide.details.destination || "Destination"}`,
 							subtitle: "Live group ride",
 							actionIcon: "navigate",
-							avatars:
-								prev.activeRide?.avatars ||
-								communityMockData.activeRide?.avatars ||
-								[],
+							avatars: prev.activeRide?.avatars || [],
 							extraCount: payload.activeRide.joinedCount,
 						}
 					: null,
@@ -102,7 +105,9 @@ export function useCommunityData() {
 				myRides: payload.myRides.map((ride) => toRideItem(ride, "myRides")),
 			}));
 		} catch {
-			// Keep mocked community rails as fallback when backend is unavailable.
+			if (mountedRef.current) {
+				setData(EMPTY_COMMUNITY_DATA);
+			}
 		} finally {
 			if (mountedRef.current) {
 				setLoading(false);
