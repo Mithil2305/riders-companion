@@ -24,35 +24,35 @@ export function useShare(postId: string, postUrl?: string) {
 		void getShareUsers("");
 	}, [getShareUsers, postId]);
 
-	const shareToUser = React.useCallback(async (userId: string) => {
+	const shareToUser = React.useCallback(async (userId: string, username?: string) => {
 		setIsSharing(true);
 		try {
-			await InteractionService.shareToUser(userId);
+			await InteractionService.shareToUser(userId, postUrl, username);
 		} finally {
 			setIsSharing(false);
 		}
-	}, []);
+	}, [postUrl]);
 
 	const shareToAction = React.useCallback(
 		async (target: ShareTargetType) => {
 			setIsSharing(true);
 			try {
-				await InteractionService.shareToAction(target, postUrl);
+				await InteractionService.shareToAction(target, postUrl, postId);
 			} finally {
 				setIsSharing(false);
 			}
 		},
-		[postUrl],
+		[postId, postUrl],
 	);
 
 	const copyLink = React.useCallback(async () => {
 		setIsSharing(true);
 		try {
-			await InteractionService.copyLink(postUrl);
+			await InteractionService.copyLink(postUrl, postId);
 		} finally {
 			setIsSharing(false);
 		}
-	}, [postUrl]);
+	}, [postId, postUrl]);
 
 	return {
 		query,

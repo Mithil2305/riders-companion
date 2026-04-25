@@ -31,10 +31,8 @@ import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { ClipItem } from "../../src/types/clips";
 import { ClipsSkeleton } from "../../src/components/clips";
 import { CommentsSheet } from "../../src/components/comments";
-import {
-	ShareSheet,
-	StreamingVideo,
-} from "../../src/components/common";
+import { StreamingVideo } from "../../src/components/common";
+import { ShareSheet } from "../../src/components/share";
 import {
 	getVideoPreloadRadius,
 } from "../../src/utils/videoPlayback";

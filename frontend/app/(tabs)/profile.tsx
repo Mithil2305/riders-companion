@@ -314,7 +314,10 @@ function ClipsGrid({
 				return (
 					<View key={key} style={styles.tileWrap}>
 						<Pressable onPress={() => onPressClip(clip)} style={styles.tile}>
-							<ClipThumbnail style={styles.image} uri={clip.videoUrl} />
+							<ClipThumbnail
+								style={styles.image}
+								uri={clip.thumbnailUrl ?? null}
+							/>
 							<View style={styles.videoPill}>
 								<Text style={styles.videoPillText}>CLIP</Text>
 							</View>

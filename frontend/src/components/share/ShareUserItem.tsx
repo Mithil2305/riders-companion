@@ -5,7 +5,7 @@ import { ShareUser } from '../../types/interactions';
 
 type ShareUserItemProps = {
   user: ShareUser;
-  onPress: (userId: string) => void;
+  onPress: () => void;
 };
 
 export function ShareUserItem({ user, onPress }: ShareUserItemProps) {
@@ -44,7 +44,7 @@ export function ShareUserItem({ user, onPress }: ShareUserItemProps) {
   );
 
   return (
-    <Pressable onPress={() => onPress(user.id)} style={styles.wrapper}>
+    <Pressable onPress={onPress} style={styles.wrapper}>
       <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
       <Text numberOfLines={1} style={styles.name}>
         {user.name}

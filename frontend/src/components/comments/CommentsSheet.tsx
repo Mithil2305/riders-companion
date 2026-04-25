@@ -4,7 +4,6 @@ import {
   Alert,
   Animated,
   FlatList,
-  Image,
   Modal,
   PanResponder,
   Pressable,
@@ -40,7 +39,6 @@ export function CommentsSheet({
   contentType = 'feed',
   onCommentsCountChange,
 }: CommentsSheetProps) {
-  const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=11';
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { colors, metrics, typography } = useTheme();
@@ -84,14 +82,6 @@ export function CommentsSheet({
   const [isEditModalVisible, setIsEditModalVisible] = React.useState(false);
   const [editDraft, setEditDraft] = React.useState('');
   const lastReportedCountRef = React.useRef<number | null>(null);
-  const [composerAvatarUri, setComposerAvatarUri] = React.useState(
-    resolvedAvatarUrl || DEFAULT_AVATAR,
-  );
-
-  React.useEffect(() => {
-    setComposerAvatarUri(resolvedAvatarUrl || DEFAULT_AVATAR);
-  }, [resolvedAvatarUrl]);
-
   React.useEffect(() => {
     if (!visible) {
       lastReportedCountRef.current = null;

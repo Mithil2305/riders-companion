@@ -29,6 +29,10 @@ const UserEncryptedChat = sequelize.define(
 			type: DataTypes.STRING(255),
 			allowNull: false,
 		},
+		attachment_url: {
+			type: DataTypes.STRING(512),
+			allowNull: true,
+		},
 	},
 	{
 		tableName: "user_encrypted_chat",
