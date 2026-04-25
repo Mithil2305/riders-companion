@@ -5,10 +5,30 @@ import {
 } from "../../types/explore";
 
 export const mockSuggestedUsers: SuggestedUser[] = [
-	{ id: "1", name: "RiderX", avatar: "https://i.pravatar.cc/150?img=21" },
-	{ id: "2", name: "SpeedKing", avatar: "https://i.pravatar.cc/150?img=22" },
-	{ id: "3", name: "Alex", avatar: "https://i.pravatar.cc/150?img=23" },
-	{ id: "4", name: "Cameron", avatar: "https://i.pravatar.cc/150?img=24" },
+	{
+		id: "1",
+		username: "riderx",
+		name: "RiderX",
+		avatar: "https://i.pravatar.cc/150?img=21",
+	},
+	{
+		id: "2",
+		username: "speedking",
+		name: "SpeedKing",
+		avatar: "https://i.pravatar.cc/150?img=22",
+	},
+	{
+		id: "3",
+		username: "alex",
+		name: "Alex",
+		avatar: "https://i.pravatar.cc/150?img=23",
+	},
+	{
+		id: "4",
+		username: "cameron",
+		name: "Cameron",
+		avatar: "https://i.pravatar.cc/150?img=24",
+	},
 ];
 
 export const mockSuggestedRooms: SuggestedRoom[] = [

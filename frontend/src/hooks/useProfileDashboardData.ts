@@ -10,6 +10,7 @@ import { useUploadManager } from "../contexts/UploadContext";
 export type ProfileClipItem = {
 	id: string;
 	videoUrl: string;
+	caption?: string | null;
 	sourcePostId?: string;
 };
 
@@ -107,6 +108,7 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 				.map((post) => ({
 					id: `post-${post.id}`,
 					videoUrl: post.mediaUrl ?? "",
+					caption: post.caption,
 					sourcePostId: post.id,
 				}));
 			const ownClips = clipsData.clips
@@ -114,6 +116,7 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 				.map((clip) => ({
 					id: clip.id,
 					videoUrl: clip.videoUrl,
+					caption: clip.caption,
 				}));
 
 			setMoments(ownMoments);

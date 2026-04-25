@@ -48,8 +48,15 @@ export function FeedPost({
 	scrollY,
 }: FeedPostProps) {
 	const { colors, metrics, typography, resolvedMode } = useTheme();
+	const likeCount = item.likes;
+	const isVideoPost = item.mediaType === "VIDEO";
 	const [imageLoading, setImageLoading] = React.useState(
 		item.mediaType !== "VIDEO",
+	);
+	const [imageAspectRatio, setImageAspectRatio] = React.useState(
+		item.aspectRatio && Number.isFinite(item.aspectRatio) && item.aspectRatio > 0
+			? item.aspectRatio
+			: 1,
 	);
 	const [showBumpPulse, setShowBumpPulse] = React.useState(false);
 	const lastTapRef = React.useRef(0);
@@ -62,6 +69,33 @@ export function FeedPost({
 	React.useEffect(() => {
 		likeProgress.value = withTiming(liked ? 1 : 0, { duration: 220 });
 	}, [likeProgress, liked]);
+
+	React.useEffect(() => {
+		if (isVideoPost) {
+			return;
+		}
+
+		if (
+			item.aspectRatio &&
+			Number.isFinite(item.aspectRatio) &&
+			item.aspectRatio > 0
+		) {
+			setImageAspectRatio(item.aspectRatio);
+			return;
+		}
+
+		Image.getSize(
+			item.image,
+			(width, height) => {
+				if (width > 0 && height > 0) {
+					setImageAspectRatio(width / height);
+				}
+			},
+			() => {
+				setImageAspectRatio(1);
+			},
+		);
+	}, [isVideoPost, item.aspectRatio, item.image]);
 
 	const imageAnimatedStyle = useAnimatedStyle(() => ({
 		transform: [{ scale: imageScale.value }],
@@ -143,7 +177,6 @@ export function FeedPost({
 				},
 				mediaWrap: {
 					width: "100%",
-					height: metrics.screenWidth * 0.9,
 					backgroundColor: colors.surface,
 					overflow: "hidden",
 					// borderRadius: colors.background === '#181515' ? 0 : metrics.radius.md,
@@ -205,8 +238,9 @@ export function FeedPost({
 		[colors, metrics, typography],
 	);
 
-	const likeCount = item.likes;
-	const isVideoPost = item.mediaType === "VIDEO";
+	const mediaWrapStyle = isVideoPost
+		? { height: metrics.screenWidth * 0.9 }
+		: { aspectRatio: imageAspectRatio };
 
 	const defaultFistBumpIcon: ImageSourcePropType =
 		resolvedMode === "dark"
@@ -269,7 +303,7 @@ export function FeedPost({
 				onPressOut={() => {
 					imageScale.value = withSpring(1, { damping: 14, stiffness: 200 });
 				}}
-				style={styles.mediaWrap}
+				style={[styles.mediaWrap, mediaWrapStyle]}
 			>
 				{isVideoPost ? (
 					<Animated.View style={[styles.media, parallaxStyle, imageAnimatedStyle]}>
@@ -286,6 +320,7 @@ export function FeedPost({
 						fadeDuration={150}
 						onLoadEnd={() => setImageLoading(false)}
 						progressiveRenderingEnabled
+						resizeMode="contain"
 						source={{ uri: item.image }}
 						style={[styles.media, parallaxStyle, imageAnimatedStyle]}
 					/>

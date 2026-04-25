@@ -1,7 +1,6 @@
 import { Alert, Platform, Share } from "react-native";
 import FeedService from "./FeedService";
 import ClipService from "./ClipService";
-import { apiRequest } from "./api";
 import {
 	CommentModel,
 	InteractionContentType,
@@ -13,6 +12,8 @@ type FeedCommentPayload = {
 	id: string;
 	commentText: string;
 	createdAt: string;
+	likesCount?: number;
+	likedByMe?: boolean;
 	rider?: {
 		id?: string;
 		name?: string;
@@ -25,6 +26,8 @@ type ClipCommentPayload = {
 	id: string;
 	commentText: string;
 	createdAt: string;
+	likesCount?: number;
+	likedByMe?: boolean;
 	rider?: {
 		id?: string;
 		name?: string;
@@ -59,9 +62,10 @@ const toCommentModel = (item: FeedCommentPayload | ClipCommentPayload): CommentM
 	return {
 		id: item.id,
 		content: item.commentText,
+		createdAt: item.createdAt,
 		timeLabel: formatRelativeTime(item.createdAt),
-		likedByMe: false,
-		likeCount: 0,
+		likedByMe: Boolean(item.likedByMe),
+		likeCount: Number(item.likesCount ?? 0),
 		author: {
 			id: item.rider?.id ?? username,
 			name: item.rider?.name ?? username,
@@ -74,15 +78,11 @@ const toCommentModel = (item: FeedCommentPayload | ClipCommentPayload): CommentM
 class InteractionService {
 	async getComments(contentType: InteractionContentType, contentId: string) {
 		if (contentType === "feed") {
-			const data = await apiRequest<{ comments: FeedCommentPayload[] }>(
-				`/feed/${contentId}/comments`,
-			);
+			const data = await FeedService.getComments(contentId);
 			return data.comments.map(toCommentModel);
 		}
 
-		const data = await apiRequest<{ comments: ClipCommentPayload[] }>(
-			`/clips/${contentId}/comments`,
-		);
+		const data = await ClipService.getComments(contentId);
 		return data.comments.map(toCommentModel);
 	}
 
@@ -98,13 +98,17 @@ class InteractionService {
 			throw new Error("Comment cannot be empty");
 		}
 
+		let createdComment: FeedCommentPayload | ClipCommentPayload | undefined;
 		if (contentType === "feed") {
-			await FeedService.commentOnPost(contentId, trimmed);
+			const response = await FeedService.commentOnPost(contentId, trimmed);
+			createdComment = response.comment;
 		} else {
-			await apiRequest(`/clips/${contentId}/comments`, {
-				method: "POST",
-				body: { commentText: trimmed },
-			});
+			const response = await ClipService.commentOnClip(contentId, trimmed);
+			createdComment = response.comment;
+		}
+
+		if (createdComment) {
+			return toCommentModel(createdComment);
 		}
 
 		const username = currentUsername?.trim() || "you";
@@ -122,6 +126,59 @@ class InteractionService {
 				avatarUrl: currentUserAvatarUrl ?? DEFAULT_AVATAR,
 			},
 		} satisfies CommentModel;
+	}
+
+	async editComment(
+		contentType: InteractionContentType,
+		contentId: string,
+		commentId: string,
+		commentText: string,
+	) {
+		const trimmed = commentText.trim();
+		if (trimmed.length === 0) {
+			throw new Error("Comment cannot be empty");
+		}
+
+		if (contentType === "feed") {
+			const response = await FeedService.updateComment(contentId, commentId, trimmed);
+			return toCommentModel(response.comment);
+		}
+
+		const response = await ClipService.updateComment(contentId, commentId, trimmed);
+		return toCommentModel(response.comment);
+	}
+
+	async deleteComment(
+		contentType: InteractionContentType,
+		contentId: string,
+		commentId: string,
+	) {
+		if (contentType === "feed") {
+			await FeedService.deleteComment(contentId, commentId);
+			return;
+		}
+
+		await ClipService.deleteComment(contentId, commentId);
+	}
+
+	async toggleCommentLike(
+		contentType: InteractionContentType,
+		contentId: string,
+		commentId: string,
+		shouldLike: boolean,
+	) {
+		if (contentType !== "feed") {
+			return null;
+		}
+
+		const response = shouldLike
+			? await FeedService.likeComment(contentId, commentId)
+			: await FeedService.unlikeComment(contentId, commentId);
+
+		return {
+			likedByMe: shouldLike,
+			likeCount: response.likesCount,
+		};
 	}
 
 	async getShareUsers(query: string = ""): Promise<ShareUser[]> {

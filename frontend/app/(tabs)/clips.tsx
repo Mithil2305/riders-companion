@@ -30,12 +30,11 @@ import { usePlaybackSettings } from "../../src/hooks/usePlaybackSettings";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { ClipItem } from "../../src/types/clips";
 import { ClipsSkeleton } from "../../src/components/clips";
-import { CommentSheet } from "../../src/components/feed";
+import { CommentsSheet } from "../../src/components/comments";
 import {
 	ShareSheet,
 	StreamingVideo,
 } from "../../src/components/common";
-import ClipService from "../../src/services/ClipService";
 import {
 	getVideoPreloadRadius,
 } from "../../src/utils/videoPlayback";
@@ -415,16 +414,6 @@ export default function ClipsScreen() {
 		typeof params.clipId === "string" ? params.clipId : params.clipId?.[0];
 	const canPlayClips = isFocused && appState === "active";
 	const preloadRadius = getVideoPreloadRadius(dataSaverEnabled);
-	const selectedCommentService = React.useMemo(() => {
-		if (!selectedClip || selectedClip.sourcePostId) {
-			return undefined;
-		}
-
-		return {
-			getComments: ClipService.getComments.bind(ClipService),
-			addComment: ClipService.commentOnClip.bind(ClipService),
-		};
-	}, [selectedClip]);
 
 	const styles = React.useMemo(
 		() =>
@@ -600,12 +589,12 @@ export default function ClipsScreen() {
 						windowSize={3}
 					/>
 				)}
-				<CommentSheet
-					commentService={selectedCommentService}
-					postId={selectedClip?.sourcePostId ?? selectedClip?.id ?? null}
+				<CommentsSheet
+					contentId={selectedClip?.sourcePostId ?? selectedClip?.id ?? null}
+					contentType={selectedClip?.sourcePostId ? "feed" : "clip"}
 					visible={isCommentSheetVisible}
 					onClose={() => setIsCommentSheetVisible(false)}
-					onCommentAdded={(newCount) => {
+					onCommentsCountChange={(newCount) => {
 						if (selectedClip) {
 							updateCommentCount(selectedClip.id, newCount);
 						}
