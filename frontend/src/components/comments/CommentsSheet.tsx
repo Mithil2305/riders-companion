@@ -78,6 +78,7 @@ export function CommentsSheet({
   const [isActionMenuVisible, setIsActionMenuVisible] = React.useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = React.useState(false);
   const [editDraft, setEditDraft] = React.useState('');
+  const lastReportedCountRef = React.useRef<number | null>(null);
   const [composerAvatarUri, setComposerAvatarUri] = React.useState(
     resolvedAvatarUrl || DEFAULT_AVATAR,
   );
@@ -88,6 +89,7 @@ export function CommentsSheet({
 
   React.useEffect(() => {
     if (!visible) {
+      lastReportedCountRef.current = null;
       setActiveComment(null);
       setIsActionMenuVisible(false);
       setIsEditModalVisible(false);
@@ -100,6 +102,11 @@ export function CommentsSheet({
       return;
     }
 
+    if (lastReportedCountRef.current === comments.length) {
+      return;
+    }
+
+    lastReportedCountRef.current = comments.length;
     onCommentsCountChange?.(comments.length);
   }, [comments.length, isLoading, onCommentsCountChange, visible]);
 

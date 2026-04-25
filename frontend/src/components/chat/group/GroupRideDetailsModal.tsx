@@ -18,7 +18,7 @@ interface GroupRideDetailsModalProps {
 	organizer: GroupRideMember | null;
 	riders: GroupRideMember[];
 	onClose: () => void;
-	onFollow: (riderId: string) => void;
+	onToggleTrack: (riderId: string) => void;
 	onOpenProfile: (riderId: string) => void;
 }
 
@@ -38,7 +38,7 @@ export function GroupRideDetailsModal({
 	organizer,
 	riders,
 	onClose,
-	onFollow,
+	onToggleTrack,
 	onOpenProfile,
 }: GroupRideDetailsModalProps) {
 	const { colors, metrics, typography } = useTheme();
@@ -168,7 +168,7 @@ export function GroupRideDetailsModal({
 
 			{isOrganizerRow ? null : (
 				<Pressable
-					onPress={() => onFollow(member.id)}
+					onPress={() => onToggleTrack(member.id)}
 					style={[
 						styles.followBtn,
 						member.isFollowing ? styles.followingBtn : null,
@@ -180,7 +180,7 @@ export function GroupRideDetailsModal({
 							member.isFollowing ? styles.followingText : null,
 						]}
 					>
-						{member.isFollowing ? "Following" : "Follow"}
+						{member.isFollowing ? "Untrack" : "Track"}
 					</Text>
 				</Pressable>
 			)}
