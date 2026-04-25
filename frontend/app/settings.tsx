@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import { SettingsDrawer } from "../src/components/settings";
 import ProfileService from "../src/services/ProfileService";
 import AuthService from "../src/services/AuthService";
+import { usePlaybackSettings } from "../src/hooks/usePlaybackSettings";
 import { useTheme } from "../src/hooks/useTheme";
 
 const FALLBACK_AVATAR =
@@ -59,6 +60,7 @@ const blobToDataUrl = async (uri: string) => {
 export default function SettingsScreen() {
 	const router = useRouter();
 	const { colors, metrics, typography } = useTheme();
+	const { dataSaverEnabled, setDataSaverEnabled } = usePlaybackSettings();
 	const [loading, setLoading] = React.useState(true);
 	const [saving, setSaving] = React.useState(false);
 	const [isEditorOpen, setIsEditorOpen] = React.useState(false);
@@ -307,6 +309,8 @@ export default function SettingsScreen() {
 				}
 				onProfilePress={() => setIsEditorOpen(true)}
 				onSignOutPress={() => void handleSignOut()}
+				dataSaverEnabled={dataSaverEnabled}
+				onToggleDataSaver={() => void setDataSaverEnabled(!dataSaverEnabled)}
 				username={displayName}
 				avatarLetter={avatarLetter}
 			/>

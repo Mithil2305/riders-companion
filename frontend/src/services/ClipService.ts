@@ -1,3 +1,4 @@
+import { CommentPayload } from "./FeedService";
 import { apiRequest } from "./api";
 
 export interface ClipPayload {
@@ -32,6 +33,20 @@ interface CreateClipPayload {
 class ClipService {
 	async getClips() {
 		return apiRequest<{ clips: ClipPayload[] }>("/clips");
+	}
+
+	async getComments(clipId: string) {
+		return apiRequest<{ comments: CommentPayload[] }>(`/clips/${clipId}/comments`);
+	}
+
+	async commentOnClip(clipId: string, commentText: string) {
+		return apiRequest<{ commentsCount: number; comment?: CommentPayload }>(
+			`/clips/${clipId}/comments`,
+			{
+				method: "POST",
+				body: { commentText },
+			},
+		);
 	}
 
 	async createClip(payload: CreateClipPayload) {

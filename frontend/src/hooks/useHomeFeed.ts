@@ -51,6 +51,7 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 			post.rider?.profileImageUrl ??
 			"https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80",
 		image: post.mediaUrl,
+		mediaType: post.mediaType,
 		caption: post.caption ?? "",
 		likes: Number(post.likesCount ?? 0),
 		comments: Number(post.commentsCount ?? 0),

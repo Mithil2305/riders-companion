@@ -14,7 +14,6 @@ import Animated, {
 	FadeInDown,
 	type SharedValue,
 	interpolate,
-	interpolateColor,
 	runOnJS,
 	useAnimatedStyle,
 	useSharedValue,
@@ -22,6 +21,7 @@ import Animated, {
 	withTiming,
 } from "react-native-reanimated";
 import { useTheme } from "../../hooks/useTheme";
+import { StreamingVideo } from "../common";
 import { FeedPostItem } from "../../types/feed";
 
 interface FeedPostProps {
@@ -48,7 +48,9 @@ export function FeedPost({
 	scrollY,
 }: FeedPostProps) {
 	const { colors, metrics, typography, resolvedMode } = useTheme();
-	const [imageLoading, setImageLoading] = React.useState(true);
+	const [imageLoading, setImageLoading] = React.useState(
+		item.mediaType !== "VIDEO",
+	);
 	const [showBumpPulse, setShowBumpPulse] = React.useState(false);
 	const lastTapRef = React.useRef(0);
 
@@ -204,6 +206,7 @@ export function FeedPost({
 	);
 
 	const likeCount = item.likes;
+	const isVideoPost = item.mediaType === "VIDEO";
 
 	const defaultFistBumpIcon: ImageSourcePropType =
 		resolvedMode === "dark"
@@ -268,15 +271,27 @@ export function FeedPost({
 				}}
 				style={styles.mediaWrap}
 			>
-				<Animated.Image
-					fadeDuration={150}
-					onLoadEnd={() => setImageLoading(false)}
-					progressiveRenderingEnabled
-					source={{ uri: item.image }}
-					style={[styles.media, parallaxStyle, imageAnimatedStyle]}
-				/>
+				{isVideoPost ? (
+					<Animated.View style={[styles.media, parallaxStyle, imageAnimatedStyle]}>
+						<StreamingVideo
+							contentFit="cover"
+							muted
+							shouldPlay={false}
+							style={styles.media}
+							uri={item.image}
+						/>
+					</Animated.View>
+				) : (
+					<Animated.Image
+						fadeDuration={150}
+						onLoadEnd={() => setImageLoading(false)}
+						progressiveRenderingEnabled
+						source={{ uri: item.image }}
+						style={[styles.media, parallaxStyle, imageAnimatedStyle]}
+					/>
+				)}
 
-				{imageLoading ? (
+				{imageLoading && !isVideoPost ? (
 					<View style={styles.imageLoading}>
 						<ActivityIndicator color={colors.primary} />
 					</View>
@@ -336,6 +351,7 @@ export function FeedPost({
 
 			<View style={styles.metaWrap}>
 				<AnimatedPressable
+					style={likeAnimatedStyle}
 					onPress={() => {
 						onToggleLike(item.id);
 					}}

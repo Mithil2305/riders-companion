@@ -13,7 +13,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { VideoView, useVideoPlayer } from "expo-video";
 import { useIsFocused } from "@react-navigation/native";
 import {
 	SafeAreaView,
@@ -27,9 +26,19 @@ import Animated, {
 } from "react-native-reanimated";
 import { useTheme } from "../../src/hooks/useTheme";
 import { useClipsFeed } from "../../src/hooks/useClipsFeed";
+import { usePlaybackSettings } from "../../src/hooks/usePlaybackSettings";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { ClipItem } from "../../src/types/clips";
 import { ClipsSkeleton } from "../../src/components/clips";
+import { CommentSheet } from "../../src/components/feed";
+import {
+	ShareSheet,
+	StreamingVideo,
+} from "../../src/components/common";
+import ClipService from "../../src/services/ClipService";
+import {
+	getVideoPreloadRadius,
+} from "../../src/utils/videoPlayback";
 
 function compactNumber(value: number): string {
 	if (value >= 1000) {
@@ -39,68 +48,32 @@ function compactNumber(value: number): string {
 	return String(value);
 }
 
-function ClipVideo({
-	shouldPlay,
-	style,
-	uri,
-}: {
-	shouldPlay: boolean;
-	style: object;
-	uri: string;
-}) {
-	const player = useVideoPlayer(uri, (instance) => {
-		instance.loop = true;
-		instance.muted = !shouldPlay;
-		if (shouldPlay) {
-			instance.play();
-			return;
-		}
-
-		instance.pause();
-	});
-
-	React.useEffect(() => {
-		player.muted = !shouldPlay;
-		if (shouldPlay) {
-			player.play();
-			return;
-		}
-
-		player.pause();
-	}, [player, shouldPlay]);
-
-	return (
-		<VideoView
-			contentFit="cover"
-			nativeControls={false}
-			player={player}
-			style={style}
-		/>
-	);
-}
-
 function ClipFeedCard({
-	isCurrent,
+	shouldRenderVideo,
+	shouldPlay,
 	clipHeight,
 	colors,
 	item,
 	metrics,
 	onBump,
+	onOpenComments,
+	onOpenShare,
 	onToggleLike,
 	router,
-	screenActive,
 	typography,
 	width,
 }: {
-	isCurrent: boolean;
+	shouldRenderVideo: boolean;
+	shouldPlay: boolean;
 	clipHeight: number;
 	colors: ReturnType<typeof useTheme>["colors"];
 	item: ClipItem;
 	metrics: ReturnType<typeof useTheme>["metrics"];
 	onBump: (clipId: string) => void;
+	onOpenComments: (item: ClipItem) => void;
+	onOpenShare: (item: ClipItem) => void;
 	onToggleLike: (clipId: string) => void;
 	router: ReturnType<typeof useRouter>;
-	screenActive: boolean;
 	typography: ReturnType<typeof useTheme>["typography"];
 	width: number;
 }) {
@@ -124,6 +97,7 @@ function ClipFeedCard({
 					...StyleSheet.absoluteFillObject,
 					width,
 					height: clipHeight,
+					backgroundColor: colors.background,
 				},
 				tapSurface: {
 					...StyleSheet.absoluteFillObject,
@@ -228,7 +202,7 @@ function ClipFeedCard({
 		[clipHeight, colors, insets.bottom, metrics, typography, width],
 	);
 
-	const shouldPlay = isCurrent && screenActive && !pausedByUser;
+	const effectiveShouldPlay = shouldPlay && !pausedByUser;
 	const liked = Boolean(item.likedByMe);
 	const likeIcon = liked
 		? require("../../assets/icons/fist-bump-color.png")
@@ -249,7 +223,7 @@ function ClipFeedCard({
 	}, [bumpPulse]);
 
 	React.useEffect(() => {
-		if (isCurrent) {
+		if (effectiveShouldPlay) {
 			return;
 		}
 
@@ -258,7 +232,7 @@ function ClipFeedCard({
 			clearTimeout(singleTapTimeoutRef.current);
 			singleTapTimeoutRef.current = null;
 		}
-	}, [isCurrent]);
+	}, [effectiveShouldPlay]);
 
 	React.useEffect(() => {
 		return () => {
@@ -269,7 +243,7 @@ function ClipFeedCard({
 	}, []);
 
 	const handleSurfaceTap = React.useCallback(() => {
-		if (!isCurrent) {
+		if (!effectiveShouldPlay) {
 			return;
 		}
 
@@ -292,11 +266,21 @@ function ClipFeedCard({
 			setPausedByUser((current) => !current);
 			singleTapTimeoutRef.current = null;
 		}, 280);
-	}, [isCurrent, item.id, liked, onBump, runBumpPulse]);
+	}, [effectiveShouldPlay, item.id, liked, onBump, runBumpPulse]);
 
 	return (
 		<View style={styles.clipContainer}>
-			<ClipVideo shouldPlay={shouldPlay} style={styles.media} uri={item.media} />
+			{shouldRenderVideo ? (
+				<StreamingVideo
+					contentFit="cover"
+					muted={!effectiveShouldPlay}
+					shouldPlay={effectiveShouldPlay}
+					style={styles.media}
+					uri={item.media}
+				/>
+			) : (
+				<View style={styles.media} />
+			)}
 
 			<LinearGradient
 				colors={["rgba(0,0,0,0.0)", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.75)"]}
@@ -316,7 +300,7 @@ function ClipFeedCard({
 				</Animated.View>
 			) : null}
 
-			{isCurrent && screenActive && pausedByUser ? (
+			{shouldPlay && pausedByUser ? (
 				<View style={styles.centerFeedback}>
 					<Ionicons
 						color={colors.textInverse}
@@ -347,24 +331,30 @@ function ClipFeedCard({
 				</View>
 
 				<View style={styles.actionItem}>
-					<View style={styles.actionIconWrap}>
+					<Pressable
+						onPress={() => onOpenComments(item)}
+						style={styles.actionIconWrap}
+					>
 						<Ionicons
 							color={colors.textInverse}
 							name="chatbubble"
 							size={metrics.icon.md}
 						/>
-					</View>
+					</Pressable>
 					<Text style={styles.actionLabel}>{compactNumber(item.comments)}</Text>
 				</View>
 
 				<View style={styles.actionItem}>
-					<View style={styles.actionIconWrap}>
+					<Pressable
+						onPress={() => onOpenShare(item)}
+						style={styles.actionIconWrap}
+					>
 						<Ionicons
 							color={colors.textInverse}
 							name="paper-plane"
 							size={metrics.icon.md}
 						/>
-					</View>
+					</Pressable>
 					<Text style={styles.actionLabel}>{compactNumber(item.shares)}</Text>
 				</View>
 			</View>
@@ -408,16 +398,33 @@ export default function ClipsScreen() {
 		refreshing,
 		setActiveIndex,
 		toggleLike,
+		updateCommentCount,
+		incrementShareCount,
 		onRefresh,
 	} = useClipsFeed();
+	const { dataSaverEnabled } = usePlaybackSettings();
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("clips");
 	const [clipHeight, setClipHeight] = React.useState(height);
 	const [appState, setAppState] = React.useState(AppState.currentState);
+	const [selectedClip, setSelectedClip] = React.useState<ClipItem | null>(null);
+	const [isCommentSheetVisible, setIsCommentSheetVisible] = React.useState(false);
+	const [isShareSheetVisible, setIsShareSheetVisible] = React.useState(false);
 	const listRef = React.useRef<FlatList<ClipItem>>(null);
 	const targetClipId =
 		typeof params.clipId === "string" ? params.clipId : params.clipId?.[0];
 	const canPlayClips = isFocused && appState === "active";
+	const preloadRadius = getVideoPreloadRadius(dataSaverEnabled);
+	const selectedCommentService = React.useMemo(() => {
+		if (!selectedClip || selectedClip.sourcePostId) {
+			return undefined;
+		}
+
+		return {
+			getComments: ClipService.getComments.bind(ClipService),
+			addComment: ClipService.commentOnClip.bind(ClipService),
+		};
+	}, [selectedClip]);
 
 	const styles = React.useMemo(
 		() =>
@@ -500,17 +507,30 @@ export default function ClipsScreen() {
 
 	const renderClip = React.useCallback(
 		({ index, item }: { index: number; item: ClipItem }) => {
+			const distanceFromActive = Math.abs(index - activeIndex);
+			const shouldRenderVideo = distanceFromActive <= preloadRadius;
+			const shouldPlay =
+				index === activeIndex && canPlayClips;
+
 			return (
 				<ClipFeedCard
 					clipHeight={clipHeight}
 					colors={colors}
 					item={item}
-					isCurrent={index === activeIndex}
 					metrics={metrics}
 					onBump={bumpClip}
+					onOpenComments={(clip) => {
+						setSelectedClip(clip);
+						setIsCommentSheetVisible(true);
+					}}
+					onOpenShare={(clip) => {
+						setSelectedClip(clip);
+						setIsShareSheetVisible(true);
+					}}
 					onToggleLike={toggleLike}
 					router={router}
-					screenActive={canPlayClips}
+					shouldPlay={shouldPlay}
+					shouldRenderVideo={shouldRenderVideo}
 					typography={typography}
 					width={width}
 				/>
@@ -523,6 +543,7 @@ export default function ClipsScreen() {
 			clipHeight,
 			colors,
 			metrics,
+			preloadRadius,
 			router,
 			toggleLike,
 			typography,
@@ -579,6 +600,28 @@ export default function ClipsScreen() {
 						windowSize={3}
 					/>
 				)}
+				<CommentSheet
+					commentService={selectedCommentService}
+					postId={selectedClip?.sourcePostId ?? selectedClip?.id ?? null}
+					visible={isCommentSheetVisible}
+					onClose={() => setIsCommentSheetVisible(false)}
+					onCommentAdded={(newCount) => {
+						if (selectedClip) {
+							updateCommentCount(selectedClip.id, newCount);
+						}
+					}}
+				/>
+				<ShareSheet
+					onClose={() => setIsShareSheetVisible(false)}
+					onShared={() => {
+						if (selectedClip) {
+							incrementShareCount(selectedClip.id);
+						}
+					}}
+					postId={selectedClip?.sourcePostId ?? selectedClip?.id ?? null}
+					resourceType={selectedClip?.sourcePostId ? "post" : "clip"}
+					visible={isShareSheetVisible}
+				/>
 			</SafeAreaView>
 		</Animated.View>
 	);
