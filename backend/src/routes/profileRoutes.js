@@ -5,6 +5,7 @@ const requireAuth = require("../middlewares/requireAuth");
 const router = express.Router();
 
 router.get("/me", requireAuth, profileController.getMyProfile);
+router.get("/search", requireAuth, profileController.searchRiders);
 router.get("/riders/:riderId", requireAuth, profileController.getRiderProfile);
 router.patch("/me", requireAuth, profileController.updateMyProfile);
 router.get("/garage", requireAuth, profileController.getGarageBikes);

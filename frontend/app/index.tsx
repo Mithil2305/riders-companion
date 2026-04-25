@@ -25,6 +25,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../src/hooks/useTheme";
+import { useAuth } from "../src/contexts/AuthContext";
 import { withAlpha } from "../src/utils/color";
 
 function StaggeredItem({
@@ -47,6 +48,7 @@ export default function OnboardingScreen() {
   });
 
   const { colors, metrics, typography } = useTheme();
+  const { isAuthenticated, isRestoring } = useAuth();
   const router = useRouter();
   const buttonScale = useSharedValue(1);
   const logoScale = useSharedValue(0.76);
@@ -115,6 +117,13 @@ export default function OnboardingScreen() {
       cancelAnimation(ctaLaunchScale);
     };
   }, [ctaLaunchScale, ctaLaunchY, ctaPulse, glowPulse, logoLift, logoScale, logoTilt]);
+
+  // Skip onboarding if user is already authenticated
+  React.useEffect(() => {
+    if (!isRestoring && isAuthenticated) {
+      router.replace("/(tabs)");
+    }
+  }, [isRestoring, isAuthenticated, router]);
 
   const logoBoomStyle = useAnimatedStyle(() => ({
     transform: [

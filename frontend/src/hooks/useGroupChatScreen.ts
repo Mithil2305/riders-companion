@@ -178,6 +178,11 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 	);
 	const [roomTitle, setRoomTitle] = React.useState(`Ride Room ${roomId}`);
 	const [roomSubtitle, setRoomSubtitle] = React.useState("0 online • 0 riders");
+	const [rideSourceLabel, setRideSourceLabel] =
+		React.useState("Current location");
+	const [rideDestinationLabel, setRideDestinationLabel] =
+		React.useState("Destination");
+	const [rideStatus, setRideStatus] = React.useState<string>("PENDING");
 	const [rideMembers, setRideMembers] = React.useState<GroupRideMember[]>([]);
 	const [organizerProfile, setOrganizerProfile] =
 		React.useState<GroupRideMember | null>(null);
@@ -205,6 +210,8 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		setLocationsLastUpdatedAt(null);
 		setRideMembers([]);
 		setOrganizerProfile(null);
+		setRideSourceLabel("Current location");
+		setRideDestinationLabel("Destination");
 
 		ChatService.getRoomMessages(roomId)
 			.then((response) => {
@@ -272,6 +279,19 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 					setRoomTitle(response.ride.communityName);
 				}
 
+				setRideSourceLabel(
+					typeof response.ride?.details?.source === "string" &&
+						response.ride.details.source.trim().length > 0
+						? response.ride.details.source
+						: "Current location",
+				);
+				setRideDestinationLabel(
+					typeof response.ride?.details?.destination === "string" &&
+						response.ride.details.destination.trim().length > 0
+						? response.ride.details.destination
+						: "Destination",
+				);
+
 				const members = Array.isArray(response.ride?.riderProfiles)
 					? response.ride.riderProfiles.map((member) => ({
 							id: member.id,
@@ -299,6 +319,7 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 				}
 
 				const status = String(response.ride?.status || "").toUpperCase();
+				setRideStatus(status);
 				if (status === "COMPLETED") {
 					setIsRideEnded(true);
 					setLocationEnabled(false);
@@ -732,6 +753,9 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		locationsRefreshMinutes,
 		roomTitle,
 		roomSubtitle,
+		rideSourceLabel,
+		rideDestinationLabel,
+		rideStatus,
 		onlineRiders,
 		totalRiders,
 		rideMembers,

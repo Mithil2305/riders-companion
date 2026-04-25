@@ -7,7 +7,7 @@ Timeline: 22 Days (20 Days Development + 2 Days Testing)
 Team Size: 3 Developers (Frontend, Backend, API/QA)
 
 1. Project Overview
-   This platform is a dual-purpose rider ecosystem combining a social network (feeds, reels,
+   This platform is a dual-purpose rider ecosystem combining a social network (feeds, clips,
    profiles) with a real-time safety & ride coordination tool (live maps, WebSockets, geofenced
    alerts, and secure chat).
 
@@ -62,7 +62,7 @@ Total Estimated Screens: 14
 
 | 3 | Profile & Garage Setup | Avatar upload, Bio, "Add Bike" form (Brand, Model, Year, Photo). |
 
-| 4 | Home Feed | Scrollable list of Posts, horizontal scrolling Reels/Stories, Like/Comment/Share
+| 4 | Home Feed | Scrollable list of Posts, horizontal scrolling Clips/Stories, Like/Comment/Share
 buttons. |
 
 | 5 | Explore | Search bar, user list, suggested rooms, trending music/clips. |
@@ -216,7 +216,7 @@ CASCADE
 rider_id UUID FK ->
 rider_account.id
 created_at TIMESTAMPTZ Default: NOW()
-clip (Reels)
+clip (Clips)
 
 Column Type Constraints Description
 id UUID PK, Default:

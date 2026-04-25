@@ -1,5 +1,4 @@
 import { Platform } from "react-native";
-import Constants from "expo-constants";
 import {
 	createUserWithEmailAndPassword,
 	deleteUser,
@@ -15,66 +14,9 @@ import {
 	firebaseEnvError,
 	isFirebaseConfigured,
 } from "../config/firebase";
+import { getApiBaseCandidates, getApiUrl } from "./api";
 
 const REQUEST_TIMEOUT_MS = 30000;
-
-const isLocalOrPrivateHost = (host: string) => {
-	if (host === "localhost" || host === "127.0.0.1") {
-		return true;
-	}
-
-	return (
-		/^10\./.test(host) ||
-		/^192\.168\./.test(host) ||
-		/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
-	);
-};
-
-const normalizeApiBase = (value: string) => {
-	const trimmed = value.trim().replace(/\/+$/, "");
-	return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
-};
-
-const fromExpoHost = () => {
-	const hostUri =
-		Constants.expoConfig?.hostUri ??
-		Constants.manifest2?.extra?.expoGo?.hostUri;
-
-	if (hostUri == null || hostUri.length === 0) {
-		return null;
-	}
-
-	const host = hostUri.split(":")[0];
-	if (host.length === 0) {
-		return null;
-	}
-
-	if (!isLocalOrPrivateHost(host)) {
-		return null;
-	}
-
-	return `http://${host}:3000/api`;
-};
-
-const resolveApiUrl = () => {
-	const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
-	if (envApiUrl != null && envApiUrl.trim().length > 0) {
-		return normalizeApiBase(envApiUrl);
-	}
-
-	const expoHostUrl = fromExpoHost();
-	if (expoHostUrl != null) {
-		return expoHostUrl;
-	}
-
-	return Platform.select({
-		ios: "http://localhost:3000/api",
-		android: "http://10.0.2.2:3000/api",
-		default: "http://localhost:3000/api",
-	});
-};
-
-const API_URL = resolveApiUrl();
 
 type AuthUser = {
 	id: string;
@@ -118,7 +60,10 @@ class AuthService {
 		path: "/auth/login" | "/auth/signup",
 		payload: object,
 	): Promise<AuthPayload> {
-		const execute = async (allowRetry: boolean): Promise<AuthPayload> => {
+		const execute = async (
+			allowRetry: boolean,
+			baseUrl: string,
+		): Promise<AuthPayload> => {
 			const controller = new AbortController();
 			const timeoutId = setTimeout(
 				() => controller.abort(),
@@ -126,7 +71,7 @@ class AuthService {
 			);
 
 			try {
-				const response = await fetch(`${API_URL}${path}`, {
+				const response = await fetch(`${baseUrl}${path}`, {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
@@ -145,18 +90,14 @@ class AuthService {
 			} catch (error) {
 				if (error instanceof Error && error.name === "AbortError") {
 					if (allowRetry) {
-						return execute(false);
+						return execute(false, baseUrl);
 					}
 
-					throw new Error(
-						`Request timed out while contacting backend (${API_URL}). Ensure backend is running and EXPO_PUBLIC_API_URL points to your machine IP for physical devices.`,
-					);
+					throw error;
 				}
 
 				if (error instanceof TypeError) {
-					throw new Error(
-						`Cannot reach backend at ${API_URL}. Set EXPO_PUBLIC_API_URL to your backend URL (example: http://192.168.1.20:3000) and make sure backend server is running.`,
-					);
+					throw error;
 				}
 
 				throw error;
@@ -165,7 +106,36 @@ class AuthService {
 			}
 		};
 
-		return execute(true);
+		const candidates = getApiBaseCandidates();
+		let timeoutDetected = false;
+
+		for (const candidate of candidates) {
+			try {
+				return await execute(true, candidate);
+			} catch (error) {
+				if (error instanceof Error && error.name === "AbortError") {
+					timeoutDetected = true;
+					continue;
+				}
+
+				if (error instanceof TypeError) {
+					continue;
+				}
+
+				throw error;
+			}
+		}
+
+		const tried = candidates.join(", ");
+		if (timeoutDetected) {
+			throw new Error(
+				`Request timed out while contacting backend. Tried: ${tried}. Current active API: ${getApiUrl()}.`,
+			);
+		}
+
+		throw new Error(
+			`Cannot reach backend for auth. Tried: ${tried}. Update EXPO_PUBLIC_API_URL or ensure backend is reachable on your current LAN IP.`,
+		);
 	}
 
 	async login(email: string, password: string) {
@@ -271,6 +241,10 @@ class AuthService {
 			console.error("Signup error:", error);
 			throw error;
 		}
+	}
+
+	async restoreSession(idToken: string) {
+		return await this.postAuth("/auth/login", { idToken });
 	}
 
 	async logout() {

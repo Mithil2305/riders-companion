@@ -836,114 +836,112 @@ export default function RideDetailsScreen() {
 								</Text>
 							</View>
 						</>
-					) : (
-						<View style={styles.card}>
-							<Text style={styles.sectionTitle}>Solo ride setup</Text>
-							<Text style={styles.helperText}>
-								Ride mode: Alone. Trip will start at your selected time.
-							</Text>
-						</View>
-					)}
+					) : null}
 
-					<View style={styles.card}>
-						<Text style={styles.sectionTitle}>Ride preferences</Text>
-						<View style={styles.twoColumnRow}>
-							<View style={styles.column}>
-								<Text style={styles.columnTitle}>Ride pace</Text>
-								<View style={styles.optionWrap}>
-									{(["calm", "balanced", "fast"] as RidePace[]).map((value) =>
-										renderOptionChip(
-											`pace-${value}`,
-											titleCase(value),
-											ridePace === value,
-											() => setRidePace(value),
-										),
-									)}
+					{selectedType === "group" ? (
+						<>
+							<View style={styles.card}>
+								<Text style={styles.sectionTitle}>Ride preferences</Text>
+								<View style={styles.twoColumnRow}>
+									<View style={styles.column}>
+										<Text style={styles.columnTitle}>Ride pace</Text>
+										<View style={styles.optionWrap}>
+											{(["calm", "balanced", "fast"] as RidePace[]).map((value) =>
+												renderOptionChip(
+													`pace-${value}`,
+													titleCase(value),
+													ridePace === value,
+													() => setRidePace(value),
+												),
+											)}
+										</View>
+									</View>
+									<View style={styles.column}>
+										<Text style={styles.columnTitle}>Road preference</Text>
+										<View style={styles.optionWrap}>
+											{(["scenic", "highway", "mixed"] as RoadPreference[]).map(
+												(value) =>
+													renderOptionChip(
+														`road-${value}`,
+														titleCase(value),
+														roadPreference === value,
+														() => setRoadPreference(value),
+													),
+											)}
+										</View>
+									</View>
 								</View>
 							</View>
-							<View style={styles.column}>
-								<Text style={styles.columnTitle}>Road preference</Text>
-								<View style={styles.optionWrap}>
-									{(["scenic", "highway", "mixed"] as RoadPreference[]).map(
-										(value) =>
-											renderOptionChip(
-												`road-${value}`,
-												titleCase(value),
-												roadPreference === value,
-												() => setRoadPreference(value),
-											),
-									)}
+
+							<View style={styles.card}>
+								<Text style={styles.sectionTitle}>Logistics</Text>
+								<View style={styles.switchRow}>
+									<Text style={styles.switchLabel}>Food included</Text>
+									<Switch onValueChange={setIncludesFood} value={includesFood} />
 								</View>
+								<View style={styles.switchRow}>
+									<Text style={styles.switchLabel}>Fuel included</Text>
+									<Switch onValueChange={setIncludesFuel} value={includesFuel} />
+								</View>
+								<View style={styles.switchRow}>
+									<Text style={styles.switchLabel}>Bike provided</Text>
+									<Switch onValueChange={setBikeProvided} value={bikeProvided} />
+								</View>
+								<View style={styles.switchRowLast}>
+									<Text style={styles.switchLabel}>Stay arranged</Text>
+									<Switch onValueChange={setStayArranged} value={stayArranged} />
+								</View>
+								{stayArranged ? (
+									<TextInput
+										multiline
+										onChangeText={setStayDetails}
+										placeholder="Stay details (hotel, check-in, room sharing, etc.)"
+										placeholderTextColor={palette.textSecondary}
+										style={[styles.input, styles.textArea]}
+										value={stayDetails}
+									/>
+								) : null}
 							</View>
-						</View>
-					</View>
 
-					<View style={styles.card}>
-						<Text style={styles.sectionTitle}>Logistics</Text>
-						<View style={styles.switchRow}>
-							<Text style={styles.switchLabel}>Food included</Text>
-							<Switch onValueChange={setIncludesFood} value={includesFood} />
-						</View>
-						<View style={styles.switchRow}>
-							<Text style={styles.switchLabel}>Fuel included</Text>
-							<Switch onValueChange={setIncludesFuel} value={includesFuel} />
-						</View>
-						<View style={styles.switchRow}>
-							<Text style={styles.switchLabel}>Bike provided</Text>
-							<Switch onValueChange={setBikeProvided} value={bikeProvided} />
-						</View>
-						<View style={styles.switchRowLast}>
-							<Text style={styles.switchLabel}>Stay arranged</Text>
-							<Switch onValueChange={setStayArranged} value={stayArranged} />
-						</View>
-						{stayArranged ? (
-							<TextInput
-								multiline
-								onChangeText={setStayDetails}
-								placeholder="Stay details (hotel, check-in, room sharing, etc.)"
-								placeholderTextColor={palette.textSecondary}
-								style={[styles.input, styles.textArea]}
-								value={stayDetails}
-							/>
-						) : null}
-					</View>
+							<View style={styles.card}>
+								<Text style={styles.sectionTitle}>Safety and communication</Text>
+								<TextInput
+									onChangeText={setEmergencyContactName}
+									placeholder="Emergency contact name"
+									placeholderTextColor={palette.textSecondary}
+									style={styles.input}
+									value={emergencyContactName}
+								/>
+								<TextInput
+									keyboardType="phone-pad"
+									onChangeText={setEmergencyContactPhone}
+									placeholder="Emergency contact phone"
+									placeholderTextColor={palette.textSecondary}
+									style={styles.input}
+									value={emergencyContactPhone}
+								/>
+								<TextInput
+									multiline
+									onChangeText={setMeetupNotes}
+									placeholder="Meetup notes (helmet checks, exact landmark, fuel stop before departure)"
+									placeholderTextColor={palette.textSecondary}
+									style={[styles.input, styles.textArea]}
+									value={meetupNotes}
+								/>
+								<TextInput
+									multiline
+									onChangeText={setRideNotes}
+									placeholder="Extra ride notes (weather backup route, regroup points, leader instructions)"
+									placeholderTextColor={palette.textSecondary}
+									style={[styles.input, styles.textArea]}
+									value={rideNotes}
+								/>
+							</View>
+						</>
+					) : null}
 
-					<View style={styles.card}>
-						<Text style={styles.sectionTitle}>Safety and communication</Text>
-						<TextInput
-							onChangeText={setEmergencyContactName}
-							placeholder="Emergency contact name"
-							placeholderTextColor={palette.textSecondary}
-							style={styles.input}
-							value={emergencyContactName}
-						/>
-						<TextInput
-							keyboardType="phone-pad"
-							onChangeText={setEmergencyContactPhone}
-							placeholder="Emergency contact phone"
-							placeholderTextColor={palette.textSecondary}
-							style={styles.input}
-							value={emergencyContactPhone}
-						/>
-						<TextInput
-							multiline
-							onChangeText={setMeetupNotes}
-							placeholder="Meetup notes (helmet checks, exact landmark, fuel stop before departure)"
-							placeholderTextColor={palette.textSecondary}
-							style={[styles.input, styles.textArea]}
-							value={meetupNotes}
-						/>
-						<TextInput
-							multiline
-							onChangeText={setRideNotes}
-							placeholder="Extra ride notes (weather backup route, regroup points, leader instructions)"
-							placeholderTextColor={palette.textSecondary}
-							style={[styles.input, styles.textArea]}
-							value={rideNotes}
-						/>
-					</View>
-
-					{privacy === "friends" || privacy === "mixed" ? (
+					{selectedType === "group" &&
+					(privacy === "friends" || privacy === "mixed") ? (
 						<View style={styles.card}>
 							<Text style={styles.sectionTitle}>Invite friends</Text>
 							<Text style={styles.helperText}>

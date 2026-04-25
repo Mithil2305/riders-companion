@@ -22,6 +22,12 @@ const Tracker = sequelize.define(
 		tableName: "tracker",
 		underscored: true,
 		timestamps: true,
+		indexes: [
+			{
+				unique: true,
+				fields: ["follower_id", "following_id"],
+			},
+		],
 	},
 );
 

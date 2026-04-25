@@ -15,8 +15,10 @@ interface UseExploreDataResult {
 	gridSections: ExploreGridSection[];
 	hasMoreClips: boolean;
 	isLoadingMore: boolean;
+	refreshing: boolean;
 	isSearching: boolean;
 	loadMoreClips: () => void;
+	onRefresh: () => Promise<void>;
 	setQuery: (value: string) => void;
 }
 
@@ -29,48 +31,60 @@ export function useExploreData(): UseExploreDataResult {
 	const [visibleSections, setVisibleSections] =
 		React.useState(INITIAL_SECTIONS);
 	const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+	const [refreshing, setRefreshing] = React.useState(false);
 	const [isSearching, setIsSearching] = React.useState(false);
 	const [clipPool, setClipPool] = React.useState<TrendingClip[]>([]);
+	const mountedRef = React.useRef(true);
 
 	const normalizedQuery = query.trim().toLowerCase();
 
-	React.useEffect(() => {
-		let mounted = true;
-
-		const load = async () => {
-			try {
-				const data = await ClipService.getClips();
-				if (!mounted) {
-					return;
-				}
-
-				setClipPool(
-					data.clips.map((clip) => ({
-						id: clip.id,
-						title: clip.songId ?? "Ride Clip",
-						creatorName: clip.rider?.name ?? "Rider",
-						creatorUsername: clip.rider?.username ?? "rider",
-						thumbnail: clip.videoUrl,
-						likes: Number(clip.likesCount ?? 0),
-						comments: Number(clip.commentsCount ?? 0),
-						shares: Number(clip.sharesCount ?? 0),
-						createdAt: clip.createdAt,
-						likedByMe: Boolean(clip.likedByMe),
-					})),
-				);
-			} catch {
-				if (mounted) {
-					setClipPool([]);
-				}
+	const loadClips = React.useCallback(async () => {
+		try {
+			const data = await ClipService.getClips();
+			if (!mountedRef.current) {
+				return;
 			}
-		};
 
-		void load();
+			setClipPool(
+				data.clips.map((clip) => ({
+					id: clip.id,
+					title: clip.songId ?? "Ride Clip",
+					creatorName: clip.rider?.name ?? "Rider",
+					creatorUsername: clip.rider?.username ?? "rider",
+					thumbnail: clip.videoUrl,
+					likes: Number(clip.likesCount ?? 0),
+					comments: Number(clip.commentsCount ?? 0),
+					shares: Number(clip.sharesCount ?? 0),
+					createdAt: clip.createdAt,
+					likedByMe: Boolean(clip.likedByMe),
+				})),
+			);
+		} catch {
+			if (mountedRef.current) {
+				setClipPool([]);
+			}
+		}
+	}, []);
+
+	React.useEffect(() => {
+		mountedRef.current = true;
+		void loadClips();
 
 		return () => {
-			mounted = false;
+			mountedRef.current = false;
 		};
-	}, []);
+	}, [loadClips]);
+
+	const onRefresh = React.useCallback(async () => {
+		setRefreshing(true);
+		try {
+			await loadClips();
+		} finally {
+			if (mountedRef.current) {
+				setRefreshing(false);
+			}
+		}
+	}, [loadClips]);
 
 	const users = React.useMemo(() => {
 		const map = new Map<string, SuggestedUser>();
@@ -208,8 +222,10 @@ export function useExploreData(): UseExploreDataResult {
 		gridSections,
 		hasMoreClips,
 		isLoadingMore,
+		refreshing,
 		isSearching,
 		loadMoreClips,
+		onRefresh,
 		setQuery,
 	};
 }

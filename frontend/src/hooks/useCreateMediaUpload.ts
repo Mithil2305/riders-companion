@@ -1,12 +1,10 @@
 import React from "react";
-import { Alert, Platform } from "react-native";
-import Constants from "expo-constants";
-import * as MediaLibrary from "expo-media-library";
+import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
-import ClipService from "../services/ClipService";
-import FeedService from "../services/FeedService";
-import StoryService from "../services/StoryService";
+import * as MediaLibrary from "expo-media-library";
+import UploadService, {
+	getClipSelectionError,
+} from "../services/UploadService";
 import {
 	ComposerStep,
 	GalleryAlbum,
@@ -16,33 +14,6 @@ import {
 
 const PAGE_SIZE = 60;
 const RECENT_ALBUM_ID = "__recent__";
-const MAX_VIDEO_UPLOAD_BYTES = 24 * 1024 * 1024;
-const IMAGE_COMPRESSION = 0.8;
-const IS_EXPO_GO_ANDROID =
-	Platform.OS === "android" && Constants.appOwnership === "expo";
-
-const extractHashtags = (text: string) => {
-	const matches = text.match(/#[A-Za-z0-9_]+/g) ?? [];
-	return matches.map((entry) => entry.toLowerCase());
-};
-
-const readBlobAsDataUrl = async (blob: Blob) => {
-	return new Promise<string>((resolve, reject) => {
-		const reader = new FileReader();
-		reader.onerror = () => reject(new Error("Failed to convert media."));
-		reader.onloadend = () => {
-			if (typeof reader.result === "string") {
-				resolve(reader.result);
-				return;
-			}
-
-			reject(new Error("Failed to read selected media."));
-		};
-
-		reader.readAsDataURL(blob);
-	});
-};
-
 const toGalleryAsset = (asset: MediaLibrary.Asset): GalleryMediaAsset => ({
 	id: asset.id,
 	uri: asset.uri,
@@ -52,6 +23,30 @@ const toGalleryAsset = (asset: MediaLibrary.Asset): GalleryMediaAsset => ({
 	duration:
 		typeof asset.duration === "number" && Number.isFinite(asset.duration)
 			? asset.duration
+			: undefined,
+	fileSize:
+		typeof (asset as unknown as { fileSize?: number }).fileSize === "number"
+			? (asset as unknown as { fileSize: number }).fileSize
+			: undefined,
+});
+
+const toPickerAsset = (
+	asset: ImagePicker.ImagePickerAsset,
+): GalleryMediaAsset => ({
+	id:
+		(typeof asset.assetId === "string" && asset.assetId.length > 0
+			? asset.assetId
+			: asset.uri) ?? `${Date.now()}`,
+	uri: asset.uri,
+	mediaType: asset.type === "video" ? "video" : "photo",
+	filename: asset.fileName ?? undefined,
+	duration:
+		typeof asset.duration === "number" && Number.isFinite(asset.duration)
+			? asset.duration
+			: undefined,
+	fileSize:
+		typeof asset.fileSize === "number" && Number.isFinite(asset.fileSize)
+			? asset.fileSize
 			: undefined,
 });
 
@@ -73,40 +68,28 @@ export function useCreateMediaUpload() {
 	const [hasMoreAssets, setHasMoreAssets] = React.useState(false);
 	const [isLoadingAssets, setIsLoadingAssets] = React.useState(false);
 	const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+	const [isOpeningSystemPicker, setIsOpeningSystemPicker] =
+		React.useState(false);
 	const [isUploading, setIsUploading] = React.useState(false);
 
 	const selectedAsset = React.useMemo(
 		() => assets.find((item) => item.id === selectedAssetId) ?? null,
 		[assets, selectedAssetId],
 	);
-	const isReelSelectionInvalid =
-		uploadType === "reel" && selectedAsset?.mediaType !== "video";
+	const clipSelectionError =
+		uploadType === "clip" ? getClipSelectionError(selectedAsset) : null;
+	const isClipSelectionInvalid = clipSelectionError != null;
+
+	React.useEffect(() => {
+		if (uploadType === "post" && selectedAsset?.mediaType === "video") {
+			setUploadType("clip");
+		}
+	}, [selectedAsset?.mediaType, uploadType]);
 
 	const requestPermission = React.useCallback(async () => {
-		try {
-			if (IS_EXPO_GO_ANDROID) {
-				const permission =
-					await ImagePicker.requestMediaLibraryPermissionsAsync();
-				setPermissionGranted(permission.granted);
-				return permission.granted;
-			}
-
-			const permission = await MediaLibrary.requestPermissionsAsync(false, [
-				"photo",
-				"video",
-			]);
-			setPermissionGranted(permission.granted);
-			return permission.granted;
-		} catch (error) {
-			setPermissionGranted(false);
-			Alert.alert(
-				"Gallery access unavailable",
-				error instanceof Error
-					? error.message
-					: "Gallery permission could not be requested.",
-			);
-			return false;
-		}
+		const permission = await MediaLibrary.requestPermissionsAsync();
+		setPermissionGranted(permission.granted);
+		return permission.granted;
 	}, []);
 
 	const loadAlbums = React.useCallback(async () => {
@@ -235,6 +218,48 @@ export function useCreateMediaUpload() {
 		await loadAssets({ reset: false, afterCursor: cursor });
 	}, [cursor, hasMoreAssets, isLoadingAssets, isLoadingMore, loadAssets]);
 
+	const openSystemPicker = React.useCallback(async () => {
+		const granted = permissionGranted ?? (await requestPermission());
+		if (!granted) {
+			return;
+		}
+
+		setIsOpeningSystemPicker(true);
+		try {
+			const result = await ImagePicker.launchImageLibraryAsync({
+				mediaTypes:
+					uploadType === "clip"
+						? ImagePicker.MediaTypeOptions.Videos
+						: ImagePicker.MediaTypeOptions.All,
+				allowsEditing: false,
+				quality: 1,
+				selectionLimit: 1,
+			});
+
+			if (result.canceled || result.assets.length === 0) {
+				return;
+			}
+
+			const pickedAsset = toPickerAsset(result.assets[0]);
+
+			setAssets((prev) => {
+				const withoutSelected = prev.filter((entry) => entry.id !== pickedAsset.id);
+				return [pickedAsset, ...withoutSelected];
+			});
+			setSelectedAssetId(pickedAsset.id);
+			setSelectedAlbumId(RECENT_ALBUM_ID);
+		} catch (error) {
+			Alert.alert(
+				"Gallery unavailable",
+				error instanceof Error
+					? error.message
+					: "Failed to open your gallery app.",
+			);
+		} finally {
+			setIsOpeningSystemPicker(false);
+		}
+	}, [permissionGranted, requestPermission, uploadType]);
+
 	const selectAlbum = React.useCallback(
 		async (albumId: string) => {
 			if (albumId === selectedAlbumId) {
@@ -252,11 +277,11 @@ export function useCreateMediaUpload() {
 		(nextType: UploadType) => {
 			setUploadType(nextType);
 
-			if (nextType !== "reel") {
+			if (nextType !== "clip") {
 				return;
 			}
 
-			if (selectedAsset?.mediaType === "video") {
+			if (getClipSelectionError(selectedAsset) == null) {
 				return;
 			}
 
@@ -264,18 +289,18 @@ export function useCreateMediaUpload() {
 			if (firstVideo) {
 				setSelectedAssetId(firstVideo.id);
 				Alert.alert(
-					"Reel requires a video",
-					"Switched to your nearest video in gallery. You can choose another video.",
+					"Clip requires a video",
+					"Switched to a video. You can choose another one up to 500MB.",
 				);
 				return;
 			}
 
 			Alert.alert(
-				"No videos found",
-				"Reels can only be uploaded as videos. Select an album with videos.",
+				"No supported videos found",
+				"Select an album with videos up to 500MB.",
 			);
 		},
-		[assets, selectedAsset?.mediaType],
+		[assets, selectedAsset],
 	);
 
 	const goNext = React.useCallback(() => {
@@ -284,13 +309,13 @@ export function useCreateMediaUpload() {
 			return;
 		}
 
-		if (uploadType === "reel" && selectedAsset.mediaType !== "video") {
-			Alert.alert("Reel requires video", "Please select a video for Reels.");
+		if (uploadType === "clip" && clipSelectionError) {
+			Alert.alert("Clip not supported", clipSelectionError);
 			return;
 		}
 
 		setStep("details");
-	}, [selectedAsset, uploadType]);
+	}, [clipSelectionError, selectedAsset, uploadType]);
 
 	const goBack = React.useCallback(() => {
 		if (step === "details") {
@@ -303,69 +328,21 @@ export function useCreateMediaUpload() {
 			throw new Error("Select media to upload.");
 		}
 
-		if (uploadType === "reel" && selectedAsset.mediaType !== "video") {
-			throw new Error("Reels can only be uploaded as videos.");
+		if (uploadType === "clip" && clipSelectionError) {
+			throw new Error(clipSelectionError);
 		}
 
 		setIsUploading(true);
 		try {
-			const response = await fetch(selectedAsset.uri);
-			let blob = await response.blob();
-
-			if (selectedAsset.mediaType === "photo") {
-				const manipulated = await manipulateAsync(selectedAsset.uri, [], {
-					compress: IMAGE_COMPRESSION,
-					format: SaveFormat.JPEG,
-				});
-				const compressedResponse = await fetch(manipulated.uri);
-				blob = await compressedResponse.blob();
-			}
-
-			if (
-				selectedAsset.mediaType === "video" &&
-				blob.size > MAX_VIDEO_UPLOAD_BYTES
-			) {
-				throw new Error(
-					"Selected video is too large to upload from Expo Go. Choose a shorter video (under ~24MB) or compress it first.",
-				);
-			}
-
-			const mediaData = await readBlobAsDataUrl(blob);
-			const mediaMimeType =
-				blob.type && blob.type.length > 0
-					? blob.type
-					: selectedAsset.mediaType === "video"
-						? "video/mp4"
-						: "image/jpeg";
-			const hashtags = extractHashtags(description);
-
-			if (uploadType === "post") {
-				await FeedService.createPost({
-					caption: description.trim(),
-					mediaData,
-					mediaMimeType,
-					hashtags,
-				});
-			} else if (uploadType === "reel") {
-				await ClipService.createClip({
-					caption: description.trim(),
-					mediaData,
-					videoData: mediaData,
-					mediaMimeType,
-					hashtags,
-				});
-			} else {
-				await StoryService.createStory({
-					caption: description.trim(),
-					mediaData,
-					mediaMimeType,
-					hashtags,
-				});
-			}
+			await UploadService.uploadWithProgress({
+				description,
+				selectedAsset,
+				uploadType,
+			});
 		} finally {
 			setIsUploading(false);
 		}
-	}, [description, selectedAsset, uploadType]);
+	}, [clipSelectionError, description, selectedAsset, uploadType]);
 
 	return {
 		step,
@@ -376,10 +353,12 @@ export function useCreateMediaUpload() {
 		selectedAlbumId,
 		assets,
 		selectedAsset,
-		isReelSelectionInvalid,
+		isClipSelectionInvalid,
+		clipSelectionError,
 		isLoadingAssets,
 		isLoadingMore,
 		hasMoreAssets,
+		isOpeningSystemPicker,
 		isUploading,
 		setDescription,
 		changeUploadType,
@@ -389,6 +368,7 @@ export function useCreateMediaUpload() {
 		goBack,
 		refreshAssets,
 		loadMoreAssets,
+		openSystemPicker,
 		upload,
 	};
 }

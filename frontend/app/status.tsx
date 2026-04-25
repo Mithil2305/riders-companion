@@ -1,32 +1,39 @@
 import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import {
-  CollapsibleSection,
-  Divider,
-  MyStatusCard,
-  StatusHeader,
-  StatusItem,
-  StatusSection,
-} from '../src/components/status';
-import { useStatusData } from '../src/hooks/useStatusData';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  Easing,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useTheme } from '../src/hooks/useTheme';
-import { StatusEntry } from '../src/types/status';
 
 export default function StatusScreen() {
   const router = useRouter();
-  const { colors, metrics } = useTheme();
-  const {
-    myStatus,
-    recentUpdates,
-    viewedUpdates,
-    mutedUpdates,
-    isViewedCollapsed,
-    isMutedCollapsed,
-    toggleViewed,
-    toggleMuted,
-  } = useStatusData();
+  const { colors, metrics, typography } = useTheme();
+
+  const pulse = useSharedValue(1);
+
+  React.useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.08, { duration: 1200, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.quad) }),
+      ),
+      -1,
+      true,
+    );
+  }, [pulse]);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+  }));
 
   const styles = React.useMemo(
     () =>
@@ -35,102 +42,114 @@ export default function StatusScreen() {
           flex: 1,
           backgroundColor: colors.background,
         },
-        list: {
+        header: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: metrics.md,
+          paddingVertical: metrics.sm,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.borderDark,
+        },
+        backTap: {
+          marginRight: metrics.sm,
+          padding: metrics.xs,
+        },
+        headerTitle: {
+          color: colors.textPrimary,
+          fontSize: typography.sizes.lg,
+          fontWeight: '700',
+        },
+        body: {
           flex: 1,
-          backgroundColor: colors.background,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: metrics.xl,
+          gap: metrics.lg,
         },
-        listContent: {
-          paddingBottom: metrics['3xl'],
+        iconWrap: {
+          width: 120,
+          height: 120,
+          borderRadius: 60,
+          backgroundColor: colors.surface,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 2,
+          borderColor: colors.primary,
         },
-        rowGroup: {
-        //   paddingHorizontal: metrics.md,
+        title: {
+          color: colors.textPrimary,
+          fontSize: typography.sizes['2xl'],
+          fontWeight: '800',
+          textAlign: 'center',
+          letterSpacing: 0.5,
+        },
+        subtitle: {
+          color: colors.textSecondary,
+          fontSize: typography.sizes.base,
+          textAlign: 'center',
+          lineHeight: 24,
+          maxWidth: 280,
+        },
+        badge: {
+          backgroundColor: colors.primary,
+          paddingHorizontal: metrics.lg,
+          paddingVertical: metrics.sm,
+          borderRadius: metrics.radius.full,
+        },
+        badgeText: {
+          color: colors.textInverse,
+          fontSize: typography.sizes.sm,
+          fontWeight: '700',
+          letterSpacing: 1.2,
+          textTransform: 'uppercase',
         },
       }),
-    [colors, metrics],
-  );
-
-  const openStoryViewer = React.useCallback(
-    (item: StatusEntry) => {
-      router.push({
-        pathname: '/status-viewer',
-        params: {
-          name: item.name,
-          avatar: item.avatar,
-          time: item.time,
-        },
-      });
-    },
-    [router],
+    [colors, metrics, typography],
   );
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <StatusHeader onClose={() => router.back()} />
-
-      <ScrollView contentContainerStyle={styles.listContent} style={styles.list}>
-        <StatusSection title="My Status">
-          <MyStatusCard
-            item={myStatus}
-            onLongPress={() => openStoryViewer(myStatus)}
-            onPress={() => openStoryViewer(myStatus)}
-            onPressAdd={() => openStoryViewer(myStatus)}
+      <View style={styles.header}>
+        <Animated.View entering={FadeInUp.delay(50).duration(250)}>
+          <Ionicons
+            color={colors.textPrimary}
+            name="arrow-back"
+            onPress={() => router.back()}
+            size={metrics.icon.md}
+            style={styles.backTap}
           />
-        </StatusSection>
+        </Animated.View>
+        <Text style={styles.headerTitle}>Stories</Text>
+      </View>
 
-        <Divider />
+      <View style={styles.body}>
+        <Animated.View entering={FadeInUp.delay(100).springify().damping(14)}>
+          <Animated.View style={[styles.iconWrap, iconStyle]}>
+            <Ionicons
+              color={colors.primary}
+              name="sparkles"
+              size={52}
+            />
+          </Animated.View>
+        </Animated.View>
 
-        <StatusSection title="Recent updates">
-          <View style={styles.rowGroup}>
-            {recentUpdates.map((item) => (
-              <StatusItem
-                avatar={item.avatar}
-                key={item.id}
-                name={item.name}
-                onLongPress={() => openStoryViewer(item)}
-                onPress={() => openStoryViewer(item)}
-                ringType={item.ringType}
-                time={item.time}
-              />
-            ))}
+        <Animated.View entering={FadeInUp.delay(200).springify().damping(14)}>
+          <Text style={styles.title}>Coming Soon! 🚀</Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInUp.delay(300).springify().damping(14)}>
+          <Text style={styles.subtitle}>
+            Stories are being crafted with love. Share your ride moments with
+            friends — launching very soon!
+          </Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInUp.delay(400).springify().damping(14)}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>In Development</Text>
           </View>
-        </StatusSection>
-
-        <Divider />
-
-        <CollapsibleSection isCollapsed={isViewedCollapsed} onToggle={toggleViewed} title="Viewed updates">
-          <View style={styles.rowGroup}>
-            {viewedUpdates.map((item) => (
-              <StatusItem
-                avatar={item.avatar}
-                key={item.id}
-                name={item.name}
-                onLongPress={() => openStoryViewer(item)}
-                onPress={() => openStoryViewer(item)}
-                ringType={item.ringType}
-                time={item.time}
-              />
-            ))}
-          </View>
-        </CollapsibleSection>
-
-        <Divider />
-
-        <CollapsibleSection isCollapsed={isMutedCollapsed} onToggle={toggleMuted} title="Muted updates">
-          <View style={styles.rowGroup}>
-            {mutedUpdates.map((item) => (
-              <StatusItem
-                avatar={item.avatar}
-                key={item.id}
-                name={item.name}
-                onLongPress={() => openStoryViewer(item)}
-                onPress={() => openStoryViewer(item)}
-                ringType={item.ringType}
-                time={item.time}
-              />
-            ))}
-          </View>
-        </CollapsibleSection>
-      </ScrollView>
+        </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

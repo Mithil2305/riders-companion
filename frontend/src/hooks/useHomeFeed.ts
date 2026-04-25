@@ -1,6 +1,7 @@
 import React from "react";
 import { FeedPostItem, Story } from "../types/feed";
 import FeedService, { FeedPostPayload } from "../services/FeedService";
+import { useUploadManager } from "../contexts/UploadContext";
 
 interface UseHomeFeedResult {
 	loading: boolean;
@@ -11,6 +12,7 @@ interface UseHomeFeedResult {
 	onRefresh: () => Promise<void>;
 	toggleLike: (postId: string) => void;
 	addComment: (postId: string, commentText?: string) => void;
+	updateCommentCount: (postId: string, count: number) => void;
 }
 
 const formatRelativeTime = (isoDate: string) => {
@@ -41,6 +43,7 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 
 	return {
 		id: post.id,
+		riderId: post.rider?.id,
 		user: post.rider?.username
 			? `@${post.rider.username}`
 			: (post.rider?.name ?? "rider"),
@@ -48,6 +51,7 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 			post.rider?.profileImageUrl ??
 			"https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80",
 		image: post.mediaUrl,
+		mediaType: post.mediaType,
 		caption: post.caption ?? "",
 		likes: Number(post.likesCount ?? 0),
 		comments: Number(post.commentsCount ?? 0),
@@ -57,6 +61,7 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 };
 
 export function useHomeFeed(): UseHomeFeedResult {
+	const { lastCompletedUploadAt } = useUploadManager();
 	const [loading, setLoading] = React.useState(true);
 	const [refreshing, setRefreshing] = React.useState(false);
 	const [posts, setPosts] = React.useState<FeedPostItem[]>([]);
@@ -108,6 +113,14 @@ export function useHomeFeed(): UseHomeFeedResult {
 			mounted = false;
 		};
 	}, [loadFeed]);
+
+	React.useEffect(() => {
+		if (lastCompletedUploadAt <= 0) {
+			return;
+		}
+
+		void loadFeed();
+	}, [lastCompletedUploadAt, loadFeed]);
 
 	const onRefresh = React.useCallback(async () => {
 		setRefreshing(true);
@@ -177,6 +190,14 @@ export function useHomeFeed(): UseHomeFeedResult {
 		[],
 	);
 
+	const updateCommentCount = React.useCallback((postId: string, count: number) => {
+		setPosts((current) =>
+			current.map((post) =>
+				post.id === postId ? { ...post, comments: count } : post,
+			),
+		);
+	}, []);
+
 	return {
 		loading,
 		refreshing,
@@ -186,5 +207,6 @@ export function useHomeFeed(): UseHomeFeedResult {
 		onRefresh,
 		toggleLike,
 		addComment,
+		updateCommentCount,
 	};
 }
