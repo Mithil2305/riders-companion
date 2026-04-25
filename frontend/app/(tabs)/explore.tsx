@@ -1,6 +1,5 @@
 import React from "react"
 import {
-	Alert,
 	FlatList,
 	Modal,
 	Pressable,
@@ -14,8 +13,9 @@ import Animated, { useSharedValue } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { ExploreGrid, SearchBar, SearchSuggestions } from "../../src/components/explore"
 import { ExploreSkeleton } from "../../src/components/explore/ExploreSkeleton"
+import { CommentsSheet } from "../../src/components/comments"
 import { FeedPost } from "../../src/components/feed/FeedPost"
-import ClipService from "../../src/services/ClipService"
+import { ShareSheet } from "../../src/components/share"
 import FeedService from "../../src/services/FeedService"
 import { useExploreData } from "../../src/hooks/useExploreData"
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation"
@@ -34,11 +34,13 @@ export default function ExploreScreen() {
 		clips,
 		clipAspects,
 		isInitialLoading,
+		refreshing,
 		searchResults,
 		isSearchLoading,
 		hasMoreClips,
 		isLoadingMore,
 		loadMoreClips,
+		onRefresh,
 	} = useExploreData()
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("explore")
@@ -47,6 +49,20 @@ export default function ExploreScreen() {
 		null,
 	)
 	const [searchFocused, setSearchFocused] = React.useState(false)
+	const [selectedActionPostId, setSelectedActionPostId] = React.useState<
+		string | null
+	>(null)
+	const [isCommentSheetVisible, setIsCommentSheetVisible] = React.useState(false)
+	const [isShareSheetVisible, setIsShareSheetVisible] = React.useState(false)
+	const [likedPostIds, setLikedPostIds] = React.useState<Record<string, boolean>>(
+		{},
+	)
+	const [likeCountByPostId, setLikeCountByPostId] = React.useState<
+		Record<string, number>
+	>({})
+	const [commentCountByPostId, setCommentCountByPostId] = React.useState<
+		Record<string, number>
+	>({})
 
 	const allPosts = React.useMemo(
 		() => clips.filter((clip) => clip.type === "post"),
@@ -69,7 +85,14 @@ export default function ExploreScreen() {
 	}, [allPosts, selectedIndex])
 
 	const mapExplorePostToFeedPost = React.useCallback(
-		(clip: TrendingClip): FeedPostItem => ({
+		(
+			clip: TrendingClip,
+			overrides?: {
+				likedByMe?: boolean
+				likes?: number
+				comments?: number
+			},
+		): FeedPostItem => ({
 			id: clip.id,
 			user: `@${clip.creatorUsername}`,
 			avatar: clip.thumbnail,
@@ -78,13 +101,28 @@ export default function ExploreScreen() {
 				clip.mediaType ?? (clip.type === "clip" ? "VIDEO" : "IMAGE"),
 			).toUpperCase(),
 			caption: clip.title,
-			likes: clip.likes,
-			comments: clip.comments,
+			likes: overrides?.likes ?? clip.likes,
+			comments: overrides?.comments ?? clip.comments,
 			time: formatTimeAgo(clip.createdAt),
-			likedByMe: clip.likedByMe,
+			likedByMe: overrides?.likedByMe ?? clip.likedByMe,
 		}),
 		[],
 	)
+
+	const normalizePostId = React.useCallback(
+		(postId: string) => postId.replace(/^post-/, ""),
+		[],
+	)
+
+	const openCommentSheet = React.useCallback((postId: string) => {
+		setSelectedActionPostId(postId)
+		setIsCommentSheetVisible(true)
+	}, [])
+
+	const openShareSheet = React.useCallback((postId: string) => {
+		setSelectedActionPostId(postId)
+		setIsShareSheetVisible(true)
+	}, [])
 
 	const openClipDetail = React.useCallback(
 		(clip: TrendingClip) => {
@@ -101,46 +139,50 @@ export default function ExploreScreen() {
 		[router],
 	)
 
-	const handleClipLongPress = React.useCallback(async (clip: TrendingClip) => {
-		const realId = clip.id.replace(/^(post-|clip-)/, "")
-		Alert.alert("Post actions", "Choose an action for this post.", [
-			{
-				text: "Like",
-				onPress: async () => {
-					try {
-						if (clip.likedByMe) {
-							if (clip.type === "post") {
-								await FeedService.unlikePost(realId)
-							} else {
-								await ClipService.unlikeClip(realId)
-							}
-						} else {
-							if (clip.type === "post") {
-								await FeedService.likePost(realId)
-							} else {
-								await ClipService.likeClip(realId)
-							}
-						}
-					} catch {
-						Alert.alert("Action failed", "Unable to update like right now.")
-					}
-				},
-			},
-			{
-				text: "Share to friends",
-				onPress: () => {
-					Alert.alert(
-						"Shared",
-						"This post was shared to your platform friends feed.",
-					)
-				},
-			},
-			{
-				text: "Cancel",
-				style: "cancel",
-			},
-		])
-	}, [])
+	const handleTogglePostLike = React.useCallback(
+		async (postId: string) => {
+			const post = allPosts.find((item) => item.id === postId)
+			if (!post) {
+				return
+			}
+
+			const currentLiked = likedPostIds[postId] ?? Boolean(post.likedByMe)
+			const currentLikeCount = likeCountByPostId[postId] ?? post.likes
+			const nextLiked = !currentLiked
+			const nextLikeCount = Math.max(
+				0,
+				currentLikeCount + (nextLiked ? 1 : -1),
+			)
+
+			setLikedPostIds((prev) => ({
+				...prev,
+				[postId]: nextLiked,
+			}))
+			setLikeCountByPostId((prev) => ({
+				...prev,
+				[postId]: nextLikeCount,
+			}))
+
+			try {
+				const normalizedPostId = normalizePostId(postId)
+				if (nextLiked) {
+					await FeedService.likePost(normalizedPostId)
+				} else {
+					await FeedService.unlikePost(normalizedPostId)
+				}
+			} catch {
+				setLikedPostIds((prev) => ({
+					...prev,
+					[postId]: currentLiked,
+				}))
+				setLikeCountByPostId((prev) => ({
+					...prev,
+					[postId]: currentLikeCount,
+				}))
+			}
+		},
+		[allPosts, likeCountByPostId, likedPostIds, normalizePostId],
+	)
 
 	const styles = React.useMemo(
 		() =>
@@ -203,24 +245,39 @@ export default function ExploreScreen() {
 	const shouldShowSkeleton = !showSuggestions && isInitialLoading
 
 	const renderDetailPost = React.useCallback(
-		({ item, index }: { item: TrendingClip; index: number }) => (
-			<FeedPost
-				item={mapExplorePostToFeedPost(item)}
-				index={index}
-				liked={Boolean(item.likedByMe)}
-				onToggleLike={() => {
-					void handleClipLongPress(item)
-				}}
-				onAddComment={() => {
-					Alert.alert("Comments", "Comments are available in feed and clips tabs.")
-				}}
-				onShare={() => {
-					Alert.alert("Shared", "Post shared to your friends.")
-				}}
-				scrollY={detailScrollY}
-			/>
-		),
-		[detailScrollY, handleClipLongPress, mapExplorePostToFeedPost],
+		({ item, index }: { item: TrendingClip; index: number }) => {
+			const liked = likedPostIds[item.id] ?? Boolean(item.likedByMe)
+			const likeCount = likeCountByPostId[item.id] ?? item.likes
+			const commentCount = commentCountByPostId[item.id] ?? item.comments
+
+			return (
+				<FeedPost
+					item={mapExplorePostToFeedPost(item, {
+						likedByMe: liked,
+						likes: likeCount,
+						comments: commentCount,
+					})}
+					index={index}
+					liked={liked}
+					onToggleLike={(postId) => {
+						void handleTogglePostLike(postId)
+					}}
+					onAddComment={openCommentSheet}
+					onShare={openShareSheet}
+					scrollY={detailScrollY}
+				/>
+			)
+		},
+		[
+			commentCountByPostId,
+			detailScrollY,
+			handleTogglePostLike,
+			likeCountByPostId,
+			likedPostIds,
+			mapExplorePostToFeedPost,
+			openCommentSheet,
+			openShareSheet,
+		],
 	)
 
 	return (
@@ -237,7 +294,7 @@ export default function ExploreScreen() {
 					/>
 				</View>
 
-				{showSuggestions ? (
+				{searchResults.length > 0 ? (
 					<View style={styles.suggestionsWrap}>
 						<SearchSuggestions
 							results={searchResults}
@@ -254,11 +311,12 @@ export default function ExploreScreen() {
 					<ExploreGrid
 						clips={clips}
 						clipAspects={clipAspects}
+						refreshing={refreshing}
+						onRefresh={onRefresh}
 						onEndReached={loadMoreClips}
 						hasMore={hasMoreClips}
 						isLoadingMore={isLoadingMore}
 						onSelectClip={openClipDetail}
-						onLongPressClip={handleClipLongPress}
 					/>
 				)}
 			</Animated.View>
@@ -304,6 +362,30 @@ export default function ExploreScreen() {
 					/>
 				</View>
 			</Modal>
+
+			<CommentsSheet
+				contentId={
+					selectedActionPostId ? normalizePostId(selectedActionPostId) : null
+				}
+				contentType="feed"
+				visible={isCommentSheetVisible}
+				onClose={() => setIsCommentSheetVisible(false)}
+				onCommentsCountChange={(newCount) => {
+					if (selectedActionPostId) {
+						setCommentCountByPostId((prev) => ({
+							...prev,
+							[selectedActionPostId]: newCount,
+						}))
+					}
+				}}
+			/>
+
+			<ShareSheet
+				postId={selectedActionPostId ? normalizePostId(selectedActionPostId) : null}
+				resourceType="post"
+				visible={isShareSheetVisible}
+				onClose={() => setIsShareSheetVisible(false)}
+			/>
 		</SafeAreaView>
 	)
 }
