@@ -21,12 +21,16 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { EmptyState, SkeletonBlock } from "../../src/components/common";
-import { useProfileDashboardData } from "../../src/hooks/useProfileDashboardData";
+import { ClipThumbnail } from "../../src/components/clips/ClipThumbnail";
+import {
+	ProfileClipItem,
+	useProfileDashboardData,
+} from "../../src/hooks/useProfileDashboardData";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import FeedService, { FeedPostPayload } from "../../src/services/FeedService";
 import { useTheme } from "../../src/hooks/useTheme";
 
-type ProfileSection = "moments" | "garage";
+type ProfileSection = "moments" | "clips" | "garage";
 
 type AchievementTier = {
 	emoji: string;
@@ -47,6 +51,7 @@ const sectionMap: Record<
 	{ label: string; icon: React.ComponentProps<typeof Ionicons>["name"] }
 > = {
 	moments: { label: "Moments", icon: "grid-outline" },
+	clips: { label: "Clips", icon: "videocam-outline" },
 	garage: { label: "Garage", icon: "car-outline" },
 };
 
@@ -241,6 +246,76 @@ function GarageList({
 					</View>
 				</View>
 			))}
+		</View>
+	);
+}
+
+function ClipsGrid({
+	clips,
+	onPressClip,
+}: {
+	clips: ProfileClipItem[];
+	onPressClip: (clip: ProfileClipItem) => void;
+}) {
+	const { colors, metrics } = useTheme();
+
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				wrap: {
+					flexDirection: "row",
+					flexWrap: "wrap",
+					marginTop: metrics.sm,
+					marginHorizontal: -1,
+				},
+				tileWrap: {
+					width: "33.3333%",
+					padding: 1,
+				},
+				tile: {
+					width: "100%",
+					aspectRatio: 1,
+					borderRadius: 0,
+					overflow: "hidden",
+					backgroundColor: colors.surface,
+				},
+				image: {
+					width: "100%",
+					height: "100%",
+				},
+				videoPill: {
+					position: "absolute",
+					top: 6,
+					right: 6,
+					paddingHorizontal: 6,
+					paddingVertical: 2,
+					backgroundColor: "rgba(0,0,0,0.58)",
+				},
+				videoPillText: {
+					color: "#fff",
+					fontSize: 10,
+					fontWeight: "700",
+				},
+			}),
+		[colors, metrics],
+	);
+
+	return (
+		<View style={styles.wrap}>
+			{clips.map((clip, index) => {
+				const key = `${clip.id}-${index}`;
+
+				return (
+					<View key={key} style={styles.tileWrap}>
+						<Pressable onPress={() => onPressClip(clip)} style={styles.tile}>
+							<ClipThumbnail style={styles.image} uri={clip.videoUrl} />
+							<View style={styles.videoPill}>
+								<Text style={styles.videoPillText}>CLIP</Text>
+							</View>
+						</Pressable>
+					</View>
+				);
+			})}
 		</View>
 	);
 }
@@ -633,6 +708,7 @@ export default function ProfileScreen() {
 		bikes,
 		moments,
 		momentsCount,
+		clips,
 		trackersCount,
 		trackingCount,
 		reloadDashboard,
@@ -678,6 +754,16 @@ export default function ProfileScreen() {
 	const openPostPage = React.useCallback(
 		(postId: string) => {
 			router.push(`/post/${postId}`);
+		},
+		[router],
+	);
+
+	const openClip = React.useCallback(
+		(clip: ProfileClipItem) => {
+			router.push({
+				pathname: "/(tabs)/clips",
+				params: { clipId: clip.id },
+			});
 		},
 		[router],
 	);
@@ -859,22 +945,11 @@ export default function ProfileScreen() {
 					alignItems: "center",
 					justifyContent: "center",
 					paddingVertical: metrics.sm,
-					gap: metrics.xs,
-					flexDirection: "row",
 					borderBottomWidth: 3,
 					borderBottomColor: "transparent",
 				},
 				tabButtonActive: {
 					borderBottomColor: colors.primary,
-				},
-				tabText: {
-					fontSize: typography.sizes.sm,
-					fontWeight: "500",
-					color: colors.textSecondary,
-				},
-				tabTextActive: {
-					color: colors.primary,
-					fontWeight: "700",
 				},
 				sectionContent: {
 					marginTop: metrics.lg,
@@ -1070,6 +1145,7 @@ export default function ProfileScreen() {
 									(sectionKey) => (
 										<Pressable
 											key={sectionKey}
+											accessibilityLabel={sectionMap[sectionKey].label}
 											onPress={() => setActiveSection(sectionKey)}
 											style={[
 												styles.tabButton,
@@ -1085,14 +1161,6 @@ export default function ProfileScreen() {
 												name={sectionMap[sectionKey].icon}
 												size={metrics.icon.md}
 											/>
-											<Text
-												style={[
-													styles.tabText,
-													activeSection === sectionKey && styles.tabTextActive,
-												]}
-											>
-												{sectionMap[sectionKey].label}
-											</Text>
 										</Pressable>
 									),
 								)}
@@ -1113,6 +1181,18 @@ export default function ProfileScreen() {
 								) : (
 									<Animated.View entering={FadeInRight.duration(240)}>
 										<MomentsGrid onPressPost={openPostPage} posts={moments} />
+									</Animated.View>
+								)
+							) : activeSection === "clips" ? (
+								clips.length === 0 ? (
+									<EmptyState
+										icon="videocam-outline"
+										subtitle="Share ride videos to fill your clips."
+										title="No clips yet"
+									/>
+								) : (
+									<Animated.View entering={FadeInRight.duration(240)}>
+										<ClipsGrid clips={clips} onPressClip={openClip} />
 									</Animated.View>
 								)
 							) : bikes.length === 0 ? (

@@ -80,6 +80,12 @@ export function useCreateMediaUpload() {
 		uploadType === "clip" ? getClipSelectionError(selectedAsset) : null;
 	const isClipSelectionInvalid = clipSelectionError != null;
 
+	React.useEffect(() => {
+		if (uploadType === "post" && selectedAsset?.mediaType === "video") {
+			setUploadType("clip");
+		}
+	}, [selectedAsset?.mediaType, uploadType]);
+
 	const requestPermission = React.useCallback(async () => {
 		const permission = await MediaLibrary.requestPermissionsAsync();
 		setPermissionGranted(permission.granted);
