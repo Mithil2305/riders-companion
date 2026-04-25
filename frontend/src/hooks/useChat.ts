@@ -1,5 +1,5 @@
 import React from "react";
-import ChatService from "../services/ChatService";
+import ChatService, { PersonalMessagePayload } from "../services/ChatService";
 import {
 	PersonalChatListItem,
 	PersonalChatMenuAction,
@@ -10,12 +10,16 @@ import {
 import { useWebSocket } from "./useWebSocket";
 
 const FALLBACK_META: PersonalChatMeta = {
-	roomId: "1",
-	name: "Ride Buddy",
-	avatar:
-		"https://ui-avatars.com/api/?name=Ride%20Buddy&background=0D8ABC&color=fff",
+	roomId: "",
+	name: "@rider",
+	username: "rider",
+	avatar: null,
 	isOnline: false,
-	rideTogetherLabel: "RIDER: @ridebuddy",
+	rideTogetherLabel: "RIDER: @rider",
+	blockedByViewer: false,
+	blockedByOther: false,
+	isBlocked: false,
+	isSelf: false,
 };
 
 const toDayKey = (isoDate: string) => {
@@ -87,8 +91,6 @@ export function useChat(roomId: string) {
 	const [draft, setDraft] = React.useState("");
 	const [isLoading, setIsLoading] = React.useState(true);
 	const [isMenuVisible, setIsMenuVisible] = React.useState(false);
-	const [isMuted, setIsMuted] = React.useState(false);
-	const [isBlocked, setIsBlocked] = React.useState(false);
 
 	const { lastMessage } = useWebSocket();
 
@@ -105,21 +107,49 @@ export function useChat(roomId: string) {
 		});
 	}, []);
 
+	const mapMessage = React.useCallback(
+		(item: PersonalMessagePayload): PersonalChatMessage => {
+			const isOutgoing = item.senderId !== roomId;
+			const base = {
+				id: item.id,
+				sender: (isOutgoing ? "me" : "other") as const,
+				createdAt: item.createdAt,
+				timeLabel: toTimeLabel(item.createdAt),
+				delivery: isOutgoing ? ("read" as const) : undefined,
+			};
+
+			if (item.attachmentUrl) {
+				const imageMessage: PersonalImageMessage = {
+					...base,
+					kind: "image",
+					imageUrl: item.attachmentUrl,
+					text: item.message,
+				};
+				return imageMessage;
+			}
+
+			return {
+				...base,
+				kind: "text",
+				text: item.message,
+			};
+		},
+		[roomId, toTimeLabel],
+	);
+
+	const loadConversation = React.useCallback(async () => {
+		const response = await ChatService.getPersonalConversation(roomId);
+		setMeta(response.meta);
+		setMessages(response.messages.map(mapMessage));
+	}, [mapMessage, roomId]);
+
 	React.useEffect(() => {
 		let isMounted = true;
 
 		setIsLoading(true);
 		setDraft("");
 
-		ChatService.getPersonalConversation(roomId)
-			.then((response) => {
-				if (!isMounted) {
-					return;
-				}
-
-				setMeta(response.meta);
-				setMessages(response.messages);
-			})
+		loadConversation()
 			.catch(() => {
 				if (!isMounted) {
 					return;
@@ -129,66 +159,43 @@ export function useChat(roomId: string) {
 				setMessages([]);
 			})
 			.finally(() => {
-				if (!isMounted) {
-					return;
+				if (isMounted) {
+					setIsLoading(false);
 				}
-
-				setIsLoading(false);
 			});
 
 		return () => {
 			isMounted = false;
 		};
-	}, [roomId]);
+	}, [loadConversation, roomId]);
 
 	React.useEffect(() => {
-		if (lastMessage?.type === "new_message") {
-			const payload = lastMessage.payload as any;
-			if (payload?.roomId === roomId && payload?.message) {
-				const rawMsg = payload.message;
-				const isImage = !!rawMsg?.mediaUrl;
-				const id = String(rawMsg?.id ?? `msg-${Date.now()}-${Math.random()}`);
-				const createdAt = rawMsg?.createdAt ?? new Date().toISOString();
-				const timeLabelValue = toTimeLabel(createdAt);
-
-				let nextMsg: PersonalChatMessage;
-				if (isImage) {
-					nextMsg = {
-						id,
-						kind: "image",
-						sender: "other",
-						createdAt,
-						timeLabel: timeLabelValue,
-						delivery: "read",
-						imageUrl: rawMsg.mediaUrl,
-						text: rawMsg?.text ?? "",
-					};
-				} else {
-					nextMsg = {
-						id,
-						kind: "text",
-						sender: "other",
-						createdAt,
-						timeLabel: timeLabelValue,
-						delivery: "read",
-						text: rawMsg?.text ?? "",
-					};
-				}
-
-				setMessages((prev) => {
-					if (prev.some((message) => message.id === nextMsg.id)) {
-						return prev;
-					}
-
-					return [...prev, nextMsg];
-				});
-			}
+		if (
+			lastMessage?.type !== "NOTIFICATION_EVENT" ||
+			typeof lastMessage.payload !== "object" ||
+			lastMessage.payload == null
+		) {
+			return;
 		}
-	}, [lastMessage, roomId, toTimeLabel]);
+
+		const payload = lastMessage.payload as {
+			notification?: {
+				type?: string;
+				metadata?: { riderId?: string };
+			};
+		};
+
+		if (
+			payload.notification?.type === "MESSAGE_RECEIVED" &&
+			payload.notification.metadata?.riderId === roomId
+		) {
+			void loadConversation();
+		}
+	}, [lastMessage, loadConversation, roomId]);
 
 	const sendMessage = React.useCallback(async () => {
 		const trimmed = draft.trim();
-		if (!trimmed || isBlocked) {
+		if (!trimmed || meta.isBlocked) {
 			return;
 		}
 
@@ -217,7 +224,7 @@ export function useChat(roomId: string) {
 			setMessages((prev) =>
 				prev.map((message) =>
 					message.id === tempId
-						? { ...message, id: response.id, delivery: "read" }
+						? { ...mapMessage(response), sender: "me", delivery: "read" }
 						: message,
 				),
 			);
@@ -230,11 +237,11 @@ export function useChat(roomId: string) {
 				),
 			);
 		}
-	}, [draft, isBlocked, roomId, toTimeLabel]);
+	}, [draft, mapMessage, meta.isBlocked, roomId, toTimeLabel]);
 
 	const sendImage = React.useCallback(
 		async (uri: string) => {
-			if (isBlocked) {
+			if (meta.isBlocked) {
 				return;
 			}
 
@@ -264,7 +271,7 @@ export function useChat(roomId: string) {
 				setMessages((prev) =>
 					prev.map((message) =>
 						message.id === tempId
-							? { ...message, id: response.id, delivery: "read" }
+							? { ...mapMessage(response), sender: "me", delivery: "read" }
 							: message,
 					),
 				);
@@ -278,50 +285,36 @@ export function useChat(roomId: string) {
 				);
 			}
 		},
-		[isBlocked, roomId, toTimeLabel],
+		[mapMessage, meta.isBlocked, roomId, toTimeLabel],
 	);
 
-	const clearChat = React.useCallback(async () => {
-		await ChatService.clearPersonalConversation(roomId);
-		setMessages([]);
-		setIsMenuVisible(false);
-	}, [roomId]);
+	const toggleBlockUser = React.useCallback(async () => {
+		if (meta.blockedByViewer) {
+			await ChatService.unblockPersonalUser(roomId);
+			setMeta((prev) => ({
+				...prev,
+				blockedByViewer: false,
+				isBlocked: Boolean(prev.blockedByOther),
+			}));
+		} else {
+			await ChatService.blockPersonalUser(roomId);
+			setMeta((prev) => ({
+				...prev,
+				blockedByViewer: true,
+				isBlocked: true,
+			}));
+		}
 
-	const muteNotifications = React.useCallback(async () => {
-		const nextMuted = !isMuted;
-		await ChatService.mutePersonalConversation(roomId, nextMuted);
-		setIsMuted(nextMuted);
 		setIsMenuVisible(false);
-	}, [isMuted, roomId]);
-
-	const blockUser = React.useCallback(async () => {
-		await ChatService.blockPersonalUser(roomId);
-		setIsBlocked(true);
-		setIsMenuVisible(false);
-	}, [roomId]);
+	}, [meta.blockedByViewer, roomId]);
 
 	const runMenuAction = React.useCallback(
 		async (action: PersonalChatMenuAction) => {
-			if (action === "voice-call" || action === "video-call") {
-				setIsMenuVisible(false);
-				return;
-			}
-
-			if (action === "clear-chat") {
-				await clearChat();
-				return;
-			}
-
-			if (action === "mute-notifications") {
-				await muteNotifications();
-				return;
-			}
-
-			if (action === "block-user") {
-				await blockUser();
+			if (action === "toggle-block-user") {
+				await toggleBlockUser();
 			}
 		},
-		[blockUser, clearChat, muteNotifications],
+		[toggleBlockUser],
 	);
 
 	const listData = React.useMemo(() => toListItems(messages), [messages]);
@@ -341,7 +334,7 @@ export function useChat(roomId: string) {
 		openMenu,
 		closeMenu,
 		runMenuAction,
-		isMuted,
-		isBlocked,
+		isBlocked: Boolean(meta.isBlocked),
+		isBlockedByViewer: Boolean(meta.blockedByViewer),
 	};
 }

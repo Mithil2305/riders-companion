@@ -10,6 +10,7 @@ import {
 	ShareTargetType,
 	ShareUser,
 } from "../types/interactions";
+import { formatCompactTimeAgo } from "../utils/formatters";
 
 type FeedCommentPayload = {
 	id: string;
@@ -96,32 +97,13 @@ const toShareUserFromTracker = (value: unknown): ShareUser | null => {
 	};
 };
 
-const formatRelativeTime = (isoDate: string): string => {
-	const time = new Date(isoDate).getTime();
-	if (Number.isNaN(time)) {
-		return "now";
-	}
-
-	const diffMinutes = Math.max(1, Math.floor((Date.now() - time) / 60000));
-	if (diffMinutes < 60) {
-		return `${diffMinutes}m`;
-	}
-
-	const diffHours = Math.floor(diffMinutes / 60);
-	if (diffHours < 24) {
-		return `${diffHours}h`;
-	}
-
-	return `${Math.floor(diffHours / 24)}d`;
-};
-
 const toCommentModel = (item: FeedCommentPayload | ClipCommentPayload): CommentModel => {
 	const username = item.rider?.username ?? item.rider?.name ?? "rider";
 	return {
 		id: item.id,
 		content: item.commentText,
 		createdAt: item.createdAt,
-		timeLabel: formatRelativeTime(item.createdAt),
+		timeLabel: formatCompactTimeAgo(item.createdAt),
 		likedByMe: Boolean(item.likedByMe),
 		likeCount: Number(item.likesCount ?? 0),
 		author: {
