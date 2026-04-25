@@ -5,6 +5,7 @@ const { sequelize } = require("./src/models");
 const apiRoutes = require("./src/routes");
 const setupWebSockets = require("./src/websockets/wss");
 const { assertCryptoReady } = require("./src/services/chatCryptoService");
+const { syncDatabaseSchema } = require("./src/utils/databaseSync");
 
 const app = express();
 const server = http.createServer(app);
@@ -55,6 +56,24 @@ app.get("/health", async (_req, res) => {
 
 setupWebSockets(server);
 
-server.listen(port,"0.0.0.0", () => {
-	console.log(`Backend running on port ${port}`);
-});
+async function startServer() {
+	try {
+		await sequelize.authenticate();
+
+		if (process.env.DB_AUTO_SYNC !== "false") {
+			const { alter } = await syncDatabaseSchema(sequelize);
+			console.log(
+				`Database ready${alter ? " with schema alter" : ""}.`,
+			);
+		}
+
+		server.listen(port, "0.0.0.0", () => {
+			console.log(`Backend running on port ${port}`);
+		});
+	} catch (error) {
+		console.error("Backend startup failed:", error);
+		process.exit(1);
+	}
+}
+
+void startServer();
