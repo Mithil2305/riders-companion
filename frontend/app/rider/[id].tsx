@@ -217,7 +217,7 @@ function AchievementsModal({
 			StyleSheet.create({
 				backdrop: {
 					flex: 1,
-					backgroundColor: "rgba(0,0,0,0.45)",
+					backgroundColor: colors.overlay,
 					justifyContent: "center",
 					paddingHorizontal: metrics.lg,
 				},
@@ -456,7 +456,7 @@ export default function RiderProfileScreen() {
 			? profile.profileImageUrl
 			: `https://ui-avatars.com/api/?name=${encodeURIComponent(
 					profile.name || "Rider",
-				)}&background=0D8ABC&color=fff`;
+				)}&background=212121&color=FFFFFF`;
 
 	const achievementRows = React.useMemo(() => {
 		return ACHIEVEMENT_TIERS.map((tier, index) => {
@@ -664,10 +664,10 @@ export default function RiderProfileScreen() {
 					right: 6,
 					paddingHorizontal: 6,
 					paddingVertical: 2,
-					backgroundColor: "rgba(0,0,0,0.58)",
+					backgroundColor: colors.overlay,
 				},
 				videoPillText: {
-					color: "#fff",
+					color: colors.textInverse,
 					fontSize: 10,
 					fontWeight: "700",
 				},
@@ -847,7 +847,7 @@ export default function RiderProfileScreen() {
 									bike.bikeImageUrl ||
 									`https://ui-avatars.com/api/?name=${encodeURIComponent(
 										`${bike.brand} ${bike.model}`,
-									)}&background=111827&color=fff`,
+									)}&background=212121&color=FFFFFF`,
 							}}
 							style={styles.garageImage}
 						/>

@@ -97,7 +97,7 @@ function SuggestionRow({
 						<Ionicons
 							name="checkmark-circle"
 							size={16}
-							color="#3897F0"
+							color={colors.primary}
 							style={styles.verified}
 						/>
 					)}

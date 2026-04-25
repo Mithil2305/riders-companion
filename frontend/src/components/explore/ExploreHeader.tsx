@@ -41,7 +41,7 @@ export function ExploreHeader({ isLoading = false }: ExploreHeaderProps) {
         <Text style={styles.title}>Search</Text>
       </View>
 
-      {isLoading ? <ActivityIndicator color="#D9A31A" size="small" /> : <View style={{ width: metrics.icon.md, height: metrics.icon.md }} />}
+      {isLoading ? <ActivityIndicator color={colors.primary} size="small" /> : <View style={{ width: metrics.icon.md, height: metrics.icon.md }} />}
     </View>
   );
 }

@@ -169,7 +169,7 @@ export function ExploreGrid({
 
 	const footer = isLoadingMore ? (
 		<View style={styles.footer}>
-			<ActivityIndicator size="small" color="#999" />
+			<ActivityIndicator size="small" color={colors.primary} />
 		</View>
 	) : (
 		<View style={styles.footerPad} />

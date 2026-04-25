@@ -118,13 +118,13 @@ function MasonryTile({
 						position: "absolute",
 						top: 6,
 						right: 6,
-						backgroundColor: "rgba(0,0,0,0.55)",
+						backgroundColor: colors.overlay,
 						borderRadius: 4,
 						paddingHorizontal: 4,
 						paddingVertical: 2,
 					}}
 				>
-					<Ionicons name="play" size={12} color="#fff" />
+					<Ionicons name="play" size={12} color={colors.textInverse} />
 				</View>
 			)}
 		</AnimatedPressable>
@@ -140,6 +140,7 @@ export function MasonryGrid({
 	onSelectClip,
 	onLongPressClip,
 }: MasonryGridProps) {
+	const { colors } = useTheme()
 	const scrollRef = React.useRef<ScrollView>(null)
 	const [nearBottom, setNearBottom] = React.useState(false)
 
@@ -215,7 +216,7 @@ export function MasonryGrid({
 			</View>
 			{isLoadingMore && (
 				<View style={{ paddingVertical: 20, alignItems: "center" }}>
-					<ActivityIndicator size="small" color="#999" />
+					<ActivityIndicator size="small" color={colors.primary} />
 				</View>
 			)}
 		</ScrollView>

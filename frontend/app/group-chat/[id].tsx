@@ -25,6 +25,7 @@ import {
 	LiveLocationBanner,
 	LiveMapSection,
 } from "../../src/components/chat/group";
+import { useTheme } from "../../src/hooks/useTheme";
 
 export default function GroupChatScreen() {
 	const router = useRouter();
@@ -32,6 +33,7 @@ export default function GroupChatScreen() {
 	const roomId = typeof params.id === "string" ? params.id : "1";
 	const roomStatus =
 		typeof params.status === "string" ? params.status : undefined;
+	const { colors } = useTheme();
 	const [rideDetailsVisible, setRideDetailsVisible] = React.useState(false);
 	const [recenterSignal, setRecenterSignal] = React.useState(0);
 	const [contentHeight, setContentHeight] = React.useState(0);
@@ -73,7 +75,7 @@ export default function GroupChatScreen() {
 			StyleSheet.create({
 				container: {
 					flex: 1,
-					backgroundColor: "#F4F4F4",
+					backgroundColor: colors.background,
 				},
 				splitWrap: {
 					flex: 1,
@@ -96,26 +98,26 @@ export default function GroupChatScreen() {
 					height: 26,
 					alignItems: "center",
 					justifyContent: "center",
-					backgroundColor: "#F7F7F7",
+					backgroundColor: colors.card,
 					borderTopLeftRadius: 18,
 					borderTopRightRadius: 18,
 					borderTopWidth: 1,
-					borderTopColor: "#E7E7E7",
+					borderTopColor: colors.border,
 				},
 				handleBar: {
 					width: 54,
 					height: 6,
 					borderRadius: 999,
-					backgroundColor: "#C6C6C6",
+					backgroundColor: colors.neutralStrong,
 				},
 				chatHalf: {
 					flex: 1,
-					backgroundColor: "#F7F7F7",
+					backgroundColor: colors.background,
 					borderTopWidth: 1,
-					borderTopColor: "#EAEAEA",
+					borderTopColor: colors.border,
 				},
 			}),
-		[],
+		[colors],
 	);
 
 	const onLayoutSplit = React.useCallback(

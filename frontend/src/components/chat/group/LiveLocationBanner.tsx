@@ -14,7 +14,6 @@ export function LiveLocationBanner({
 	onRecenter,
 }: LiveLocationBannerProps) {
 	const { colors, metrics, typography } = useTheme();
-	const primaryRed = "#D32F2F";
 
 	const styles = React.useMemo(
 		() =>
@@ -23,9 +22,9 @@ export function LiveLocationBanner({
 					marginHorizontal: metrics.md,
 					marginTop: metrics.sm,
 					borderRadius: 16,
-					backgroundColor: "#FFFFFF",
+					backgroundColor: colors.card,
 					borderWidth: 1,
-					borderColor: "#EDEDED",
+					borderColor: colors.border,
 					paddingHorizontal: metrics.md,
 					paddingVertical: metrics.sm,
 					flexDirection: "row",
@@ -51,17 +50,17 @@ export function LiveLocationBanner({
 					height: 40,
 					borderRadius: 20,
 					paddingHorizontal: metrics.sm,
-					backgroundColor: primaryRed,
+					backgroundColor: colors.primary,
 					alignItems: "center",
 					justifyContent: "center",
 				},
 				recenterText: {
-					color: "#FFFFFF",
+					color: colors.textInverse,
 					fontSize: typography.sizes.sm,
 					fontWeight: "800",
 				},
 			}),
-		[colors, metrics, primaryRed, typography],
+		[colors, metrics, typography],
 	);
 
 	return (
@@ -72,7 +71,7 @@ export function LiveLocationBanner({
 					accessibilityLabel="Toggle live location"
 					onValueChange={onToggle}
 					thumbColor={colors.textInverse}
-					trackColor={{ false: colors.border, true: primaryRed }}
+					trackColor={{ false: colors.border, true: colors.primary }}
 					value={enabled}
 				/>
 			</View>
