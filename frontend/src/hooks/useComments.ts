@@ -21,6 +21,7 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 	const [draft, setDraft] = React.useState("");
 	const [isLoading, setIsLoading] = React.useState(false);
 	const [isSubmitting, setIsSubmitting] = React.useState(false);
+	const [replyingTo, setReplyingTo] = React.useState<CommentModel | null>(null);
 
 	const loadComments = React.useCallback(async () => {
 		if (!enabled || !contentId) {
@@ -56,7 +57,26 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 				currentUsername,
 				currentUserAvatarUrl,
 			);
-			setComments((current) => [created, ...current]);
+
+			if (replyingTo) {
+				// Add as reply to parent comment
+				const replyWithParent = { ...created, parentId: replyingTo.id };
+				setComments((current) =>
+					current.map((comment) => {
+						if (comment.id === replyingTo.id) {
+							return {
+								...comment,
+								replies: [...(comment.replies || []), replyWithParent],
+								replyCount: (comment.replyCount || 0) + 1,
+							};
+						}
+						return comment;
+					}),
+				);
+				setReplyingTo(null);
+			} else {
+				setComments((current) => [created, ...current]);
+			}
 			setDraft("");
 		} finally {
 			setIsSubmitting(false);
@@ -68,6 +88,7 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 		currentUsername,
 		draft,
 		isSubmitting,
+		replyingTo,
 	]);
 
 	const likeComment = React.useCallback((commentId: string) => {
@@ -113,6 +134,16 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 		setComments((current) => current.filter((comment) => comment.id !== commentId));
 	}, [contentId, contentType]);
 
+	const addReply = React.useCallback((parentComment: CommentModel) => {
+		setReplyingTo(parentComment);
+		setDraft(`@${parentComment.author.username} `);
+	}, []);
+
+	const cancelReply = React.useCallback(() => {
+		setReplyingTo(null);
+		setDraft("");
+	}, []);
+
 	return {
 		comments,
 		draft,
@@ -124,5 +155,8 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 		editComment,
 		deleteComment,
 		reload: loadComments,
+		replyingTo,
+		addReply,
+		cancelReply,
 	};
 }
