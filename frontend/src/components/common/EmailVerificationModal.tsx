@@ -12,6 +12,7 @@ import { sendEmailVerification } from "firebase/auth";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { auth } from "../../config/firebase";
 import { useTheme } from "../../hooks/useTheme";
+import { withAlpha } from "../../utils/color";
 
 interface EmailVerificationModalProps {
 	visible: boolean;
@@ -64,7 +65,7 @@ export function EmailVerificationModal({
 			StyleSheet.create({
 				overlay: {
 					flex: 1,
-					backgroundColor: "rgba(0,0,0,0.55)",
+					backgroundColor: colors.overlay,
 					alignItems: "center",
 					justifyContent: "center",
 					paddingHorizontal: metrics.lg,
@@ -79,7 +80,7 @@ export function EmailVerificationModal({
 					gap: metrics.md,
 					borderWidth: 1,
 					borderColor: colors.borderDark,
-					shadowColor: "#000",
+					shadowColor: colors.shadow,
 					shadowOffset: { width: 0, height: 16 },
 					shadowOpacity: 0.2,
 					shadowRadius: 24,
@@ -89,11 +90,11 @@ export function EmailVerificationModal({
 					width: 80,
 					height: 80,
 					borderRadius: 40,
-					backgroundColor: colors.primary + "18",
+					backgroundColor: colors.primarySoft,
 					alignItems: "center",
 					justifyContent: "center",
 					borderWidth: 2,
-					borderColor: colors.primary + "30",
+					borderColor: withAlpha(colors.primary, 0.3),
 				},
 				title: {
 					color: colors.textPrimary,
@@ -152,7 +153,7 @@ export function EmailVerificationModal({
 					textAlign: "center",
 				},
 				successText: {
-					color: colors.success ?? "#34C759",
+					color: colors.primary,
 					fontSize: typography.sizes.xs,
 					textAlign: "center",
 					fontWeight: "600",

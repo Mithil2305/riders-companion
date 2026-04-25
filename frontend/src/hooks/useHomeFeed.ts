@@ -199,9 +199,17 @@ export function useHomeFeed(): UseHomeFeedResult {
 
 	const updateCommentCount = React.useCallback((postId: string, count: number) => {
 		setPosts((current) =>
-			current.map((post) =>
-				post.id === postId ? { ...post, comments: count } : post,
-			),
+			current.map((post) => {
+				if (post.id !== postId) {
+					return post;
+				}
+
+				if (post.comments === count) {
+					return post;
+				}
+
+				return { ...post, comments: count };
+			}),
 		);
 	}, []);
 

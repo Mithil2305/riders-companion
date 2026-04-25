@@ -49,6 +49,15 @@ export default function HomeScreen() {
 		setIsShareSheetVisible(true);
 	}, []);
 
+	const handleCommentsCountChange = React.useCallback(
+		(newCount: number) => {
+			if (selectedPostId) {
+				updateCommentCount(selectedPostId, newCount);
+			}
+		},
+		[selectedPostId, updateCommentCount],
+	);
+
 	const openProfile = React.useCallback(
 		(riderId: string) => {
 			router.push(`/rider/${riderId}`);
@@ -168,11 +177,7 @@ export default function HomeScreen() {
 					contentType="feed"
 					visible={isCommentSheetVisible}
 					onClose={() => setIsCommentSheetVisible(false)}
-					onCommentsCountChange={(newCount: number) => {
-						if (selectedPostId) {
-							updateCommentCount(selectedPostId, newCount);
-						}
-					}}
+					onCommentsCountChange={handleCommentsCountChange}
 				/>
 				<ShareSheet
 					postId={selectedPostId}

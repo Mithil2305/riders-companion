@@ -49,12 +49,13 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 			return;
 		}
 
+		const nextDraft = draft.trim();
 		setIsSubmitting(true);
 		try {
-			const created = await InteractionService.addComment(
+			await InteractionService.addComment(
 				contentType,
 				contentId,
-				draft,
+				nextDraft,
 				currentUsername,
 				currentUserAvatarUrl,
 			);
@@ -79,6 +80,7 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 				setComments((current) => [created, ...current]);
 			}
 			setDraft("");
+			await loadComments();
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -89,6 +91,7 @@ export function useComments(contentId: string, options: UseCommentsOptions = {})
 		currentUsername,
 		draft,
 		isSubmitting,
+		loadComments,
 		replyingTo,
 	]);
 

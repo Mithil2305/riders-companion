@@ -1,5 +1,12 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+	Image,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,35 +18,40 @@ type RideOption = {
 	key: "solo" | "group";
 	title: string;
 	subtitle: string;
-	icon: React.ComponentProps<typeof Ionicons>["name"];
-	accent: string;
+	image: ReturnType<typeof require>;
 };
 
 export default function RideScreen() {
 	const router = useRouter();
 	const { colors, metrics, typography } = useTheme();
+
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("ride");
 
-	const rideOptions = React.useMemo<RideOption[]>(
-		() => [
-			{
-				key: "solo",
-				title: "Solo Ride",
-				subtitle: "Set your own plan, timing, and route details.",
-				icon: "person-outline",
-				accent: colors.primary,
-			},
-			{
-				key: "group",
-				title: "Group Ride",
-				subtitle: "Create a shared ride with pickup, invites, and group settings.",
-				icon: "people-outline",
-				accent: colors.success,
-			},
-		],
-		[colors.primary, colors.success],
-	);
+	const [selected, setSelected] = React.useState<"solo" | "group" | null>(null);
+
+	const rideOptions: RideOption[] = [
+		{
+			key: "solo",
+			title: "Solo ride",
+			subtitle: "Freedom ride with your own pace",
+			image: require("../../assets/images/solo_ride.png"),
+		},
+		{
+			key: "group",
+			title: "Group ride",
+			subtitle: "Ride with community and route sync",
+			image: require("../../assets/images/group_ride.png"),
+		},
+	];
+
+	const handleCreate = React.useCallback(() => {
+		if (!selected) return;
+		router.push({
+			pathname: "/ride-details",
+			params: { rideType: selected },
+		});
+	}, [selected, router]);
 
 	const styles = React.useMemo(
 		() =>
@@ -48,117 +60,166 @@ export default function RideScreen() {
 					flex: 1,
 					backgroundColor: colors.background,
 				},
-				content: {
+				scroll: {
 					flex: 1,
-					paddingHorizontal: metrics.lg,
-					paddingTop: metrics.xl,
-					paddingBottom: metrics["2xl"],
-					gap: metrics.lg,
+				},
+				scrollContent: {
+					paddingHorizontal: 24,
+					paddingTop: 32,
+					paddingBottom: 140,
 				},
 				header: {
-					gap: metrics.sm,
-				},
-				title: {
-					color: colors.textPrimary,
-					fontSize: typography.sizes["2xl"],
-					fontWeight: "800",
-				},
-				subtitle: {
-					color: colors.textSecondary,
-					fontSize: typography.sizes.sm,
-					lineHeight: typography.sizes.sm * typography.lineHeights.relaxed,
-				},
-				optionCard: {
-					borderRadius: metrics.radius.lg,
-					borderWidth: 1,
-					borderColor: colors.border,
-					backgroundColor: colors.surface,
-					padding: metrics.lg,
-					gap: metrics.md,
-				},
-				optionTop: {
 					flexDirection: "row",
 					alignItems: "center",
-					justifyContent: "space-between",
+					marginBottom: 8,
 				},
-				iconWrap: {
-					width: 48,
-					height: 48,
-					borderRadius: metrics.radius.full,
+				headerIcon: {
+					marginRight: 10,
+					marginTop: 2,
+				},
+				title: {
+					fontSize: typography.sizes["3xl"],
+					fontWeight: typography.weights.bold as any,
+					color: colors.textPrimary,
+					letterSpacing: -0.5,
+				},
+				subtitle: {
+					fontSize: typography.sizes.sm,
+					color: colors.textSecondary,
+					lineHeight: typography.sizes.sm * typography.lineHeights.normal,
+					marginBottom: 32,
+					marginLeft: 30,
+				},
+				card: {
+					backgroundColor: colors.card,
+					borderRadius: 20,
+					borderWidth: 1.5,
+					borderColor: colors.borderDark,
 					alignItems: "center",
 					justifyContent: "center",
-					backgroundColor: colors.overlayLight,
+					paddingVertical: 36,
+					paddingHorizontal: 24,
+					marginBottom: 20,
+					shadowColor: colors.shadow,
+					shadowOffset: { width: 0, height: 2 },
+					shadowOpacity: 0.12,
+					shadowRadius: 8,
+					elevation: 4,
 				},
-				optionTitle: {
+				cardSelected: {
+					borderColor: colors.primary,
+					shadowColor: colors.primary,
+					shadowOpacity: 0.15,
+					shadowRadius: 12,
+					elevation: 6,
+				},
+				cardImage: {
+					width: 140,
+					height: 140,
+					resizeMode: "contain",
+					marginBottom: 16,
+				},
+				cardTitle: {
+					fontSize: typography.sizes.xl,
+					fontWeight: typography.weights.bold as any,
 					color: colors.textPrimary,
-					fontSize: typography.sizes.lg,
-					fontWeight: "700",
+					marginBottom: 6,
 				},
-				optionSubtitle: {
-					color: colors.textSecondary,
+				cardSubtitle: {
 					fontSize: typography.sizes.sm,
-					lineHeight: typography.sizes.sm * typography.lineHeights.relaxed,
-				},
-				helperText: {
 					color: colors.textTertiary,
-					fontSize: typography.sizes.xs,
-					lineHeight: typography.sizes.xs * typography.lineHeights.relaxed,
+					textAlign: "center",
+					lineHeight: typography.sizes.sm * typography.lineHeights.normal,
+				},
+				footer: {
+					position: "absolute",
+					left: 0,
+					right: 0,
+					bottom: 0,
+					paddingHorizontal: 24,
+					paddingTop: 12,
+					paddingBottom: metrics.safeArea.bottom + 12,
+					backgroundColor: colors.background,
+					borderTopWidth: 1,
+					borderTopColor: colors.border,
+				},
+				createButton: {
+					height: 56,
+					borderRadius: 16,
+					backgroundColor: colors.primary,
+					alignItems: "center",
+					justifyContent: "center",
+					opacity: selected ? 1 : 0.45,
+				},
+				createButtonText: {
+					fontSize: typography.sizes.base,
+					fontWeight: typography.weights.bold as any,
+					color: colors.textInverse,
 				},
 			}),
-		[colors, metrics, typography],
+		[colors, metrics, typography, selected],
 	);
 
 	return (
-		<Animated.View
-			style={[styles.container, swipeAnimatedStyle]}
-			{...swipeHandlers}
-		>
-			<SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
-				<View style={styles.content}>
+		<SafeAreaView style={styles.container} edges={["top"]}>
+			<Animated.View
+				style={[styles.container, swipeAnimatedStyle]}
+				{...swipeHandlers}
+			>
+				<ScrollView
+					style={styles.scroll}
+					contentContainerStyle={styles.scrollContent}
+					showsVerticalScrollIndicator={false}
+				>
 					<View style={styles.header}>
-						<Text style={styles.title}>Start a ride</Text>
-						<Text style={styles.subtitle}>
-							Choose how you want to ride today. Solo keeps it simple. Group
-							opens the full shared-ride setup.
-						</Text>
+						<Ionicons
+							name="send"
+							size={20}
+							color={colors.primary}
+							style={styles.headerIcon}
+						/>
+						<Text style={styles.title}>Choose your ride</Text>
 					</View>
-
-					{rideOptions.map((option) => (
-						<Pressable
-							key={option.key}
-							onPress={() =>
-								router.push({
-									pathname: "/ride-details",
-									params: { rideType: option.key },
-								})
-							}
-							style={styles.optionCard}
-						>
-							<View style={styles.optionTop}>
-								<View
-									style={[
-										styles.iconWrap,
-										{ backgroundColor: `${option.accent}20` },
-									]}
-								>
-									<Ionicons color={option.accent} name={option.icon} size={24} />
-								</View>
-								<Ionicons
-									color={colors.textTertiary}
-									name="chevron-forward"
-									size={20}
-								/>
-							</View>
-							<Text style={styles.optionTitle}>{option.title}</Text>
-							<Text style={styles.optionSubtitle}>{option.subtitle}</Text>
-						</Pressable>
-					))}
-
-					<Text style={styles.helperText}>
-						Community quick start opens directly into the group ride form.
+					<Text style={styles.subtitle}>
+						Select a mode to continue to ride details
 					</Text>
+
+					{rideOptions.map((option) => {
+						const isSelected = selected === option.key;
+						return (
+							<Pressable
+								key={option.key}
+								onPress={() => setSelected(option.key)}
+								style={({ pressed }) => [
+									styles.card,
+									isSelected && styles.cardSelected,
+									pressed && { opacity: 0.92, transform: [{ scale: 0.98 }] },
+								]}
+							>
+								<Image source={option.image} style={styles.cardImage} />
+								<Text style={styles.cardTitle}>{option.title}</Text>
+								<Text style={styles.cardSubtitle}>{option.subtitle}</Text>
+							</Pressable>
+						);
+					})}
+				</ScrollView>
+
+				<View style={styles.footer}>
+					<Pressable
+						onPress={handleCreate}
+						disabled={!selected}
+						style={styles.createButton}
+					>
+						<Text style={styles.createButtonText}>
+							{selected === "group"
+								? "Create Group Ride"
+								: selected === "solo"
+									? "Create Solo Ride"
+									: "Select a ride mode"}
+						</Text>
+					</Pressable>
 				</View>
-			</SafeAreaView>
-		</Animated.View>
+			</Animated.View>
+		</SafeAreaView>
 	);
 }

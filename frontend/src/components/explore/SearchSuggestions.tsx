@@ -97,14 +97,16 @@ function SuggestionRow({
 						<Ionicons
 							name="checkmark-circle"
 							size={16}
-							color="#3897F0"
+							color={colors.primary}
 							style={styles.verified}
 						/>
 					)}
 				</View>
 				<Text style={styles.subtitle} numberOfLines={1}>
 					{user.name}
-					{user.followersCount ? ` • ${formatFollowers(user.followersCount)} followers` : ""}
+					{user.followersCount
+						? ` - ${formatFollowers(user.followersCount)} trackers`
+						: ""}
 				</Text>
 			</View>
 		</Pressable>
