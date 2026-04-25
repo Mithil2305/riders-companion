@@ -24,6 +24,7 @@ import {
 	SafeAreaView,
 	useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useUploadManager } from "../src/contexts/UploadContext";
 import { useCreateMediaUpload } from "../src/hooks/useCreateMediaUpload";
 import FeedService from "../src/services/FeedService";
 import { useTheme } from "../src/hooks/useTheme";
@@ -123,6 +124,7 @@ export default function CreateMediaScreen() {
 	const editMediaType =
 		typeof params.editMediaType === "string" ? params.editMediaType : "IMAGE";
 	const isEditMode = editPostId.length > 0;
+	const { startUpload } = useUploadManager();
 	const {
 		step,
 		uploadType,
@@ -137,6 +139,7 @@ export default function CreateMediaScreen() {
 		isLoadingAssets,
 		isLoadingMore,
 		hasMoreAssets,
+		isOpeningSystemPicker,
 		isUploading,
 		setDescription,
 		changeUploadType,
@@ -146,7 +149,7 @@ export default function CreateMediaScreen() {
 		goBack,
 		refreshAssets,
 		loadMoreAssets,
-		upload,
+		openSystemPicker,
 	} = useCreateMediaUpload();
 	const [aspectPreset, setAspectPreset] =
 		React.useState<AspectPreset>("original");
@@ -287,6 +290,34 @@ export default function CreateMediaScreen() {
 					borderBottomWidth: 1,
 					borderBottomColor: colors.border,
 					backgroundColor: colors.background,
+				},
+				albumToolsRow: {
+					flexDirection: "row",
+					alignItems: "center",
+					justifyContent: "space-between",
+					gap: metrics.sm,
+					marginBottom: metrics.sm,
+				},
+				albumToolsLabel: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "600",
+				},
+				systemGalleryButton: {
+					minHeight: 34,
+					borderRadius: metrics.radius.full,
+					borderWidth: 1,
+					borderColor: colors.border,
+					backgroundColor: colors.surface,
+					paddingHorizontal: metrics.md,
+					flexDirection: "row",
+					alignItems: "center",
+					gap: metrics.xs,
+				},
+				systemGalleryButtonText: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "600",
 				},
 				albumChip: {
 					paddingHorizontal: metrics.md,
@@ -729,8 +760,16 @@ export default function CreateMediaScreen() {
 				return;
 			}
 
-			await upload();
-			router.replace("/(tabs)/profile");
+			if (selectedAsset == null) {
+				throw new Error("Select media to upload.");
+			}
+
+			await startUpload({
+				description,
+				selectedAsset,
+				uploadType,
+			});
+			router.replace("/(tabs)");
 		} catch (error) {
 			const message =
 				error instanceof Error
@@ -738,7 +777,15 @@ export default function CreateMediaScreen() {
 					: "Unable to upload media right now.";
 			Alert.alert("Upload failed", message);
 		}
-	}, [description, editPostId, isEditMode, router, upload]);
+	}, [
+		description,
+		editPostId,
+		isEditMode,
+		router,
+		selectedAsset,
+		startUpload,
+		uploadType,
+	]);
 
 	if (isEditMode) {
 		return (
@@ -871,6 +918,29 @@ export default function CreateMediaScreen() {
 
 			{step === "picker" ? (
 				<View style={styles.albumRow}>
+					<View style={styles.albumToolsRow}>
+						<Text style={styles.albumToolsLabel}>Choose from gallery</Text>
+						<Pressable
+							disabled={isOpeningSystemPicker}
+							onPress={() => void openSystemPicker()}
+							style={styles.systemGalleryButton}
+						>
+							{isOpeningSystemPicker ? (
+								<ActivityIndicator color={colors.primary} size="small" />
+							) : (
+								<>
+									<Ionicons
+										color={colors.textPrimary}
+										name="images-outline"
+										size={16}
+									/>
+									<Text style={styles.systemGalleryButtonText}>
+										Gallery App
+									</Text>
+								</>
+							)}
+						</Pressable>
+					</View>
 					<ScrollView horizontal showsHorizontalScrollIndicator={false}>
 						{albums.map((album) => {
 							const active = album.id === selectedAlbumId;

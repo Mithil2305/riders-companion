@@ -4,6 +4,7 @@ import FeedService from "../services/FeedService";
 import ProfileService from "../services/ProfileService";
 import TrackerService from "../services/TrackerService";
 import type { FeedPostPayload } from "../services/FeedService";
+import { useUploadManager } from "../contexts/UploadContext";
 
 interface UseProfileDashboardDataResult {
 	loading: boolean;
@@ -32,6 +33,7 @@ const EMPTY_USER: ProfileUser = {
 };
 
 export function useProfileDashboardData(): UseProfileDashboardDataResult {
+	const { lastCompletedUploadAt } = useUploadManager();
 	const [loading, setLoading] = React.useState(true);
 	const [user, setUser] = React.useState<ProfileUser>(EMPTY_USER);
 	const [badges] = React.useState<Badge[]>([]);
@@ -116,6 +118,14 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 			mountedRef.current = false;
 		};
 	}, [loadDashboard]);
+
+	React.useEffect(() => {
+		if (lastCompletedUploadAt <= 0) {
+			return;
+		}
+
+		void loadDashboard();
+	}, [lastCompletedUploadAt, loadDashboard]);
 
 	return {
 		loading,
