@@ -14,6 +14,7 @@ import { PlaybackSettingsProvider } from "../src/contexts/PlaybackSettingsContex
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
 import { UploadProvider } from "../src/contexts/UploadContext";
 import { useTheme } from "../src/hooks/useTheme";
+import { FIXED_PALETTE } from "../src/theme/colors";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Ignore if splash is already controlled by Expo runtime.
@@ -236,7 +237,7 @@ const styles = StyleSheet.create({
 	videoSplashOverlay: {
 		...StyleSheet.absoluteFillObject,
 		zIndex: 100,
-		backgroundColor: "#000000", // Usually black looks better for video backgrounds
+		backgroundColor: FIXED_PALETTE.black,
 	},
 	videoWrap: {
 		flex: 1,

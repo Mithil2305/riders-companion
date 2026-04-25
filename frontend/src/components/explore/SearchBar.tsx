@@ -11,8 +11,7 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ value, onChangeText, onFocus, onBlur }: SearchBarProps) {
-	const { colors, metrics, resolvedMode, typography } = useTheme()
-	const isDark = resolvedMode === "dark"
+	const { colors, metrics, typography } = useTheme()
 	const inputRef = React.useRef<TextInput>(null)
 
 	const styles = React.useMemo(
@@ -21,7 +20,7 @@ export function SearchBar({ value, onChangeText, onFocus, onBlur }: SearchBarPro
 				searchWrap: {
 					height: 46,
 					borderRadius: 24,
-					backgroundColor: isDark ? "#2B2525" : "#F2F2F2",
+					backgroundColor: colors.chatSearchBg,
 					flexDirection: "row",
 					alignItems: "center",
 					paddingHorizontal: metrics.md,
@@ -37,12 +36,12 @@ export function SearchBar({ value, onChangeText, onFocus, onBlur }: SearchBarPro
 					width: 22,
 					height: 22,
 					borderRadius: 11,
-					backgroundColor: isDark ? "rgba(248,242,222,0.15)" : "rgba(0,0,0,0.12)",
+					backgroundColor: colors.neutralStrong,
 					alignItems: "center",
 					justifyContent: "center",
 				},
 			}),
-		[colors, isDark, metrics, typography],
+		[colors, metrics, typography],
 	)
 
 	return (
@@ -72,7 +71,7 @@ export function SearchBar({ value, onChangeText, onFocus, onBlur }: SearchBarPro
 					<Ionicons
 						name="close"
 						size={14}
-						color={isDark ? colors.textSecondary : colors.textSecondary}
+						color={colors.textSecondary}
 					/>
 				</Pressable>
 			)}

@@ -19,6 +19,7 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { usePlaybackSettings } from '../../hooks/usePlaybackSettings';
+import { withAlpha } from '../../utils/color';
 
 type DrawerItem = {
   id: 'profile' | 'notifications' | 'privacy' | 'help';
@@ -69,31 +70,6 @@ const accountItems: DrawerItem[] = [
   },
 ];
 
-function getSoftSurface(hexColor: string, alpha: number, fallback: string): string {
-  if (!hexColor.startsWith('#')) {
-    return fallback;
-  }
-
-  const hex = hexColor.replace('#', '');
-  const value =
-    hex.length === 3
-      ? hex
-          .split('')
-          .map((char) => char + char)
-          .join('')
-      : hex;
-
-  const r = Number.parseInt(value.slice(0, 2), 16);
-  const g = Number.parseInt(value.slice(2, 4), 16);
-  const b = Number.parseInt(value.slice(4, 6), 16);
-
-  if ([r, g, b].some((channel) => Number.isNaN(channel))) {
-    return fallback;
-  }
-
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
 function DrawerHeader({
   username,
   avatarLetter,
@@ -111,13 +87,13 @@ function DrawerHeader({
   }));
 
   const closeCircleBg = React.useMemo(
-    () => getSoftSurface(colors.textInverse, 0.2, colors.overlayLight),
-    [colors.overlayLight, colors.textInverse],
+    () => withAlpha(colors.textInverse, 0.2),
+    [colors.textInverse],
   );
 
   const avatarBg = React.useMemo(
-    () => getSoftSurface(colors.textInverse, 0.28, colors.overlayLight),
-    [colors.overlayLight, colors.textInverse],
+    () => withAlpha(colors.textInverse, 0.28),
+    [colors.textInverse],
   );
 
   const styles = React.useMemo(
@@ -143,7 +119,7 @@ function DrawerHeader({
           alignItems: 'center',
           justifyContent: 'center',
           borderWidth: 1,
-          borderColor: getSoftSurface(colors.textInverse, 0.35, colors.textInverse),
+          borderColor: withAlpha(colors.textInverse, 0.35),
         },
         avatarText: {
           color: colors.textInverse,
@@ -305,9 +281,9 @@ export function SettingsDrawer({
   );
 
   const softSurface = React.useMemo(() => {
-    const alpha = resolvedMode === 'dark' ? 0.18 : 0.045;
-    return getSoftSurface(colors.textPrimary, alpha, colors.surface);
-  }, [colors.surface, colors.textPrimary, resolvedMode]);
+    const opacity = resolvedMode === 'dark' ? 0.18 : 0.045;
+    return withAlpha(colors.textPrimary, opacity);
+  }, [colors.textPrimary, resolvedMode]);
 
   const styles = React.useMemo(
     () =>

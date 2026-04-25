@@ -83,6 +83,7 @@ export function CommentsSheet({
   const [isActionMenuVisible, setIsActionMenuVisible] = React.useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = React.useState(false);
   const [editDraft, setEditDraft] = React.useState('');
+  const lastReportedCountRef = React.useRef<number | null>(null);
   const [composerAvatarUri, setComposerAvatarUri] = React.useState(
     resolvedAvatarUrl || DEFAULT_AVATAR,
   );
@@ -93,6 +94,7 @@ export function CommentsSheet({
 
   React.useEffect(() => {
     if (!visible) {
+      lastReportedCountRef.current = null;
       setActiveComment(null);
       setIsActionMenuVisible(false);
       setIsEditModalVisible(false);
@@ -106,6 +108,11 @@ export function CommentsSheet({
       return;
     }
 
+    if (lastReportedCountRef.current === comments.length) {
+      return;
+    }
+
+    lastReportedCountRef.current = comments.length;
     onCommentsCountChange?.(comments.length);
   }, [comments.length, isLoading, onCommentsCountChange, visible]);
 
@@ -426,7 +433,7 @@ export function CommentsSheet({
           fontWeight: '600',
         },
         actionDeleteText: {
-          color: '#ef4444',
+          color: colors.primary,
         },
         editOverlay: {
           flex: 1,
@@ -603,7 +610,7 @@ export function CommentsSheet({
                 <Text style={styles.actionText}>Edit</Text>
               </Pressable>
               <Pressable onPress={handleDeleteSelected} style={[styles.actionItem, styles.actionItemLast]}>
-                <Ionicons color="#ef4444" name="trash-outline" size={metrics.icon.md} />
+                <Ionicons color={colors.primary} name="trash-outline" size={metrics.icon.md} />
                 <Text style={[styles.actionText, styles.actionDeleteText]}>Delete</Text>
               </Pressable>
             </View>

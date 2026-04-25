@@ -30,9 +30,9 @@ export function TagChip({ chip }: TagChipProps) {
           paddingHorizontal: metrics.sm,
           paddingVertical: 4,
           borderRadius: metrics.radius.full,
-          backgroundColor: '#F7F7F7', // very light gray
+          backgroundColor: colors.surface,
           borderWidth: 1,
-          borderColor: '#EFEFEF',
+          borderColor: colors.border,
         },
         label: {
           marginLeft: 4,

@@ -200,7 +200,7 @@ export default function SettingsScreen() {
 			StyleSheet.create({
 				editorBackdrop: {
 					flex: 1,
-					backgroundColor: "rgba(0,0,0,0.48)",
+					backgroundColor: colors.overlay,
 					justifyContent: "center",
 					paddingHorizontal: metrics.md,
 				},

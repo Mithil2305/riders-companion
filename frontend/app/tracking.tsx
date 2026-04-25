@@ -41,7 +41,7 @@ export default function TrackingScreen() {
 		followers,
 		following,
 		setActiveTab,
-		toggleFollowState,
+		toggleTrackState,
 		refreshTracking,
 	} = useTrackingData(initialTab);
 	const previousTab = React.useRef<TrackingTabKey>(initialTab);
@@ -102,11 +102,11 @@ export default function TrackingScreen() {
 			<UserListItem
 				index={index}
 				onOpenProfile={(userId) => router.push(`/rider/${userId}`)}
-				onToggleFollow={toggleFollowState}
+				onToggleTrack={toggleTrackState}
 				user={item}
 			/>
 		),
-		[router, toggleFollowState],
+		[router, toggleTrackState],
 	);
 
 	if (loading) {

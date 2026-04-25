@@ -43,7 +43,7 @@ export function CommentItem({
         },
         selected: {
           backgroundColor: colors.surface,
-          shadowColor: '#000',
+          shadowColor: colors.shadow,
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: 0.28,
           shadowRadius: 14,
