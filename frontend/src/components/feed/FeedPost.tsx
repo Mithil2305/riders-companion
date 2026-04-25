@@ -144,7 +144,7 @@ export function FeedPost({
 			StyleSheet.create({
 				card: {
 					backgroundColor:
-						colors.background === "#181515" ? colors.card : colors.surface,
+						resolvedMode === "dark" ? colors.background : colors.surfaceRaised,
 					marginBottom: metrics.lg,
 					paddingBottom: metrics.md,
 				},
@@ -179,7 +179,6 @@ export function FeedPost({
 					width: "100%",
 					backgroundColor: colors.surface,
 					overflow: "hidden",
-					// borderRadius: colors.background === '#181515' ? 0 : metrics.radius.md,
 				},
 				media: {
 					width: "100%",
@@ -235,7 +234,7 @@ export function FeedPost({
 					top: "42%",
 				},
 			}),
-		[colors, metrics, typography],
+		[colors, metrics, resolvedMode, typography],
 	);
 
 	const mediaWrapStyle = isVideoPost
@@ -243,11 +242,10 @@ export function FeedPost({
 		: { aspectRatio: imageAspectRatio };
 
 	const defaultFistBumpIcon: ImageSourcePropType =
-		resolvedMode === "dark"
-			? require("../../../assets/icons/fist-bump-white.png")
-			: require("../../../assets/icons/fist-bump.png");
+		require("../../../assets/icons/fist-bump-white.png");
 
-	const activeFistBumpIcon: ImageSourcePropType = require("../../../assets/icons/fist-bump-color.png");
+	const activeFistBumpIcon: ImageSourcePropType =
+		require("../../../assets/icons/fist-bump-white.png");
 
 	const runBumpPulse = React.useCallback(() => {
 		setShowBumpPulse(true);
@@ -339,7 +337,11 @@ export function FeedPost({
 					>
 						<Image
 							source={activeFistBumpIcon}
-							style={{ width: metrics.icon.xl * 1.5, height: metrics.icon.xl * 1.5 }}
+							style={{
+								width: metrics.icon.xl * 1.5,
+								height: metrics.icon.xl * 1.5,
+								tintColor: colors.primary,
+							}}
 						/>
 					</Animated.View>
 				) : null}
@@ -379,7 +381,11 @@ export function FeedPost({
 				>
 					<Image
 						source={liked ? activeFistBumpIcon : defaultFistBumpIcon}
-						style={{ width: metrics.icon.md + 6, height: metrics.icon.md + 6 }}
+						style={{
+							width: metrics.icon.md + 6,
+							height: metrics.icon.md + 6,
+							tintColor: liked ? colors.primary : colors.textPrimary,
+						}}
 					/>
 				</Pressable>
 			</View>

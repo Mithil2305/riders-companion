@@ -255,7 +255,7 @@ export function CommentSheet({
 				},
 				backdrop: {
 					...StyleSheet.absoluteFillObject,
-					backgroundColor: "rgba(0,0,0,0.5)",
+					backgroundColor: colors.overlay,
 				},
 				sheet: {
 					height: SCREEN_HEIGHT * 0.85,
@@ -477,10 +477,10 @@ export function CommentSheet({
 								style={[styles.sendTap, { opacity: inputText.trim() && !isSubmitting ? 1 : 0.5 }]}
 								onPress={handleSend}
 							>
-								{isSubmitting ? (
-									<ActivityIndicator size="small" color="#fff" />
+				{isSubmitting ? (
+									<ActivityIndicator size="small" color={colors.textInverse} />
 								) : (
-									<Ionicons name="arrow-up" size={20} color="#fff" />
+									<Ionicons name="arrow-up" size={20} color={colors.textInverse} />
 								)}
 							</Pressable>
 						</View>

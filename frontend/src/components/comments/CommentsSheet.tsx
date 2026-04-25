@@ -392,7 +392,7 @@ export function CommentsSheet({
           fontWeight: '600',
         },
         actionDeleteText: {
-          color: '#ef4444',
+          color: colors.primary,
         },
         editOverlay: {
           flex: 1,
@@ -559,7 +559,7 @@ export function CommentsSheet({
                 <Text style={styles.actionText}>Edit</Text>
               </Pressable>
               <Pressable onPress={handleDeleteSelected} style={[styles.actionItem, styles.actionItemLast]}>
-                <Ionicons color="#ef4444" name="trash-outline" size={metrics.icon.md} />
+                <Ionicons color={colors.primary} name="trash-outline" size={metrics.icon.md} />
                 <Text style={[styles.actionText, styles.actionDeleteText]}>Delete</Text>
               </Pressable>
             </View>

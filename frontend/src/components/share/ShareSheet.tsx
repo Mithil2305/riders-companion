@@ -83,13 +83,13 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
   const actionItems = React.useMemo<(ShareActionModel & { color: string; icon: keyof typeof Ionicons.glyphMap })[]>(
     () => [
       { id: 'story', label: 'Add post to your story', iconName: 'add', icon: 'add', color: colors.primary },
-      { id: 'message', label: 'Send as message', iconName: 'chatbubble-outline', icon: 'chatbubble-outline', color: colors.info },
-      { id: 'link', label: 'Copy link', iconName: 'link-outline', icon: 'link-outline', color: colors.textTertiary },
-      { id: 'facebook', label: 'Share to Facebook', iconName: 'logo-facebook', icon: 'logo-facebook', color: colors.info },
-      { id: 'twitter', label: 'Share to X', iconName: 'logo-x', icon: 'logo-x', color: "black" },
-      { id: 'whatsapp', label: 'Share to WhatsApp', iconName: 'logo-whatsapp', icon: 'logo-whatsapp', color: colors.success },
+      { id: 'message', label: 'Send as message', iconName: 'chatbubble-outline', icon: 'chatbubble-outline', color: colors.textPrimary },
+      { id: 'link', label: 'Copy link', iconName: 'link-outline', icon: 'link-outline', color: colors.textPrimary },
+      { id: 'facebook', label: 'Share to Facebook', iconName: 'logo-facebook', icon: 'logo-facebook', color: colors.primary },
+      { id: 'twitter', label: 'Share to X', iconName: 'logo-x', icon: 'logo-x', color: colors.textPrimary },
+      { id: 'whatsapp', label: 'Share to WhatsApp', iconName: 'logo-whatsapp', icon: 'logo-whatsapp', color: colors.primary },
     ],
-    [colors.info, colors.primary, colors.success, colors.textTertiary],
+    [colors.primary, colors.textPrimary],
   );
 
   const styles = React.useMemo(
@@ -258,7 +258,11 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
                   style={styles.actionItem}
                 >
                   <View style={[styles.actionCircle, { backgroundColor: item.color }]}>
-                    <Ionicons color={colors.textInverse} name={item.icon} size={metrics.icon.lg} />
+                    <Ionicons
+                      color={item.color === colors.textPrimary ? colors.background : colors.textInverse}
+                      name={item.icon}
+                      size={metrics.icon.lg}
+                    />
                   </View>
                   <Text style={styles.actionText}>{item.label}</Text>
                 </Pressable>

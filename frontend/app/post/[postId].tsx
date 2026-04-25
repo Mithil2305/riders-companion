@@ -147,7 +147,7 @@ function PostCard({
 					width: 34,
 					height: 34,
 					borderRadius: 17,
-					backgroundColor: "rgba(0,0,0,0.45)",
+					backgroundColor: colors.overlay,
 					alignItems: "center",
 					justifyContent: "center",
 				},
@@ -178,12 +178,12 @@ function PostCard({
 					marginTop: metrics.sm,
 					height: 44,
 					borderRadius: metrics.radius.md,
-					backgroundColor: "#c62828",
+					backgroundColor: colors.primary,
 					alignItems: "center",
 					justifyContent: "center",
 				},
 				deleteButtonText: {
-					color: "#fff",
+					color: colors.textInverse,
 					fontSize: typography.sizes.base,
 					fontWeight: "700",
 				},
@@ -221,7 +221,7 @@ function PostCard({
 
 				{showOwnerActions ? (
 					<Pressable onPress={onPressEdit} style={styles.editIcon}>
-						<Ionicons color="#fff" name="create-outline" size={18} />
+						<Ionicons color={colors.textInverse} name="create-outline" size={18} />
 					</Pressable>
 				) : null}
 			</View>

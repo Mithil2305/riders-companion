@@ -82,7 +82,13 @@ export function StreamingVideo({
 				style={StyleSheet.absoluteFill}
 			/>
 			{!hasRenderedFrame ? (
-				<View style={[StyleSheet.absoluteFill, styles.loader]}>
+				<View
+					style={[
+						StyleSheet.absoluteFill,
+						styles.loader,
+						{ backgroundColor: colors.neutralStrong },
+					]}
+				>
 					<ActivityIndicator color={colors.primary} size="small" />
 				</View>
 			) : null}
@@ -94,6 +100,5 @@ const styles = StyleSheet.create({
 	loader: {
 		alignItems: "center",
 		justifyContent: "center",
-		backgroundColor: "#00000020",
 	},
 });
