@@ -12,7 +12,6 @@ import {
 	View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { VideoView, useVideoPlayer } from "expo-video";
 import Animated, {
 	FadeIn,
 	FadeInDown,
@@ -20,13 +19,18 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { EmptyState, SkeletonBlock } from "../../src/components/common";
+import {
+	EmptyState,
+	SkeletonBlock,
+	StreamingVideo,
+} from "../../src/components/common";
 import { ClipThumbnail } from "../../src/components/clips/ClipThumbnail";
 import {
 	ProfileClipItem,
 	useProfileDashboardData,
 } from "../../src/hooks/useProfileDashboardData";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
+import ClipService from "../../src/services/ClipService";
 import FeedService, { FeedPostPayload } from "../../src/services/FeedService";
 import { useTheme } from "../../src/hooks/useTheme";
 
@@ -496,37 +500,25 @@ function AchievementsModal({
 	);
 }
 
-function PostVideo({ uri }: { uri: string }) {
-	const player = useVideoPlayer(uri, (instance) => {
-		instance.loop = true;
-		instance.play();
-	});
-
-	return (
-		<VideoView
-			contentFit="contain"
-			nativeControls
-			player={player}
-			style={{ width: "100%", height: 320 }}
-		/>
-	);
-}
-
-function PostDetailModal({
+function ContentDetailModal({
 	visible,
-	post,
 	onClose,
-	onCreate,
 	onDelete,
 	onSaveCaption,
+	caption,
+	contentLabel,
+	mediaType,
+	mediaUrl,
 	busy,
 }: {
 	visible: boolean;
-	post: FeedPostPayload | null;
 	onClose: () => void;
-	onCreate: () => void;
-	onDelete: (postId: string) => void;
-	onSaveCaption: (postId: string, caption: string) => Promise<void>;
+	onDelete: () => void;
+	onSaveCaption: (caption: string) => Promise<void>;
+	caption?: string | null;
+	contentLabel: "post" | "clip";
+	mediaType: "IMAGE" | "VIDEO";
+	mediaUrl: string;
 	busy: boolean;
 }) {
 	const { colors, metrics, typography } = useTheme();
@@ -534,11 +526,9 @@ function PostDetailModal({
 	const [captionDraft, setCaptionDraft] = React.useState("");
 
 	React.useEffect(() => {
-		if (post) {
-			setCaptionDraft(post.caption ?? "");
-		}
+		setCaptionDraft(caption ?? "");
 		setIsEditing(false);
-	}, [post]);
+	}, [caption, visible]);
 
 	const styles = React.useMemo(
 		() =>
@@ -558,10 +548,34 @@ function PostDetailModal({
 					width: "100%",
 					height: 320,
 					backgroundColor: colors.surface,
+					position: "relative",
 				},
 				image: {
 					width: "100%",
 					height: "100%",
+				},
+				mediaActionRow: {
+					position: "absolute",
+					top: metrics.sm,
+					left: metrics.sm,
+					right: metrics.sm,
+					flexDirection: "row",
+					alignItems: "center",
+					justifyContent: "space-between",
+					zIndex: 2,
+				},
+				mediaActionGroup: {
+					flexDirection: "row",
+					alignItems: "center",
+					gap: metrics.sm,
+				},
+				iconButton: {
+					width: 38,
+					height: 38,
+					borderRadius: 19,
+					alignItems: "center",
+					justifyContent: "center",
+					backgroundColor: "rgba(0,0,0,0.52)",
 				},
 				content: {
 					padding: metrics.md,
@@ -614,7 +628,7 @@ function PostDetailModal({
 		[colors, metrics, typography],
 	);
 
-	if (!post) {
+	if (!visible || !mediaUrl) {
 		return null;
 	}
 
@@ -628,14 +642,37 @@ function PostDetailModal({
 			<View style={styles.backdrop}>
 				<View style={styles.card}>
 					<View style={styles.mediaWrap}>
-						{post.mediaType === "VIDEO" ? (
-							<PostVideo uri={post.mediaUrl || ""} />
-						) : (
-							<Image
-								source={{ uri: post.mediaUrl || "" }}
+						{mediaType === "VIDEO" ? (
+							<StreamingVideo
+								contentFit="contain"
+								shouldPlay={visible}
 								style={styles.image}
+								uri={mediaUrl}
 							/>
+						) : (
+							<Image resizeMode="contain" source={{ uri: mediaUrl }} style={styles.image} />
 						)}
+						<View style={styles.mediaActionRow}>
+							<Pressable onPress={onClose} style={styles.iconButton}>
+								<Ionicons color={colors.textInverse} name="close" size={20} />
+							</Pressable>
+							<View style={styles.mediaActionGroup}>
+								<Pressable
+									disabled={busy}
+									onPress={() => setIsEditing((current) => !current)}
+									style={styles.iconButton}
+								>
+									<Ionicons
+										color={colors.textInverse}
+										name={isEditing ? "close-outline" : "create-outline"}
+										size={20}
+									/>
+								</Pressable>
+								<Pressable disabled={busy} onPress={onDelete} style={styles.iconButton}>
+									<Ionicons color="#ffb4b4" name="trash-outline" size={20} />
+								</Pressable>
+							</View>
+						</View>
 					</View>
 					<View style={styles.content}>
 						{isEditing ? (
@@ -649,24 +686,15 @@ function PostDetailModal({
 							/>
 						) : (
 							<Text style={styles.caption}>
-								{post.caption || "No description"}
+								{caption || "No description"}
 							</Text>
 						)}
 
 						<View style={styles.actionsRow}>
-							<Pressable
-								onPress={onCreate}
-								style={[styles.actionBtn, styles.actionBtnPrimary]}
-							>
-								<Text style={[styles.actionText, styles.actionTextPrimary]}>
-									Create
-								</Text>
-							</Pressable>
-
 							{isEditing ? (
 								<Pressable
 									disabled={busy}
-									onPress={() => void onSaveCaption(post.id, captionDraft)}
+									onPress={() => void onSaveCaption(captionDraft)}
 									style={[styles.actionBtn, styles.actionBtnPrimary]}
 								>
 									<Text style={[styles.actionText, styles.actionTextPrimary]}>
@@ -674,21 +702,14 @@ function PostDetailModal({
 									</Text>
 								</Pressable>
 							) : (
-								<Pressable
-									onPress={() => setIsEditing(true)}
-									style={styles.actionBtn}
-								>
+								<Pressable onPress={() => setIsEditing(true)} style={styles.actionBtn}>
 									<Text style={styles.actionText}>Edit Description</Text>
 								</Pressable>
 							)}
 
-							<Pressable
-								disabled={busy}
-								onPress={() => onDelete(post.id)}
-								style={[styles.actionBtn, styles.actionBtnDanger]}
-							>
+							<Pressable disabled={busy} onPress={onDelete} style={[styles.actionBtn, styles.actionBtnDanger]}>
 								<Text style={[styles.actionText, styles.actionTextPrimary]}>
-									Delete
+									Delete {contentLabel}
 								</Text>
 							</Pressable>
 
@@ -727,11 +748,17 @@ export default function ProfileScreen() {
 	const [selectedPostId, setSelectedPostId] = React.useState<string | null>(
 		null,
 	);
+	const [selectedClipId, setSelectedClipId] = React.useState<string | null>(null);
 	const [isPostActionBusy, setIsPostActionBusy] = React.useState(false);
+	const [isClipActionBusy, setIsClipActionBusy] = React.useState(false);
 
 	const selectedPost = React.useMemo(
 		() => moments.find((post) => post.id === selectedPostId) ?? null,
 		[moments, selectedPostId],
+	);
+	const selectedClip = React.useMemo(
+		() => clips.find((clip) => clip.id === selectedClipId) ?? null,
+		[clips, selectedClipId],
 	);
 
 	const stats = React.useMemo(
@@ -759,19 +786,18 @@ export default function ProfileScreen() {
 
 	const openPostPage = React.useCallback(
 		(postId: string) => {
-			router.push(`/post/${postId}`);
+			setSelectedClipId(null);
+			setSelectedPostId(postId);
 		},
-		[router],
+		[],
 	);
 
 	const openClip = React.useCallback(
 		(clip: ProfileClipItem) => {
-			router.push({
-				pathname: "/(tabs)/clips",
-				params: { clipId: clip.id },
-			});
+			setSelectedPostId(null);
+			setSelectedClipId(clip.id);
 		},
-		[router],
+		[],
 	);
 
 	const handleSavePostCaption = React.useCallback(
@@ -823,6 +849,69 @@ export default function ProfileScreen() {
 		},
 		[reloadDashboard],
 	);
+
+	const handleSaveSelectedClipCaption = React.useCallback(
+		async (caption: string) => {
+			if (!selectedClip) {
+				return;
+			}
+
+			setIsClipActionBusy(true);
+			try {
+				if (selectedClip.sourcePostId) {
+					await FeedService.updatePost(selectedClip.sourcePostId, { caption });
+				} else {
+					await ClipService.updateClip(selectedClip.id, { caption });
+				}
+				await reloadDashboard();
+			} catch (error) {
+				Alert.alert(
+					"Update failed",
+					error instanceof Error
+						? error.message
+						: "Unable to update description.",
+				);
+			} finally {
+				setIsClipActionBusy(false);
+			}
+		},
+		[reloadDashboard, selectedClip],
+	);
+
+	const handleDeleteSelectedClip = React.useCallback(() => {
+		if (!selectedClip) {
+			return;
+		}
+
+		Alert.alert("Delete clip", "This will permanently remove this clip.", [
+			{ text: "Cancel", style: "cancel" },
+			{
+				text: "Delete",
+				style: "destructive",
+				onPress: async () => {
+					setIsClipActionBusy(true);
+					try {
+						if (selectedClip.sourcePostId) {
+							await FeedService.deletePost(selectedClip.sourcePostId);
+						} else {
+							await ClipService.deleteClip(selectedClip.id);
+						}
+						setSelectedClipId(null);
+						await reloadDashboard();
+					} catch (error) {
+						Alert.alert(
+							"Delete failed",
+							error instanceof Error
+								? error.message
+								: "Unable to delete this clip.",
+						);
+					} finally {
+						setIsClipActionBusy(false);
+					}
+				},
+			},
+		]);
+	}, [reloadDashboard, selectedClip]);
 
 	const onRefresh = React.useCallback(async () => {
 		setRefreshing(true);
@@ -1234,14 +1323,32 @@ export default function ProfileScreen() {
 					visible={showAchievements}
 				/>
 
-				<PostDetailModal
+				<ContentDetailModal
 					busy={isPostActionBusy}
+					caption={selectedPost?.caption}
+					contentLabel="post"
+					mediaType={selectedPost?.mediaType === "VIDEO" ? "VIDEO" : "IMAGE"}
+					mediaUrl={selectedPost?.mediaUrl ?? ""}
 					onClose={() => setSelectedPostId(null)}
-					onCreate={() => router.push("/create")}
-					onDelete={handleDeletePost}
-					onSaveCaption={handleSavePostCaption}
-					post={selectedPost}
+					onDelete={() => selectedPost && handleDeletePost(selectedPost.id)}
+					onSaveCaption={(caption) =>
+						selectedPost
+							? handleSavePostCaption(selectedPost.id, caption)
+							: Promise.resolve()
+					}
 					visible={selectedPost != null}
+				/>
+
+				<ContentDetailModal
+					busy={isClipActionBusy}
+					caption={selectedClip?.caption}
+					contentLabel="clip"
+					mediaType="VIDEO"
+					mediaUrl={selectedClip?.videoUrl ?? ""}
+					onClose={() => setSelectedClipId(null)}
+					onDelete={handleDeleteSelectedClip}
+					onSaveCaption={handleSaveSelectedClipCaption}
+					visible={selectedClip != null}
 				/>
 			</SafeAreaView>
 		</Animated.View>

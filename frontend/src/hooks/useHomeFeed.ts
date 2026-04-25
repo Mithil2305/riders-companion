@@ -52,6 +52,13 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 			"https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80",
 		image: post.mediaUrl,
 		mediaType: post.mediaType,
+		aspectRatio:
+			typeof post.width === "number" &&
+			typeof post.height === "number" &&
+			post.width > 0 &&
+			post.height > 0
+				? post.width / post.height
+				: undefined,
 		caption: post.caption ?? "",
 		likes: Number(post.likesCount ?? 0),
 		comments: Number(post.commentsCount ?? 0),

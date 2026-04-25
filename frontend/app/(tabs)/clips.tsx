@@ -414,6 +414,7 @@ export default function ClipsScreen() {
 		typeof params.clipId === "string" ? params.clipId : params.clipId?.[0];
 	const canPlayClips = isFocused && appState === "active";
 	const preloadRadius = getVideoPreloadRadius(dataSaverEnabled);
+
 	const styles = React.useMemo(
 		() =>
 			StyleSheet.create({
@@ -589,11 +590,11 @@ export default function ClipsScreen() {
 					/>
 				)}
 				<CommentsSheet
-					postId={selectedClip?.sourcePostId ?? selectedClip?.id ?? ''}
+					contentId={selectedClip?.sourcePostId ?? selectedClip?.id ?? null}
+					contentType={selectedClip?.sourcePostId ? "feed" : "clip"}
 					visible={isCommentSheetVisible}
 					onClose={() => setIsCommentSheetVisible(false)}
-					contentType={selectedClip?.sourcePostId ? 'feed' : 'clip'}
-					onCommentAdded={(newCount) => {
+					onCommentsCountChange={(newCount) => {
 						if (selectedClip) {
 							updateCommentCount(selectedClip.id, newCount);
 						}

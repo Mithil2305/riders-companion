@@ -23,22 +23,22 @@ import { CommentItem } from './CommentItem';
 
 type CommentsSheetProps = {
   visible: boolean;
-  postId: string;
+  contentId: string | null;
   onClose: () => void;
   currentUsername?: string;
   currentUserAvatarUrl?: string;
   contentType?: InteractionContentType;
-  onCommentAdded?: (newCount: number) => void;
+  onCommentsCountChange?: (count: number) => void;
 };
 
 export function CommentsSheet({
   visible,
-  postId,
+  contentId,
   onClose,
   currentUsername,
   currentUserAvatarUrl,
   contentType = 'feed',
-  onCommentAdded,
+  onCommentsCountChange,
 }: CommentsSheetProps) {
   const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=11';
   const { user } = useAuth();
@@ -59,7 +59,7 @@ export function CommentsSheet({
     replyingTo,
     addReply,
     cancelReply,
-  } = useComments(postId, {
+  } = useComments(contentId ?? "", {
     currentUsername: resolvedUsername,
     currentUserAvatarUrl: resolvedAvatarUrl,
     contentType,
@@ -100,6 +100,14 @@ export function CommentsSheet({
       setExpandedReplies(new Set());
     }
   }, [visible]);
+
+  React.useEffect(() => {
+    if (!visible || isLoading) {
+      return;
+    }
+
+    onCommentsCountChange?.(comments.length);
+  }, [comments.length, isLoading, onCommentsCountChange, visible]);
 
   const toggleReplies = React.useCallback((commentId: string) => {
     setExpandedReplies((prev) => {
@@ -144,8 +152,17 @@ export function CommentsSheet({
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          void deleteComment(activeComment.id);
-          closeActionStates();
+          void (async () => {
+            try {
+              await deleteComment(activeComment.id);
+              closeActionStates();
+            } catch (error) {
+              Alert.alert(
+                'Delete failed',
+                error instanceof Error ? error.message : 'Unable to delete comment.',
+              );
+            }
+          })();
         },
       },
     ]);
@@ -156,9 +173,31 @@ export function CommentsSheet({
       return;
     }
 
-    void editComment(activeComment.id, editDraft.trim());
-    closeActionStates();
+    void (async () => {
+      try {
+        await editComment(activeComment.id, editDraft.trim());
+        closeActionStates();
+      } catch (error) {
+        Alert.alert(
+          'Update failed',
+          error instanceof Error ? error.message : 'Unable to update comment.',
+        );
+      }
+    })();
   }, [activeComment, closeActionStates, editComment, editDraft]);
+
+  const handleAddComment = React.useCallback(() => {
+    void (async () => {
+      try {
+        await addComment();
+      } catch (error) {
+        Alert.alert(
+          'Comment failed',
+          error instanceof Error ? error.message : 'Unable to add comment.',
+        );
+      }
+    })();
+  }, [addComment]);
 
   const panResponder = React.useRef(
     PanResponder.create({
@@ -537,15 +576,7 @@ export function CommentsSheet({
                   style={styles.input}
                   value={draft}
                 />
-                <Pressable
-                  disabled={!canSend}
-                  onPress={async () => {
-                    await addComment();
-                    const totalCount = comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0), 0);
-                    onCommentAdded?.(totalCount);
-                  }}
-                  style={styles.sendButton}
-                >
+                <Pressable disabled={!canSend} onPress={handleAddComment} style={styles.sendButton}>
                   <Ionicons
                     color={canSend ? colors.primary : colors.textTertiary}
                     name="paper-plane"

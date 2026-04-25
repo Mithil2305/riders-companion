@@ -7,6 +7,7 @@ import Animated, {
 	useSharedValue,
 } from "react-native-reanimated";
 import { EmptyState, ShareSheet } from "../../src/components/common";
+import { CommentsSheet } from "../../src/components/comments";
 import {
 	EndOfFeed,
 	FeedPost,
@@ -113,7 +114,7 @@ export default function HomeScreen() {
 				{...swipeHandlers}
 			>
 				<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
-					<HeaderBar showSpinner title="Moments" />
+					<HeaderBar showBottomBorder={false} showSpinner title="Moments" />
 					<FeedSkeleton />
 					<Text style={styles.loadingTitle}>
 						Loading your latest moments...
@@ -129,7 +130,11 @@ export default function HomeScreen() {
 			{...swipeHandlers}
 		>
 			<SafeAreaView edges={["left", "right", "top"]} style={styles.container}>
-				<HeaderBar showSpinner={refreshing} title="Moments" />
+				<HeaderBar
+					showBottomBorder={false}
+					showSpinner={refreshing}
+					title="Moments"
+				/>
 
 				<Animated.FlatList
 					ListEmptyComponent={
@@ -160,11 +165,11 @@ export default function HomeScreen() {
 					showsVerticalScrollIndicator={false}
 				/>
 				<CommentsSheet
-					postId={selectedPostId ?? ''}
+					contentId={selectedPostId}
+					contentType="feed"
 					visible={isCommentSheetVisible}
 					onClose={() => setIsCommentSheetVisible(false)}
-					contentType="feed"
-					onCommentAdded={(newCount: number) => {
+					onCommentsCountChange={(newCount: number) => {
 						if (selectedPostId) {
 							updateCommentCount(selectedPostId, newCount);
 						}

@@ -8,6 +8,7 @@ export interface CommentAuthorModel {
 export interface CommentModel {
 	id: string;
 	content: string;
+	createdAt?: string;
 	timeLabel: string;
 	likeCount: number;
 	likedByMe: boolean;
