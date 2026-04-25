@@ -1,13 +1,14 @@
-export type ChatFilter = 'all' | 'personal' | 'group' | 'ended';
+export type ChatFilter = 'all' | 'personal' | 'group' | 'ended' | 'blocked';
 
 export type ChatRoomType = 'personal' | 'group';
-export type ChatStatus = 'active' | 'ended';
+export type ChatStatus = 'active' | 'ended' | 'blocked';
 export type MessageSender = 'me' | 'other';
 export type MessageDelivery = 'sent' | 'delivered' | 'read' | 'failed';
 
 export interface ChatPreview {
   id: string;
   name: string;
+  username?: string;
   message: string;
   time: string;
   avatar: string;
@@ -49,19 +50,19 @@ export interface PersonalImageMessage extends PersonalMessageBase {
 export type PersonalChatMessage = PersonalTextMessage | PersonalImageMessage;
 export type PersonalChatListItem = DateSeparatorItem | PersonalChatMessage;
 
-export type PersonalChatMenuAction =
-  | 'voice-call'
-  | 'video-call'
-  | 'clear-chat'
-  | 'mute-notifications'
-  | 'block-user';
+export type PersonalChatMenuAction = 'toggle-block-user';
 
 export interface PersonalChatMeta {
   roomId: string;
   name: string;
-  avatar: string;
+  username?: string | null;
+  avatar: string | null;
   isOnline: boolean;
   rideTogetherLabel: string;
+  blockedByViewer?: boolean;
+  blockedByOther?: boolean;
+  isBlocked?: boolean;
+  isSelf?: boolean;
 }
 
 export interface ChatMessage {

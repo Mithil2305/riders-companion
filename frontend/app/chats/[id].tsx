@@ -29,18 +29,23 @@ export default function ChatRoomScreen() {
     openMenu,
     closeMenu,
     runMenuAction,
-    isMuted,
     isBlocked,
+    isBlockedByViewer,
   } = useChat(roomId);
 
   const displayMeta = React.useMemo(
     () => ({
       ...meta,
-      name: typeof params.name === 'string' && params.name.trim().length > 0 ? params.name : meta.name,
+      name:
+        typeof params.username === 'string' && params.username.trim().length > 0
+          ? `@${params.username}`
+          : typeof params.name === 'string' && params.name.trim().length > 0
+            ? params.name
+            : meta.name,
       avatar:
         typeof params.avatar === 'string' && params.avatar.trim().length > 0
           ? params.avatar
-          : meta.avatar,
+          : meta.avatar ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(meta.name || 'Rider')}&background=212121&color=FFFFFF`,
       rideTogetherLabel:
         typeof params.username === 'string' && params.username.trim().length > 0
           ? `RIDER: @${params.username}`
@@ -61,7 +66,7 @@ export default function ChatRoomScreen() {
   );
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
@@ -82,8 +87,7 @@ export default function ChatRoomScreen() {
       </KeyboardAvoidingView>
 
       <PersonalChatMenuSheet
-        isBlocked={isBlocked}
-        isMuted={isMuted}
+        isBlocked={isBlockedByViewer}
         onClose={closeMenu}
         onSelectAction={runMenuAction}
         visible={isMenuVisible}

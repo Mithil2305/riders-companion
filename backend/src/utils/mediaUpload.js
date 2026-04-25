@@ -119,6 +119,35 @@ const runVideoCompression = async ({ inputPath, outputPath, crf, maxWidth }) => 
 	});
 };
 
+const generateVideoThumbnailBuffer = async (buffer) => {
+	if (!ffmpegPath) {
+		return null;
+	}
+
+	const tempDir = os.tmpdir();
+	const token = randomUUID();
+	const inputPath = path.join(tempDir, `rider-thumb-${token}.input.mp4`);
+	const outputPath = path.join(tempDir, `rider-thumb-${token}.output.jpg`);
+
+	await fs.writeFile(inputPath, buffer);
+
+	try {
+		await new Promise((resolve, reject) => {
+			ffmpeg(inputPath)
+				.seekInput(0.1)
+				.frames(1)
+				.outputOptions(["-q:v 2"])
+				.on("end", resolve)
+				.on("error", reject)
+				.save(outputPath);
+		});
+
+		return await fs.readFile(outputPath);
+	} finally {
+		await cleanupTmpFiles([inputPath, outputPath]);
+	}
+};
+
 const compressVideoBuffer = async (buffer) => {
 	if (!ffmpegPath) {
 		throw new Error(
@@ -188,9 +217,14 @@ const compressMediaPayload = async ({ buffer, mimeType }) => {
 
 	if (/^video\//i.test(mimeType || "")) {
 		const compressedBuffer = await compressVideoBuffer(buffer);
+		const thumbnailBuffer = await generateVideoThumbnailBuffer(compressedBuffer).catch(
+			() => null,
+		);
 		return {
 			buffer: compressedBuffer,
 			mimeType: "video/mp4",
+			thumbnailBuffer,
+			thumbnailMimeType: thumbnailBuffer ? "image/jpeg" : undefined,
 		};
 	}
 
@@ -226,7 +260,15 @@ async function uploadMediaFromBody(body, options) {
 			folder,
 			...resolveUploadExtras(options),
 		});
-		return { sourceKey: input.key, url };
+		const thumbnailUrl = compressed.thumbnailBuffer
+			? await uploadBufferToR2({
+					buffer: compressed.thumbnailBuffer,
+					mimeType: compressed.thumbnailMimeType,
+					folder: `${folder}/thumbnails`,
+					...resolveUploadExtras(options),
+			  })
+			: null;
+		return { sourceKey: input.key, url, thumbnailUrl };
 	}
 
 	if (isHttpUrl(input.value)) {
@@ -255,7 +297,16 @@ async function uploadMediaFromBody(body, options) {
 			...resolveUploadExtras(options),
 		});
 
-		return { sourceKey: input.key, url };
+		const thumbnailUrl = compressed.thumbnailBuffer
+			? await uploadBufferToR2({
+					buffer: compressed.thumbnailBuffer,
+					mimeType: compressed.thumbnailMimeType,
+					folder: `${folder}/thumbnails`,
+					...resolveUploadExtras(options),
+			  })
+			: null;
+
+		return { sourceKey: input.key, url, thumbnailUrl };
 	}
 
 	const fallbackMimeType = sanitizeString(
@@ -285,7 +336,16 @@ async function uploadMediaFromBody(body, options) {
 		...resolveUploadExtras(options),
 	});
 
-	return { sourceKey: input.key, url };
+	const thumbnailUrl = compressed.thumbnailBuffer
+		? await uploadBufferToR2({
+				buffer: compressed.thumbnailBuffer,
+				mimeType: compressed.thumbnailMimeType,
+				folder: `${folder}/thumbnails`,
+				...resolveUploadExtras(options),
+		  })
+		: null;
+
+	return { sourceKey: input.key, url, thumbnailUrl };
 }
 
 function mediaUploadError(res, error, code = "MEDIA_UPLOAD_ERR") {

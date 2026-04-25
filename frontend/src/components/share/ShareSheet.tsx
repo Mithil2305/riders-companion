@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -11,20 +12,33 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { useShare } from '../../hooks/useShare';
-import { ShareActionModel, ShareTargetType } from '../../types/interactions';
+import { ShareActionModel, ShareTargetType, ShareUser } from '../../types/interactions';
 import { ShareUserItem } from './ShareUserItem';
 
 type ShareSheetProps = {
   visible: boolean;
-  postId: string;
+  postId: string | null;
   onClose: () => void;
   postUrl?: string;
+  resourceType?: 'post' | 'clip';
+  onShared?: () => void;
+  users?: ShareUser[];
 };
 
-export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProps) {
+export function ShareSheet({
+  visible,
+  postId,
+  onClose,
+  postUrl,
+  resourceType = 'post',
+  onShared,
+  users: usersProp,
+}: ShareSheetProps) {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, metrics, typography } = useTheme();
   const {
@@ -37,7 +51,7 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
     shareToUser,
     shareToAction,
     copyLink,
-  } = useShare(postId, postUrl);
+  } = useShare(postId ?? '', postUrl);
 
   const [mounted, setMounted] = React.useState(visible);
   const translateY = React.useRef(new Animated.Value(540)).current;
@@ -80,17 +94,65 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
     });
   }, [backdropOpacity, translateY, visible]);
 
-  const actionItems = React.useMemo<(ShareActionModel & { color: string; icon: keyof typeof Ionicons.glyphMap })[]>(
+  const actionItems = React.useMemo<(ShareActionModel & {
+    icon: keyof typeof Ionicons.glyphMap;
+    backgroundColor: string;
+    iconColor: string;
+  })[]>(
     () => [
-      { id: 'story', label: 'Add post to your story', iconName: 'add', icon: 'add', color: colors.primary },
-      { id: 'message', label: 'Send as message', iconName: 'chatbubble-outline', icon: 'chatbubble-outline', color: colors.textPrimary },
-      { id: 'link', label: 'Copy link', iconName: 'link-outline', icon: 'link-outline', color: colors.textPrimary },
-      { id: 'facebook', label: 'Share to Facebook', iconName: 'logo-facebook', icon: 'logo-facebook', color: colors.primary },
-      { id: 'twitter', label: 'Share to X', iconName: 'logo-x', icon: 'logo-x', color: colors.textPrimary },
-      { id: 'whatsapp', label: 'Share to WhatsApp', iconName: 'logo-whatsapp', icon: 'logo-whatsapp', color: colors.primary },
+      {
+        id: 'story',
+        label: `Add ${resourceType === 'clip' ? 'clip' : 'post'} to your story`,
+        iconName: 'add',
+        icon: 'add',
+        backgroundColor: colors.primary,
+        iconColor: colors.textInverse,
+      },
+      {
+        id: 'message',
+        label: 'Send as message',
+        iconName: 'chatbubble-outline',
+        icon: 'chatbubble-outline',
+        backgroundColor: '#0EA5E9',
+        iconColor: '#FFFFFF',
+      },
+      {
+        id: 'link',
+        label: 'Copy link',
+        iconName: 'link-outline',
+        icon: 'link-outline',
+        backgroundColor: '#6B7280',
+        iconColor: '#FFFFFF',
+      },
+      {
+        id: 'facebook',
+        label: 'Share to Facebook',
+        iconName: 'logo-facebook',
+        icon: 'logo-facebook',
+        backgroundColor: '#1877F2',
+        iconColor: '#FFFFFF',
+      },
+      {
+        id: 'twitter',
+        label: 'Share to X',
+        iconName: 'logo-x',
+        icon: 'logo-x',
+        backgroundColor: '#000000',
+        iconColor: '#FFFFFF',
+      },
+      {
+        id: 'whatsapp',
+        label: 'Share to WhatsApp',
+        iconName: 'logo-whatsapp',
+        icon: 'logo-whatsapp',
+        backgroundColor: '#25D366',
+        iconColor: '#FFFFFF',
+      },
     ],
-    [colors.primary, colors.textPrimary],
+    [colors.primary, colors.textInverse, resourceType],
   );
+
+  const displayUsers = usersProp ?? users;
 
   const styles = React.useMemo(
     () =>
@@ -191,14 +253,43 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
 
   const handleActionPress = React.useCallback(
     async (id: ShareTargetType) => {
+      if (!postId) {
+        return;
+      }
+
       if (id === 'link') {
         await copyLink();
+        onShared?.();
         return;
       }
 
       await shareToAction(id);
+      onShared?.();
     },
-    [copyLink, shareToAction],
+    [copyLink, onShared, postId, shareToAction],
+  );
+
+  const handleShareToUser = React.useCallback(
+    async (user: ShareUser) => {
+      if (!postId) {
+        Alert.alert('Unavailable', 'Select a valid post or clip to share.');
+        return;
+      }
+
+      await shareToUser(user.id, user.username);
+      onShared?.();
+      onClose();
+      router.push({
+        pathname: '/chats',
+        params: {
+          riderId: user.id,
+          name: user.name,
+          avatar: user.avatarUrl,
+          username: user.username,
+        },
+      });
+    },
+    [onClose, onShared, postId, router, shareToUser],
   );
 
   if (!mounted) {
@@ -237,14 +328,14 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
               />
             </View>
 
-            {isLoading ? (
+            {isLoading && !usersProp ? (
               <View style={styles.loading}>
                 <ActivityIndicator color={colors.primary} />
               </View>
             ) : (
               <View style={styles.usersWrap}>
-                {users.map((user) => (
-                  <ShareUserItem key={user.id} onPress={(userId) => void shareToUser(userId)} user={user} />
+                {displayUsers.map((user) => (
+                  <ShareUserItem key={user.id} onPress={() => void handleShareToUser(user)} user={user} />
                 ))}
               </View>
             )}
@@ -257,9 +348,9 @@ export function ShareSheet({ visible, postId, onClose, postUrl }: ShareSheetProp
                   onPress={() => void handleActionPress(item.id)}
                   style={styles.actionItem}
                 >
-                  <View style={[styles.actionCircle, { backgroundColor: item.color }]}>
+                  <View style={[styles.actionCircle, { backgroundColor: item.backgroundColor }]}>
                     <Ionicons
-                      color={item.color === colors.textPrimary ? colors.background : colors.textInverse}
+                      color={item.iconColor}
                       name={item.icon}
                       size={metrics.icon.lg}
                     />

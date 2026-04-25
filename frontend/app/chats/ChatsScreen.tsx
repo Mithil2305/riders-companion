@@ -54,55 +54,19 @@ export default function ChatsScreen() {
 				params: {
 					name: item.name,
 					avatar: item.avatar,
-					username:
-						typeof params.username === "string" && params.username.trim().length > 0
-							? params.username
-							: undefined,
+					username: item.username,
 				},
 			});
 		},
-		[params.username, router],
+		[router],
 	);
 
-	const profileChatPreview = React.useMemo<ChatPreview | null>(() => {
-		if (typeof params.riderId !== "string" || params.riderId.trim().length === 0) {
-			return null;
-		}
-
-		const name =
-			typeof params.name === "string" && params.name.trim().length > 0
-				? params.name
-				: "Rider";
-		const avatar =
-			typeof params.avatar === "string" && params.avatar.trim().length > 0
-				? params.avatar
-				: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0D8ABC&color=fff`;
-
-		return {
-			id: params.riderId,
-			name,
-			message: "Open conversation",
-			time: "--:--",
-			avatar,
-			roomType: "personal",
-			status: "active",
-			isOnline: false,
-		};
-	}, [params.avatar, params.name, params.riderId]);
-
-	const listData = React.useMemo(() => {
-		if (!profileChatPreview) {
-			return chats;
-		}
-
-		return [
-			profileChatPreview,
-			...chats.filter((item) => item.id !== profileChatPreview.id),
-		];
-	}, [chats, profileChatPreview]);
-
 	React.useEffect(() => {
-		if (!profileChatPreview || hasAutoOpenedRef.current) {
+		if (
+			typeof params.riderId !== "string" ||
+			params.riderId.trim().length === 0 ||
+			hasAutoOpenedRef.current
+		) {
 			return;
 		}
 
@@ -111,8 +75,16 @@ export default function ChatsScreen() {
 		}
 
 		hasAutoOpenedRef.current = true;
-		openChat(profileChatPreview);
-	}, [openChat, params.autoOpen, profileChatPreview]);
+		router.push({
+			pathname: `/chats/${params.riderId}`,
+			params: {
+				name: typeof params.name === "string" ? params.name : undefined,
+				avatar: typeof params.avatar === "string" ? params.avatar : undefined,
+				username:
+					typeof params.username === "string" ? params.username : undefined,
+			},
+		});
+	}, [params.autoOpen, params.avatar, params.name, params.riderId, params.username, router]);
 
 	const styles = React.useMemo(
 		() =>
@@ -133,12 +105,12 @@ export default function ChatsScreen() {
 	);
 
 	return (
-		<SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
+		<SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.safeArea}>
 			<View style={styles.container}>
 				<ChatHeader
 					accentBack
 					onBack={() => router.back()}
-					rightMode="menu"
+					rightMode="none"
 					title="Messages"
 				/>
 				<SearchBar onChangeText={setSearchQuery} value={searchQuery} />
@@ -146,7 +118,7 @@ export default function ChatsScreen() {
 
 				<FlatList
 					contentContainerStyle={styles.listContent}
-					data={listData}
+					data={chats}
 					keyExtractor={(item) => item.id}
 					refreshControl={
 						<RefreshControl

@@ -2,6 +2,7 @@ import React from "react";
 import { FeedPostItem, Story } from "../types/feed";
 import FeedService, { FeedPostPayload } from "../services/FeedService";
 import { useUploadManager } from "../contexts/UploadContext";
+import { formatCompactTimeAgo } from "../utils/formatters";
 
 interface UseHomeFeedResult {
 	loading: boolean;
@@ -14,27 +15,6 @@ interface UseHomeFeedResult {
 	addComment: (postId: string, commentText?: string) => void;
 	updateCommentCount: (postId: string, count: number) => void;
 }
-
-const formatRelativeTime = (isoDate: string) => {
-	const created = new Date(isoDate).getTime();
-	if (Number.isNaN(created)) {
-		return "now";
-	}
-
-	const diffMs = Date.now() - created;
-	const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
-	if (diffMinutes < 60) {
-		return `${diffMinutes}m ago`;
-	}
-
-	const diffHours = Math.floor(diffMinutes / 60);
-	if (diffHours < 24) {
-		return `${diffHours}h ago`;
-	}
-
-	const diffDays = Math.floor(diffHours / 24);
-	return `${diffDays}d ago`;
-};
 
 const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 	if (!post.mediaUrl) {
@@ -62,7 +42,7 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 		caption: post.caption ?? "",
 		likes: Number(post.likesCount ?? 0),
 		comments: Number(post.commentsCount ?? 0),
-		time: formatRelativeTime(post.createdAt),
+		time: formatCompactTimeAgo(post.createdAt),
 		likedByMe: Boolean(post.likedByMe),
 	};
 };
