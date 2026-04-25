@@ -14,6 +14,7 @@ import Animated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ExploreGrid, SearchBar } from "../../src/components/explore";
 import ClipService from "../../src/services/ClipService";
+import FeedService from "../../src/services/FeedService";
 import { useExploreData } from "../../src/hooks/useExploreData";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { useTheme } from "../../src/hooks/useTheme";
@@ -58,15 +59,24 @@ export default function ExploreScreen() {
 	}, []);
 
 	const handleClipLongPress = React.useCallback(async (clip: TrendingClip) => {
+		const realId = clip.id.replace(/^(post-|clip-)/, "");
 		Alert.alert("Post actions", "Choose an action for this post.", [
 			{
 				text: "Like",
 				onPress: async () => {
 					try {
 						if (clip.likedByMe) {
-							await ClipService.unlikeClip(clip.id);
+							if (clip.type === "post") {
+								await FeedService.unlikePost(realId);
+							} else {
+								await ClipService.unlikeClip(realId);
+							}
 						} else {
-							await ClipService.likeClip(clip.id);
+							if (clip.type === "post") {
+								await FeedService.likePost(realId);
+							} else {
+								await ClipService.likeClip(realId);
+							}
 						}
 					} catch {
 						Alert.alert("Action failed", "Unable to update like right now.");
@@ -186,7 +196,7 @@ export default function ExploreScreen() {
 						</View>
 
 						<ScrollView contentContainerStyle={styles.detailList}>
-							{relatedClips.map((clip) => (
+							{relatedClips.map((clip: TrendingClip) => (
 								<View key={clip.id} style={styles.detailCard}>
 									<Image
 										source={{ uri: clip.thumbnail }}

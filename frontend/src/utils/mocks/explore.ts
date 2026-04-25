@@ -27,7 +27,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "2",
@@ -38,7 +39,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "3",
@@ -49,7 +51,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "4",
@@ -60,7 +63,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "5",
@@ -71,7 +75,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "6",
@@ -82,7 +87,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "7",
@@ -93,7 +99,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "8",
@@ -104,7 +111,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "9",
@@ -115,7 +123,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "10",
@@ -126,7 +135,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "11",
@@ -137,7 +147,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "12",
@@ -148,7 +159,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "13",
@@ -159,7 +171,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "14",
@@ -170,7 +183,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "15",
@@ -181,7 +195,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "16",
@@ -192,7 +207,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "17",
@@ -203,7 +219,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "18",
@@ -214,7 +231,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "19",
@@ -225,7 +243,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "20",
@@ -236,7 +255,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "21",
@@ -247,7 +267,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "22",
@@ -258,7 +279,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "23",
@@ -269,7 +291,8 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 	{
 		id: "24",
@@ -280,6 +303,7 @@ export const mockTrendingClips: TrendingClip[] = [
 		likes: 0,
 		comments: 0,
 		shares: 0,
-		createdAt: ""
+		createdAt: "",
+		type: "clip",
 	},
 ];

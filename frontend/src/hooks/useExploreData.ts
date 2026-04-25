@@ -6,6 +6,7 @@ import {
 	TrendingClip,
 } from "../types/explore";
 import ClipService from "../services/ClipService";
+import FeedService from "../services/FeedService";
 
 interface UseExploreDataResult {
 	query: string;
@@ -40,25 +41,51 @@ export function useExploreData(): UseExploreDataResult {
 
 	const loadClips = React.useCallback(async () => {
 		try {
-			const data = await ClipService.getClips();
+			const [feedData, clipsData] = await Promise.all([
+				FeedService.getFeed(),
+				ClipService.getClips(),
+			]);
 			if (!mountedRef.current) {
 				return;
 			}
 
-			setClipPool(
-				data.clips.map((clip) => ({
-					id: clip.id,
-					title: clip.songId ?? "Ride Clip",
-					creatorName: clip.rider?.name ?? "Rider",
-					creatorUsername: clip.rider?.username ?? "rider",
-					thumbnail: clip.videoUrl,
-					likes: Number(clip.likesCount ?? 0),
-					comments: Number(clip.commentsCount ?? 0),
-					shares: Number(clip.sharesCount ?? 0),
-					createdAt: clip.createdAt,
-					likedByMe: Boolean(clip.likedByMe),
-				})),
+			const posts: TrendingClip[] = (feedData.posts ?? []).map((post) => ({
+				id: `post-${post.id}`,
+				title: post.caption ?? "Post",
+				creatorName: post.rider?.name ?? "Rider",
+				creatorUsername: post.rider?.username ?? "rider",
+				thumbnail: post.mediaUrl ?? "",
+				likes: Number(post.likesCount ?? 0),
+				comments: Number(post.commentsCount ?? 0),
+				shares: 0,
+				createdAt: post.createdAt,
+				likedByMe: Boolean(post.likedByMe),
+				type: "post" as const,
+				mediaType: post.mediaType,
+			}));
+
+			const clips: TrendingClip[] = (clipsData.clips ?? []).map((clip) => ({
+				id: `clip-${clip.id}`,
+				title: clip.songId ?? "Ride Clip",
+				creatorName: clip.rider?.name ?? "Rider",
+				creatorUsername: clip.rider?.username ?? "rider",
+				thumbnail: clip.videoUrl,
+				likes: Number(clip.likesCount ?? 0),
+				comments: Number(clip.commentsCount ?? 0),
+				shares: Number(clip.sharesCount ?? 0),
+				createdAt: clip.createdAt,
+				likedByMe: Boolean(clip.likedByMe),
+				type: "clip" as const,
+				mediaType: "video",
+			}));
+
+			const merged = [...posts, ...clips].sort(
+				(a, b) =>
+					new Date(b.createdAt).getTime() -
+					new Date(a.createdAt).getTime(),
 			);
+
+			setClipPool(merged);
 		} catch {
 			if (mountedRef.current) {
 				setClipPool([]);
