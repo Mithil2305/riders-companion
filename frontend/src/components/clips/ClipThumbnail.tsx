@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleProp, ViewStyle } from "react-native";
-import { VideoView, useVideoPlayer } from "expo-video";
+import { StreamingVideo } from "../common";
 
 export function ClipThumbnail({
 	style,
@@ -9,27 +9,13 @@ export function ClipThumbnail({
 	style: StyleProp<ViewStyle>;
 	uri: string;
 }) {
-	const player = useVideoPlayer(uri, (instance) => {
-		instance.loop = true;
-		instance.muted = true;
-		instance.play();
-	});
-
-	React.useEffect(() => {
-		player.muted = true;
-		player.play();
-
-		return () => {
-			player.pause();
-		};
-	}, [player]);
-
 	return (
-		<VideoView
+		<StreamingVideo
 			contentFit="cover"
-			nativeControls={false}
-			player={player}
+			muted
+			shouldPlay
 			style={style}
+			uri={uri}
 		/>
 	);
 }
