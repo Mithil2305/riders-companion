@@ -16,6 +16,7 @@ interface UseExploreDataResult {
 	searchResults: SuggestedUser[]
 	rooms: SuggestedRoom[]
 	clips: TrendingClip[]
+	isInitialLoading: boolean
 	gridSections: ExploreGridSection[]
 	clipAspects: Map<string, number>
 	hasMoreClips: boolean
@@ -35,6 +36,7 @@ const CLIPS_PER_SECTION = 4
 
 export function useExploreData(): UseExploreDataResult {
 	const [query, setQuery] = React.useState("")
+	const [isInitialLoading, setIsInitialLoading] = React.useState(true)
 	const [visibleSections, setVisibleSections] =
 		React.useState(INITIAL_SECTIONS)
 	const [isLoadingMore, setIsLoadingMore] = React.useState(false)
@@ -62,6 +64,10 @@ export function useExploreData(): UseExploreDataResult {
 	}, [])
 
 	const loadClips = React.useCallback(async () => {
+		if (mountedRef.current) {
+			setIsInitialLoading(true)
+		}
+
 		try {
 			const [feedData, clipsData] = await Promise.all([
 				FeedService.getFeed(),
@@ -140,6 +146,10 @@ export function useExploreData(): UseExploreDataResult {
 			if (mountedRef.current) {
 				setClipPool([])
 				setClipAspects(new Map())
+			}
+		} finally {
+			if (mountedRef.current) {
+				setIsInitialLoading(false)
 			}
 		}
 	}, [])
@@ -342,6 +352,7 @@ export function useExploreData(): UseExploreDataResult {
 		searchResults,
 		rooms,
 		clips,
+		isInitialLoading,
 		gridSections,
 		clipAspects,
 		hasMoreClips,
