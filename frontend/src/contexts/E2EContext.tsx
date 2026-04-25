@@ -10,7 +10,7 @@ interface E2EContextType {
 const E2EContext = createContext<E2EContextType | undefined>(undefined);
 
 export function E2EProvider({ children }: { children: ReactNode }) {
-  const [publicKey, setPublicKey] = useState<string | null>(null);
+  const [publicKey] = useState<string | null>(null);
 
   const generateKeyPair = async () => {
     // TODO: Implement E2E key generation using crypto library

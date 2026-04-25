@@ -1,12 +1,15 @@
 import React from "react";
-import { GroupChatItem } from "../types/groupChat";
+import {
+	GroupChatItem,
+	GroupRideMember,
+	RiderLocation,
+} from "../types/groupChat";
 import { useAuth } from "../contexts/AuthContext";
 import { useLocation } from "./useLocation";
 import { useWebSocket } from "./useWebSocket";
 import ChatService from "../services/ChatService";
 import RideService from "../services/RideService";
 import TrackerService from "../services/TrackerService";
-import { GroupRideMember, RiderLocation } from "../types/groupChat";
 
 export const INVITE_FRIENDS = [
 	"Cameron Williamson",

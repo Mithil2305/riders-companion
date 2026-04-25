@@ -12,6 +12,7 @@ export interface FeedPostItem {
 	avatar: string;
 	image: string;
 	mediaType?: string | null;
+	aspectRatio?: number;
 	caption: string;
 	likes: number;
 	comments: number;

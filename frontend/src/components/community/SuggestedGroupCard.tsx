@@ -12,7 +12,7 @@ interface SuggestedGroupCardProps {
 }
 
 export function SuggestedGroupCard({ item, onPress }: SuggestedGroupCardProps) {
-  const { colors, metrics, typography } = useTheme();
+  const { metrics, typography } = useTheme();
 
   const styles = React.useMemo(
     () =>

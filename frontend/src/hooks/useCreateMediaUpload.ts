@@ -1,7 +1,7 @@
 import React from "react";
 import { Alert } from "react-native";
+import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
-import * as MediaLibrary from "expo-media-library";
 import UploadService, {
 	getClipSelectionError,
 } from "../services/UploadService";
@@ -14,11 +14,38 @@ import {
 
 const PAGE_SIZE = 60;
 const RECENT_ALBUM_ID = "__recent__";
-const toGalleryAsset = (asset: MediaLibrary.Asset): GalleryMediaAsset => ({
+
+type MediaLibraryModule = typeof import("expo-media-library");
+
+type MediaLibraryAsset = {
+	id: string;
+	uri: string;
+	mediaType?: string;
+	filename?: string | null;
+	duration?: number | null;
+	fileSize?: number;
+};
+
+let mediaLibraryPromise: Promise<MediaLibraryModule> | null = null;
+
+const isExpoGo = Constants.appOwnership === "expo";
+
+const loadMediaLibrary = async (): Promise<MediaLibraryModule> => {
+	if (mediaLibraryPromise == null) {
+		mediaLibraryPromise = import("expo-media-library");
+	}
+
+	return mediaLibraryPromise;
+};
+
+const toGalleryAsset = (asset: MediaLibraryAsset): GalleryMediaAsset => ({
 	id: asset.id,
 	uri: asset.uri,
 	mediaType:
-		asset.mediaType === MediaLibrary.MediaType.video ? "video" : "photo",
+		typeof asset.mediaType === "string" &&
+		asset.mediaType.toLowerCase().includes("video")
+			? "video"
+			: "photo",
 	filename: asset.filename ?? undefined,
 	duration:
 		typeof asset.duration === "number" && Number.isFinite(asset.duration)
@@ -87,12 +114,32 @@ export function useCreateMediaUpload() {
 	}, [selectedAsset?.mediaType, uploadType]);
 
 	const requestPermission = React.useCallback(async () => {
+		if (isExpoGo) {
+			const permission =
+				await ImagePicker.requestMediaLibraryPermissionsAsync();
+			setPermissionGranted(permission.granted);
+			return permission.granted;
+		}
+
+		const MediaLibrary = await loadMediaLibrary();
 		const permission = await MediaLibrary.requestPermissionsAsync();
 		setPermissionGranted(permission.granted);
 		return permission.granted;
 	}, []);
 
 	const loadAlbums = React.useCallback(async () => {
+		if (isExpoGo) {
+			setAlbums([
+				{
+					id: RECENT_ALBUM_ID,
+					title: "Recents",
+					assetCount: 0,
+				},
+			]);
+			return;
+		}
+
+		const MediaLibrary = await loadMediaLibrary();
 		const libraryAlbums = await MediaLibrary.getAlbumsAsync();
 		const sortedAlbums = [...libraryAlbums].sort(
 			(a, b) => (b.assetCount ?? 0) - (a.assetCount ?? 0),
@@ -131,6 +178,17 @@ export function useCreateMediaUpload() {
 			}
 
 			try {
+				if (isExpoGo) {
+					if (reset) {
+						setAssets([]);
+						setCursor(undefined);
+						setHasMoreAssets(false);
+						setSelectedAssetId(null);
+					}
+					return;
+				}
+
+				const MediaLibrary = await loadMediaLibrary();
 				const targetAlbumId = albumId ?? selectedAlbumId;
 				const response = await MediaLibrary.getAssetsAsync({
 					first: PAGE_SIZE,
@@ -178,6 +236,11 @@ export function useCreateMediaUpload() {
 		const init = async () => {
 			const granted = await requestPermission();
 			if (granted) {
+				if (isExpoGo) {
+					await loadAlbums();
+					return;
+				}
+
 				await loadAlbums();
 				await loadAssets({ reset: true });
 			}
@@ -192,21 +255,44 @@ export function useCreateMediaUpload() {
 			return;
 		}
 
+		if (isExpoGo) {
+			await loadAlbums();
+			return;
+		}
+
 		await loadAlbums();
 		await loadAssets({ reset: true });
 	}, [loadAlbums, loadAssets, permissionGranted, requestPermission]);
 
 	React.useEffect(() => {
-		if (!permissionGranted) {
+		if (!permissionGranted || isExpoGo) {
 			return;
 		}
 
-		const subscription = MediaLibrary.addListener(() => {
-			void refreshAssets();
-		});
+		let isActive = true;
+		let removeSubscription: (() => void) | undefined;
+
+		const attachListener = async () => {
+			const MediaLibrary = await loadMediaLibrary();
+			const subscription = MediaLibrary.addListener(() => {
+				void refreshAssets();
+			});
+
+			if (!isActive) {
+				subscription.remove();
+				return;
+			}
+
+			removeSubscription = () => {
+				subscription.remove();
+			};
+		};
+
+		void attachListener();
 
 		return () => {
-			subscription.remove();
+			isActive = false;
+			removeSubscription?.();
 		};
 	}, [permissionGranted, refreshAssets]);
 
