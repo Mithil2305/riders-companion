@@ -64,7 +64,7 @@ export function useSettingsOptions(): UseSettingsOptionsResult {
   const [locationVisibility, setLocationVisibility] = React.useState<SettingsToggle>({
     id: 'locationVisibility',
     title: 'Location Visibility',
-    subtitle: 'Allow followers to see your live route',
+    subtitle: 'Allow trackers to see your live route',
     value: true,
   });
 

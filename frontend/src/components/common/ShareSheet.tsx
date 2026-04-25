@@ -43,9 +43,18 @@ interface ShareSheetProps {
 	visible: boolean;
 	onClose: () => void;
 	users?: ShareUser[];
+	resourceType?: "post" | "clip";
+	onShared?: () => void;
 }
 
-export function ShareSheet({ postId, visible, onClose, users = [] }: ShareSheetProps) {
+export function ShareSheet({
+	postId,
+	visible,
+	onClose,
+	users = [],
+	resourceType = "post",
+	onShared,
+}: ShareSheetProps) {
 	const { colors, metrics, typography } = useTheme();
 	const insets = useSafeAreaInsets();
 	const translateY = useSharedValue(SCREEN_HEIGHT);
@@ -95,35 +104,40 @@ export function ShareSheet({ postId, visible, onClose, users = [] }: ShareSheetP
 	}));
 
 	const getPostUrl = useCallback(() => {
-		return `riderscompanion://post/${postId}`;
-	}, [postId]);
+		const path = resourceType === "clip" ? "clip" : "post";
+		return `riderscompanion://${path}/${postId}`;
+	}, [postId, resourceType]);
 
 	const handleOpenInApp = useCallback(() => {
 		if (!postId) return;
+		onShared?.();
 		void Linking.openURL(getPostUrl());
 		dismiss();
-	}, [dismiss, getPostUrl, postId]);
+	}, [dismiss, getPostUrl, onShared, postId]);
 
 	const handleCopyLink = useCallback(async () => {
 		await Clipboard.setStringAsync(getPostUrl());
+		onShared?.();
 		dismiss();
-	}, [getPostUrl, dismiss]);
+	}, [dismiss, getPostUrl, onShared]);
 
 	const handleNativeShare = useCallback(() => {
 		void Share.share({
-			message: `Open this Rider's Companion post: ${getPostUrl()}`,
+			message: `Open this Rider's Companion ${resourceType}: ${getPostUrl()}`,
 			url: getPostUrl(),
 		});
+		onShared?.();
 		dismiss();
-	}, [dismiss, getPostUrl]);
+	}, [dismiss, getPostUrl, onShared, resourceType]);
 
 	const handleShareWhatsApp = useCallback(() => {
 		const url = `whatsapp://send?text=${encodeURIComponent(getPostUrl())}`;
 		void Linking.openURL(url).catch(() => {
 			// WhatsApp not installed
 		});
+		onShared?.();
 		dismiss();
-	}, [getPostUrl, dismiss]);
+	}, [dismiss, getPostUrl, onShared]);
 
 	const styles = React.useMemo(
 		() =>
@@ -134,7 +148,7 @@ export function ShareSheet({ postId, visible, onClose, users = [] }: ShareSheetP
 				},
 				backdrop: {
 					...StyleSheet.absoluteFillObject,
-					backgroundColor: "rgba(0,0,0,0.5)",
+					backgroundColor: colors.overlay,
 				},
 				sheet: {
 					backgroundColor: colors.background,
@@ -257,43 +271,43 @@ export function ShareSheet({ postId, visible, onClose, users = [] }: ShareSheetP
 		{
 			id: "story",
 			label: "Add post to your story",
-			icon: <Ionicons name="add" size={24} color="#fff" />,
-			color: "#E53E3E",
+			icon: <Ionicons name="add" size={24} color={colors.textInverse} />,
+			color: colors.primary,
 			onPress: handleNativeShare,
 		},
 		{
 			id: "message",
 			label: "Send as message",
-			icon: <Ionicons name="chatbubble" size={24} color="#fff" />,
-			color: "#3182CE",
+			icon: <Ionicons name="chatbubble" size={24} color={colors.background} />,
+			color: colors.textPrimary,
 			onPress: handleNativeShare,
 		},
 		{
 			id: "open",
 			label: "Open in app",
-			icon: <Ionicons name="open-outline" size={24} color="#fff" />,
-			color: "#2F855A",
+			icon: <Ionicons name="open-outline" size={24} color={colors.textInverse} />,
+			color: colors.primary,
 			onPress: handleOpenInApp,
 		},
 		{
 			id: "copy",
 			label: "Copy link",
-			icon: <Ionicons name="link" size={24} color="#fff" />,
-			color: "#718096",
+			icon: <Ionicons name="link" size={24} color={colors.background} />,
+			color: colors.textPrimary,
 			onPress: handleCopyLink,
 		},
 		{
 			id: "native",
 			label: "Share",
-			icon: <Ionicons name="share-social" size={24} color="#fff" />,
-			color: "#3182CE",
+			icon: <Ionicons name="share-social" size={24} color={colors.textInverse} />,
+			color: colors.primary,
 			onPress: handleNativeShare,
 		},
 		{
 			id: "whatsapp",
 			label: "Share to WhatsApp",
-			icon: <Ionicons name="logo-whatsapp" size={24} color="#fff" />,
-			color: "#38A169",
+			icon: <Ionicons name="logo-whatsapp" size={24} color={colors.background} />,
+			color: colors.textPrimary,
 			onPress: handleShareWhatsApp,
 		},
 	];

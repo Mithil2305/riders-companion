@@ -425,7 +425,7 @@ export default function SignupScreen() {
 												styles.disabledBtn,
 										]}
 									>
-										<FontAwesome color="#DB4437" name="google" size={18} />
+										<FontAwesome color={colors.primary} name="google" size={18} />
 										<Text style={styles.googleBtnText}>
 											{googleLoading
 												? "Signing in..."

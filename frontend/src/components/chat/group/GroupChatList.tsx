@@ -17,7 +17,7 @@ export function GroupChatList({ data }: GroupChatListProps) {
 			StyleSheet.create({
 				list: {
 					flex: 1,
-					backgroundColor: "#F7F7F7",
+					backgroundColor: colors.background,
 				},
 				content: {
 					paddingHorizontal: metrics.md,
@@ -25,7 +25,7 @@ export function GroupChatList({ data }: GroupChatListProps) {
 					paddingBottom: metrics.lg,
 				},
 			}),
-		[colors, metrics],
+		[colors.background, metrics],
 	);
 
 	React.useEffect(() => {

@@ -11,7 +11,6 @@ interface GroupMessageBubbleProps {
 
 export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 	const { colors, metrics, typography } = useTheme();
-	const primaryRed = "#D32F2F";
 
 	const styles = React.useMemo(
 		() =>
@@ -44,9 +43,9 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 				},
 				incomingBubble: {
 					borderRadius: 18,
-					backgroundColor: "#FFFFFF",
+					backgroundColor: colors.card,
 					borderWidth: 1,
-					borderColor: "#F0F0F0",
+					borderColor: colors.border,
 					paddingHorizontal: metrics.md,
 					paddingTop: metrics.sm + 2,
 					paddingBottom: metrics.md,
@@ -57,7 +56,7 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 					elevation: 1,
 				},
 				senderName: {
-					color: primaryRed,
+					color: colors.primary,
 					fontSize: typography.sizes.lg - 4,
 					fontWeight: "600",
 					letterSpacing: 0.8,
@@ -82,7 +81,7 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 				outgoingBubble: {
 					maxWidth: "82%",
 					borderRadius: 18,
-					backgroundColor: primaryRed,
+					backgroundColor: colors.primary,
 					paddingHorizontal: metrics.md,
 					paddingVertical: metrics.md - 2,
 					shadowColor: colors.shadow,
@@ -105,7 +104,7 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 					marginRight: metrics.xs,
 				},
 			}),
-		[colors, metrics, primaryRed, typography],
+		[colors, metrics, typography],
 	);
 
 	if (item.kind === "system") {
@@ -126,7 +125,7 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 				</View>
 				<View style={styles.outgoingMeta}>
 					<Text style={styles.time}>{item.time}</Text>
-					<Ionicons color={primaryRed} name="checkmark-done" size={15} />
+					<Ionicons color={colors.primary} name="checkmark-done" size={15} />
 				</View>
 			</View>
 		);

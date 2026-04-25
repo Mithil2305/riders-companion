@@ -1,8 +1,10 @@
+import { CommentPayload } from "./FeedService";
 import { apiRequest } from "./api";
 
 export interface ClipPayload {
 	id: string;
 	videoUrl: string;
+	caption?: string | null;
 	songId?: string | null;
 	createdAt: string;
 	rider?: {
@@ -34,12 +36,62 @@ class ClipService {
 		return apiRequest<{ clips: ClipPayload[] }>("/clips");
 	}
 
+	async getClipById(clipId: string) {
+		return apiRequest<{ clip: ClipPayload }>(`/clips/${clipId}`);
+	}
+
+	async getComments(clipId: string) {
+		return apiRequest<{ comments: CommentPayload[] }>(`/clips/${clipId}/comments`);
+	}
+
+	async commentOnClip(clipId: string, commentText: string) {
+		return apiRequest<{ commentsCount: number; comment?: CommentPayload }>(
+			`/clips/${clipId}/comments`,
+			{
+				method: "POST",
+				body: { commentText },
+			},
+		);
+	}
+
+	async updateComment(clipId: string, commentId: string, commentText: string) {
+		return apiRequest<{ clipId: string; comment: CommentPayload }>(
+			`/clips/${clipId}/comments/${commentId}`,
+			{
+				method: "PATCH",
+				body: { commentText },
+			},
+		);
+	}
+
+	async deleteComment(clipId: string, commentId: string) {
+		return apiRequest<{ clipId: string; commentId: string; commentsCount: number }>(
+			`/clips/${clipId}/comments/${commentId}`,
+			{
+				method: "DELETE",
+			},
+		);
+	}
+
 	async createClip(payload: CreateClipPayload) {
 		return apiRequest("/clips", {
 			method: "POST",
 			body: payload,
 			timeoutMs: 15 * 60 * 1000,
 			allowRetryOnTimeout: false,
+		});
+	}
+
+	async updateClip(clipId: string, payload: { caption: string }) {
+		return apiRequest<{ clip: ClipPayload }>(`/clips/${clipId}`, {
+			method: "PATCH",
+			body: payload,
+		});
+	}
+
+	async deleteClip(clipId: string) {
+		return apiRequest<{ clipId: string }>(`/clips/${clipId}`, {
+			method: "DELETE",
 		});
 	}
 

@@ -1,6 +1,7 @@
 import React from "react";
 import { FeedPostItem, Story } from "../types/feed";
 import FeedService, { FeedPostPayload } from "../services/FeedService";
+import { useUploadManager } from "../contexts/UploadContext";
 
 interface UseHomeFeedResult {
 	loading: boolean;
@@ -50,6 +51,14 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 			post.rider?.profileImageUrl ??
 			"https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80",
 		image: post.mediaUrl,
+		mediaType: post.mediaType,
+		aspectRatio:
+			typeof post.width === "number" &&
+			typeof post.height === "number" &&
+			post.width > 0 &&
+			post.height > 0
+				? post.width / post.height
+				: undefined,
 		caption: post.caption ?? "",
 		likes: Number(post.likesCount ?? 0),
 		comments: Number(post.commentsCount ?? 0),
@@ -59,6 +68,7 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 };
 
 export function useHomeFeed(): UseHomeFeedResult {
+	const { lastCompletedUploadAt } = useUploadManager();
 	const [loading, setLoading] = React.useState(true);
 	const [refreshing, setRefreshing] = React.useState(false);
 	const [posts, setPosts] = React.useState<FeedPostItem[]>([]);
@@ -110,6 +120,14 @@ export function useHomeFeed(): UseHomeFeedResult {
 			mounted = false;
 		};
 	}, [loadFeed]);
+
+	React.useEffect(() => {
+		if (lastCompletedUploadAt <= 0) {
+			return;
+		}
+
+		void loadFeed();
+	}, [lastCompletedUploadAt, loadFeed]);
 
 	const onRefresh = React.useCallback(async () => {
 		setRefreshing(true);
@@ -181,9 +199,17 @@ export function useHomeFeed(): UseHomeFeedResult {
 
 	const updateCommentCount = React.useCallback((postId: string, count: number) => {
 		setPosts((current) =>
-			current.map((post) =>
-				post.id === postId ? { ...post, comments: count } : post,
-			),
+			current.map((post) => {
+				if (post.id !== postId) {
+					return post;
+				}
+
+				if (post.comments === count) {
+					return post;
+				}
+
+				return { ...post, comments: count };
+			}),
 		);
 	}, []);
 

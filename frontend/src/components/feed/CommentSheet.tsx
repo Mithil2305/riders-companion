@@ -57,6 +57,21 @@ interface CommentSheetProps {
 	visible: boolean;
 	onClose: () => void;
 	onCommentAdded?: (newCount: number) => void;
+	commentService?: {
+		getComments: (entityId: string) => Promise<{ comments: CommentPayload[] }>;
+		addComment: (
+			entityId: string,
+			commentText: string,
+		) => Promise<{ commentsCount: number; comment?: CommentPayload }>;
+		likeComment?: (
+			entityId: string,
+			commentId: string,
+		) => Promise<{ commentId: string; liked: boolean; likesCount: number }>;
+		unlikeComment?: (
+			entityId: string,
+			commentId: string,
+		) => Promise<{ commentId: string; liked: boolean; likesCount: number }>;
+	};
 }
 
 export function CommentSheet({
@@ -64,6 +79,7 @@ export function CommentSheet({
 	visible,
 	onClose,
 	onCommentAdded,
+	commentService,
 }: CommentSheetProps) {
 	const { colors, metrics, typography } = useTheme();
 	const router = useRouter();
@@ -76,19 +92,32 @@ export function CommentSheet({
 	const [inputText, setInputText] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [timeTick, setTimeTick] = useState(0);
+	const service = React.useMemo(
+		() => ({
+			getComments: commentService?.getComments ?? FeedService.getComments.bind(FeedService),
+			addComment:
+				commentService?.addComment ?? FeedService.commentOnPost.bind(FeedService),
+			likeComment: commentService?.likeComment,
+			unlikeComment: commentService?.unlikeComment,
+		}),
+		[commentService],
+	);
+	const supportsCommentLikes =
+		typeof service.likeComment === "function" &&
+		typeof service.unlikeComment === "function";
 
 	const loadComments = useCallback(async () => {
 		if (!postId) return;
 		setLoading(true);
 		try {
-			const res = await FeedService.getComments(postId);
+			const res = await service.getComments(postId);
 			setComments(res.comments ?? []);
 		} catch {
 			setComments([]);
 		} finally {
 			setLoading(false);
 		}
-	}, [postId]);
+	}, [postId, service]);
 
 	useEffect(() => {
 		if (visible) {
@@ -139,7 +168,7 @@ export function CommentSheet({
 		if (!postId || !inputText.trim()) return;
 		setIsSubmitting(true);
 		try {
-			const res = await FeedService.commentOnPost(postId, inputText.trim());
+			const res = await service.addComment(postId, inputText.trim());
 			setInputText("");
 			if (res.comment) {
 				setComments((prev) => [res.comment!, ...prev]);
@@ -157,7 +186,13 @@ export function CommentSheet({
 	};
 
 	const toggleLike = async (commentId: string, currentlyLiked: boolean) => {
-		if (!postId) return;
+		if (
+			!postId ||
+			typeof service.likeComment !== "function" ||
+			typeof service.unlikeComment !== "function"
+		) {
+			return;
+		}
 		
 		// Optimistic update
 		setComments((prev) =>
@@ -175,8 +210,8 @@ export function CommentSheet({
 
 		try {
 			const response = currentlyLiked
-				? await FeedService.unlikeComment(postId, commentId)
-				: await FeedService.likeComment(postId, commentId);
+				? await service.unlikeComment(postId, commentId)
+				: await service.likeComment(postId, commentId);
 			if (currentlyLiked) {
 				setComments((prev) =>
 					prev.map((c) =>
@@ -220,7 +255,7 @@ export function CommentSheet({
 				},
 				backdrop: {
 					...StyleSheet.absoluteFillObject,
-					backgroundColor: "rgba(0,0,0,0.5)",
+					backgroundColor: colors.overlay,
 				},
 				sheet: {
 					height: SCREEN_HEIGHT * 0.85,
@@ -397,20 +432,27 @@ export function CommentSheet({
 												</Text>
 											</Pressable>
 											<Text style={styles.commentText}>{item.commentText}</Text>
-											<Text style={styles.commentTime}>
-												{formatRelativeTime(item.createdAt)}
-											</Text>
-										</View>
-										<Pressable style={styles.likeTap} onPress={() => toggleLike(item.id, !!item.likedByMe)}>
-											<Ionicons 
-												name={item.likedByMe ? "heart" : "heart-outline"} 
-												size={16} 
-												color={item.likedByMe ? colors.primary : colors.textTertiary} 
+										<Text style={styles.commentTime}>
+											{formatRelativeTime(item.createdAt)}
+										</Text>
+									</View>
+									{supportsCommentLikes ? (
+										<Pressable
+											style={styles.likeTap}
+											onPress={() => toggleLike(item.id, !!item.likedByMe)}
+										>
+											<Ionicons
+												name={item.likedByMe ? "heart" : "heart-outline"}
+												size={16}
+												color={
+													item.likedByMe ? colors.primary : colors.textTertiary
+												}
 											/>
 											<Text style={styles.likeCount}>{item.likesCount ?? 0}</Text>
 										</Pressable>
-									</View>
-								)}
+									) : null}
+								</View>
+							)}
 								extraData={timeTick}
 								ListEmptyComponent={
 									<Text style={{ textAlign: "center", color: colors.textTertiary }}>
@@ -435,10 +477,10 @@ export function CommentSheet({
 								style={[styles.sendTap, { opacity: inputText.trim() && !isSubmitting ? 1 : 0.5 }]}
 								onPress={handleSend}
 							>
-								{isSubmitting ? (
-									<ActivityIndicator size="small" color="#fff" />
+				{isSubmitting ? (
+									<ActivityIndicator size="small" color={colors.textInverse} />
 								) : (
-									<Ionicons name="arrow-up" size={20} color="#fff" />
+									<Ionicons name="arrow-up" size={20} color={colors.textInverse} />
 								)}
 							</Pressable>
 						</View>

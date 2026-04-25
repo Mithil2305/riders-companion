@@ -1,14 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, StyleSheet, View } from "react-native";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import Constants from "expo-constants";
+
+// Contexts & Hooks
 import { ThemeProvider } from "../src/contexts/ThemeContext";
+import { PlaybackSettingsProvider } from "../src/contexts/PlaybackSettingsContext";
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
+import { UploadProvider } from "../src/contexts/UploadContext";
 import { useTheme } from "../src/hooks/useTheme";
-import { initializePushNotifications } from "../src/services/PushNotificationService";
+import { FIXED_PALETTE } from "../src/theme/colors";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Ignore if splash is already controlled by Expo runtime.
@@ -19,9 +25,13 @@ export default function RootLayout() {
 		<GestureHandlerRootView style={{ flex: 1 }}>
 			<SafeAreaProvider>
 				<ThemeProvider>
-					<AuthProvider>
-						<RootNavigator />
-					</AuthProvider>
+					<PlaybackSettingsProvider>
+						<AuthProvider>
+							<UploadProvider>
+								<RootNavigator />
+							</UploadProvider>
+						</AuthProvider>
+					</PlaybackSettingsProvider>
 				</ThemeProvider>
 			</SafeAreaProvider>
 		</GestureHandlerRootView>
@@ -30,13 +40,19 @@ export default function RootLayout() {
 
 function RootNavigator() {
 	const { colors, resolvedMode } = useTheme();
-	const { isAuthenticated, isRestoring } = useAuth();
+	const { isAuthenticated } = useAuth();
 	const [showVideoSplash, setShowVideoSplash] = useState(true);
+	
+	// Animation Refs
 	const boomScale = useRef(new Animated.Value(1.24)).current;
 	const boomOpacity = useRef(new Animated.Value(0.9)).current;
 	const appEntryY = useRef(new Animated.Value(110)).current;
 	const appEntryOpacity = useRef(new Animated.Value(0)).current;
 	const hasStartedAppEntry = useRef(false);
+	const splashVideoPlayer = useVideoPlayer(require("../assets/logo.mp4"), (player) => {
+		player.loop = false;
+		player.muted = true;
+	});
 
 	const hideNativeSplash = useCallback(async () => {
 		try {
@@ -47,10 +63,7 @@ function RootNavigator() {
 	}, []);
 
 	const startAppEntryAnimation = useCallback(() => {
-		if (hasStartedAppEntry.current) {
-			return;
-		}
-
+		if (hasStartedAppEntry.current) return;
 		hasStartedAppEntry.current = true;
 
 		Animated.parallel([
@@ -79,12 +92,49 @@ function RootNavigator() {
 	}, [appEntryOpacity, appEntryY]);
 
 	useEffect(() => {
-		if (!isAuthenticated) {
+		if (!isAuthenticated || Constants.appOwnership === "expo") return;
+
+		let cancelled = false;
+		const setupPushNotifications = async () => {
+			const { initializePushNotifications } = await import("../src/services/PushNotificationService");
+			if (!cancelled) await initializePushNotifications();
+		};
+
+		void setupPushNotifications();
+		return () => { cancelled = true; };
+	}, [isAuthenticated]);
+
+	const finishVideoSplash = useCallback(() => {
+		setShowVideoSplash(false);
+		startAppEntryAnimation();
+	}, [startAppEntryAnimation]);
+
+	useEffect(() => {
+		const subscription = splashVideoPlayer.addListener("playToEnd", () => {
+			finishVideoSplash();
+		});
+
+		return () => {
+			subscription.remove();
+		};
+	}, [finishVideoSplash, splashVideoPlayer]);
+
+	useEffect(() => {
+		if (showVideoSplash) {
+			splashVideoPlayer.play();
 			return;
 		}
 
-		void initializePushNotifications();
-	}, [isAuthenticated]);
+		splashVideoPlayer.pause();
+	}, [showVideoSplash, splashVideoPlayer]);
+
+	useEffect(() => {
+		if (showVideoSplash) {
+			return;
+		}
+
+		void hideNativeSplash();
+	}, [hideNativeSplash, showVideoSplash]);
 
 	useEffect(() => {
 		Animated.parallel([
@@ -103,27 +153,12 @@ function RootNavigator() {
 		]).start();
 
 		const fallbackTimer = setTimeout(() => {
-			if (!isRestoring) {
-				void hideNativeSplash();
-				setShowVideoSplash(false);
-				startAppEntryAnimation();
-			}
-		}, 2400);
+			setShowVideoSplash(false);
+			startAppEntryAnimation();
+		}, 5000);
 
 		return () => clearTimeout(fallbackTimer);
-	}, [boomOpacity, boomScale, hideNativeSplash, isRestoring, startAppEntryAnimation]);
-
-	// Once restoration is complete and splash is still showing, dismiss it
-	useEffect(() => {
-		if (!isRestoring && showVideoSplash) {
-			const dismissTimer = setTimeout(() => {
-				void hideNativeSplash();
-				setShowVideoSplash(false);
-				startAppEntryAnimation();
-			}, 400);
-			return () => clearTimeout(dismissTimer);
-		}
-	}, [isRestoring, showVideoSplash, hideNativeSplash, startAppEntryAnimation]);
+	}, [boomOpacity, boomScale, startAppEntryAnimation]);
 
 	return (
 		<>
@@ -134,27 +169,15 @@ function RootNavigator() {
 					transform: [{ translateY: appEntryY }],
 				}}
 			>
-				<Stack
-					screenOptions={{
-						headerShown: false,
-					}}
-				>
+				<Stack screenOptions={{ headerShown: false }}>
 					<Stack.Screen name="index" />
 					<Stack.Screen name="onboarding" />
 					<Stack.Screen name="(tabs)" />
 					<Stack.Screen
 						name="create"
-						options={{
-							animation: "slide_from_bottom",
-							presentation: "fullScreenModal",
-						}}
+						options={{ animation: "slide_from_bottom", presentation: "fullScreenModal" }}
 					/>
-					<Stack.Screen
-						name="auth"
-						options={{
-							animation: "fade",
-						}}
-					/>
+					<Stack.Screen name="auth" options={{ animation: "fade" }} />
 					<Stack.Screen name="setup/profile" />
 					<Stack.Screen name="chats/index" />
 					<Stack.Screen name="chats/[id]" />
@@ -165,10 +188,7 @@ function RootNavigator() {
 					<Stack.Screen name="ride-details" />
 					<Stack.Screen
 						name="settings"
-						options={{
-							presentation: "transparentModal",
-							animation: "none",
-						}}
+						options={{ presentation: "transparentModal", animation: "none" }}
 					/>
 					<Stack.Screen name="tracking" />
 					<Stack.Screen name="community" />
@@ -176,10 +196,7 @@ function RootNavigator() {
 					<Stack.Screen name="status" />
 					<Stack.Screen
 						name="status-viewer"
-						options={{
-							animation: "fade",
-							presentation: "fullScreenModal",
-						}}
+						options={{ animation: "fade", presentation: "fullScreenModal" }}
 					/>
 				</Stack>
 				<StatusBar
@@ -187,7 +204,8 @@ function RootNavigator() {
 					backgroundColor={colors.background}
 				/>
 			</Animated.View>
-			{showVideoSplash ? (
+
+			{showVideoSplash && (
 				<View style={styles.videoSplashOverlay}>
 					<Animated.View
 						style={[
@@ -198,17 +216,19 @@ function RootNavigator() {
 							},
 						]}
 					>
-						<Image
-							source={require("../assets/logo.png")}
-							style={styles.video}
-							resizeMode="contain"
-							onLoad={() => {
+						<VideoView
+							contentFit="cover"
+							fullscreenOptions={{ enable: false }}
+							nativeControls={false}
+							onFirstFrameRender={() => {
 								void hideNativeSplash();
 							}}
+							player={splashVideoPlayer}
+							style={styles.video}
 						/>
 					</Animated.View>
 				</View>
-			) : null}
+			)}
 		</>
 	);
 }
@@ -217,7 +237,7 @@ const styles = StyleSheet.create({
 	videoSplashOverlay: {
 		...StyleSheet.absoluteFillObject,
 		zIndex: 100,
-		backgroundColor: "#e8e8e8",
+		backgroundColor: FIXED_PALETTE.black,
 	},
 	videoWrap: {
 		flex: 1,

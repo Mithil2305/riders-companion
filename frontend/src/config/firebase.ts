@@ -1,12 +1,25 @@
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApp, getApps, initializeApp } from "firebase/app";
-import {
-	getAuth,
-	getReactNativePersistence,
-	initializeAuth,
-	type Auth,
-} from "firebase/auth";
+import type { Auth } from "@firebase/auth";
+
+type FirebaseAuthReactNativeModule = {
+	getAuth: (app?: ReturnType<typeof getApp>) => Auth;
+	getReactNativePersistence: (
+		storage: typeof AsyncStorage,
+	) => unknown;
+	initializeAuth: (
+		app: ReturnType<typeof getApp>,
+		deps?: { persistence?: unknown },
+	) => Auth;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const FirebaseAuthReactNative = require(
+	"@firebase/auth/dist/rn/index.js",
+) as FirebaseAuthReactNativeModule;
+const { getAuth, getReactNativePersistence, initializeAuth } =
+	FirebaseAuthReactNative;
 
 const projectId =
 	process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? "riders-companion-8e4f8";
@@ -43,7 +56,6 @@ if (isFirebaseConfigured) {
 				persistence: getReactNativePersistence(AsyncStorage),
 			});
 		} catch {
-			// Fallback if auth is already initialized or persistence setup is unavailable.
 			auth = getAuth(app);
 		}
 	}

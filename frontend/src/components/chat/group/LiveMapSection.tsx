@@ -3,7 +3,6 @@ import {
 	ActivityIndicator,
 	Animated,
 	Easing,
-	Image,
 	Platform,
 	StyleSheet,
 	Text,
@@ -19,10 +18,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import { withAlpha } from "../../../utils/color";
 import { RiderLocation } from "../../../types/groupChat";
-
-const RIDER_MARKER_ICON = { uri: "https://img.icons8.com/ios-filled/100/1A73E8/navigation.png" };
-const DESTINATION_MARKER_ICON = { uri: "https://img.icons8.com/ios-filled/100/D93025/marker.png" };
-const SOURCE_MARKER_ICON = { uri: "https://img.icons8.com/ios-filled/100/32A852/marker.png" };
 
 const DEFAULT_REGION = { latitude: 11.0017, longitude: 76.9619, latitudeDelta: 0.08, longitudeDelta: 0.08 };
 
@@ -134,22 +129,111 @@ interface LiveMapSectionProps {
 interface RiderMarkerViewProps { isLeader: boolean; markerPulse: Animated.Value; }
 
 const RiderMarkerView = React.memo(function RiderMarkerView({ isLeader, markerPulse }: RiderMarkerViewProps) {
+	const { colors } = useTheme();
+	const markerStyles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				wrap: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+				pulse: {
+					position: "absolute",
+					bottom: 4,
+					width: 13,
+					height: 13,
+					borderRadius: 999,
+					backgroundColor: withAlpha(colors.textPrimary, 0.28),
+				},
+				leaderPulse: {
+					backgroundColor: withAlpha(colors.primary, 0.38),
+					width: 16,
+					height: 16,
+				},
+				iconWrap: {
+					width: 26,
+					height: 26,
+					borderRadius: 13,
+					backgroundColor: colors.primary,
+					alignItems: "center",
+					justifyContent: "center",
+					transform: [{ rotate: "-18deg" }],
+				},
+			}),
+		[colors],
+	);
+
 	return (
 		<View style={markerStyles.wrap}>
 			<Animated.View
 				style={[markerStyles.pulse, isLeader && markerStyles.leaderPulse, { transform: [{ scale: markerPulse }] }]}
 			/>
-			<Image source={RIDER_MARKER_ICON} style={markerStyles.icon} />
+			<View style={markerStyles.iconWrap}>
+				<Ionicons color={colors.textInverse} name="navigate" size={14} />
+			</View>
 		</View>
 	);
 });
 
-const markerStyles = StyleSheet.create({
-	wrap: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-	pulse: { position: "absolute", bottom: 4, width: 13, height: 13, borderRadius: 999, backgroundColor: withAlpha("#1b67ff", 0.35) },
-	leaderPulse: { backgroundColor: withAlpha("#E83A3A", 0.38), width: 16, height: 16 },
-	icon: { width: 26, height: 26, resizeMode: "contain", transform: [{ rotate: "-18deg" }] },
-});
+function LocationPin({
+	label,
+	tone,
+}: {
+	label: string;
+	tone: "neutral" | "primary";
+}) {
+	const { colors } = useTheme();
+	const fill = tone === "primary" ? colors.primary : colors.textPrimary;
+	const iconColor = tone === "primary" ? colors.textInverse : colors.background;
+
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				wrap: {
+					alignItems: "center",
+				},
+				labelWrap: {
+					backgroundColor: colors.card,
+					borderRadius: 6,
+					borderWidth: 1,
+					borderColor: colors.border,
+					paddingHorizontal: 6,
+					paddingVertical: 2,
+					marginBottom: 4,
+					shadowColor: colors.shadow,
+					shadowOpacity: 0.12,
+					shadowRadius: 4,
+					shadowOffset: { width: 0, height: 1 },
+					elevation: 2,
+				},
+				labelText: {
+					fontSize: 10,
+					fontWeight: "700",
+					color: colors.textPrimary,
+					maxWidth: 110,
+				},
+				pin: {
+					width: 26,
+					height: 26,
+					borderRadius: 13,
+					alignItems: "center",
+					justifyContent: "center",
+					backgroundColor: fill,
+				},
+			}),
+		[colors, fill],
+	);
+
+	return (
+		<View style={styles.wrap}>
+			<View style={styles.labelWrap}>
+				<Text numberOfLines={1} ellipsizeMode="tail" style={styles.labelText}>
+					{label}
+				</Text>
+			</View>
+			<View style={styles.pin}>
+				<Ionicons color={iconColor} name="location" size={16} />
+			</View>
+		</View>
+	);
+}
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export function LiveMapSection({
@@ -265,20 +349,69 @@ export function LiveMapSection({
 		return pts;
 	}, [rideStarted, ridersSorted, destCoord]);
 
+	const rideChipTone = isRideEnded || rideStarted ? colors.primary : colors.textPrimary;
+
 	const styles = React.useMemo(() => StyleSheet.create({
-		wrap: { marginHorizontal: metrics.md, borderRadius: 18, overflow: "hidden", height: 320, borderWidth: 1, borderColor: "#EAEAEA", backgroundColor: "#E9EEEA" },
+		wrap: {
+			marginHorizontal: metrics.md,
+			borderRadius: 18,
+			overflow: "hidden",
+			height: 320,
+			borderWidth: 1,
+			borderColor: colors.border,
+			backgroundColor: colors.surface,
+		},
 		map: { ...StyleSheet.absoluteFillObject },
-		rideChip: { position: "absolute", top: metrics.sm, left: metrics.sm, borderRadius: 999, paddingHorizontal: metrics.sm, paddingVertical: metrics.xs, backgroundColor: withAlpha(isRideEnded ? colors.error : rideStarted ? "#32A852" : "#1B67FF", 0.18), borderWidth: 1, borderColor: withAlpha(isRideEnded ? colors.error : rideStarted ? "#32A852" : "#1B67FF", 0.45) },
-		rideChipText: { color: isRideEnded ? colors.error : rideStarted ? "#2B8A3E" : "#1553B6", fontSize: typography.sizes.xs, fontWeight: "800", letterSpacing: 0.3 },
-		speedChip: { position: "absolute", left: metrics.sm, bottom: metrics.sm, width: 64, height: 64, borderRadius: 32, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#EFEFEF" },
+		rideChip: {
+			position: "absolute",
+			top: metrics.sm,
+			left: metrics.sm,
+			borderRadius: 999,
+			paddingHorizontal: metrics.sm,
+			paddingVertical: metrics.xs,
+			backgroundColor: withAlpha(rideChipTone, 0.18),
+			borderWidth: 1,
+			borderColor: withAlpha(rideChipTone, 0.45),
+		},
+		rideChipText: {
+			color: rideChipTone,
+			fontSize: typography.sizes.xs,
+			fontWeight: "800",
+			letterSpacing: 0.3,
+		},
+		speedChip: {
+			position: "absolute",
+			left: metrics.sm,
+			bottom: metrics.sm,
+			width: 64,
+			height: 64,
+			borderRadius: 32,
+			backgroundColor: colors.card,
+			alignItems: "center",
+			justifyContent: "center",
+			borderWidth: 1,
+			borderColor: colors.border,
+		},
 		speedValue: { color: colors.textPrimary, fontSize: typography.sizes["2xl"], fontWeight: "700", lineHeight: typography.sizes["2xl"] },
 		speedUnit: { color: colors.textSecondary, fontSize: typography.sizes.xs, fontWeight: "600" },
-		emptyWrap: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", gap: metrics.xs, paddingHorizontal: metrics.lg, backgroundColor: "#E9EEEA" },
+		emptyWrap: {
+			...StyleSheet.absoluteFillObject,
+			alignItems: "center",
+			justifyContent: "center",
+			gap: metrics.xs,
+			paddingHorizontal: metrics.lg,
+			backgroundColor: colors.surface,
+		},
 		emptyText: { color: colors.textSecondary, fontSize: typography.sizes.sm, textAlign: "center" },
-		loadingOverlay: { position: "absolute", top: metrics.sm, right: metrics.sm, backgroundColor: withAlpha("#FFFFFF", 0.85), borderRadius: 99, padding: 6 },
-		pinLabel: { position: "absolute", backgroundColor: "#FFFFFF", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, top: -22, alignSelf: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
-		pinLabelText: { fontSize: 10, fontWeight: "700", color: "#111827", maxWidth: 110 },
-	}), [colors, isRideEnded, rideStarted, metrics, typography]);
+		loadingOverlay: {
+			position: "absolute",
+			top: metrics.sm,
+			right: metrics.sm,
+			backgroundColor: withAlpha(colors.card, 0.9),
+			borderRadius: 99,
+			padding: 6,
+		},
+	}), [colors, metrics, rideChipTone, typography]);
 
 	const chipLabel = isRideEnded ? "RIDE ENDED" : rideStarted ? "RIDE LIVE" : "ROUTE PREVIEW";
 	const showEmpty = rideStarted && ridersSorted.length === 0;
@@ -298,24 +431,21 @@ export function LiveMapSection({
 				{/* PRE-RIDE: real road route polyline from Directions API */}
 				{!rideStarted && routePoints.length >= 2 && (
 					<>
-						<Polyline coordinates={routePoints} strokeColor={withAlpha("#1557D3", 0.28)} strokeWidth={9} lineJoin="round" lineCap="round" />
-						<Polyline coordinates={routePoints} strokeColor="#1B67FF" strokeWidth={6} lineJoin="round" lineCap="round" />
+						<Polyline coordinates={routePoints} strokeColor={withAlpha(colors.primary, 0.28)} strokeWidth={9} lineJoin="round" lineCap="round" />
+						<Polyline coordinates={routePoints} strokeColor={colors.primary} strokeWidth={6} lineJoin="round" lineCap="round" />
 					</>
 				)}
 				{/* LIVE: connecting line from riders toward destination */}
 				{rideStarted && livePolylineCoords.length >= 2 && (
 					<>
-						<Polyline coordinates={livePolylineCoords} strokeColor={withAlpha("#1557D3", 0.28)} strokeWidth={9} lineJoin="round" lineCap="round" />
-						<Polyline coordinates={livePolylineCoords} strokeColor="#1B67FF" strokeWidth={6} lineJoin="round" lineCap="round" />
+						<Polyline coordinates={livePolylineCoords} strokeColor={withAlpha(colors.primary, 0.28)} strokeWidth={9} lineJoin="round" lineCap="round" />
+						<Polyline coordinates={livePolylineCoords} strokeColor={colors.primary} strokeWidth={6} lineJoin="round" lineCap="round" />
 					</>
 				)}
-				{/* PRE-RIDE: green source pin */}
+				{/* PRE-RIDE: start pin */}
 				{!rideStarted && sourceCoord && (
 					<Marker coordinate={sourceCoord} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
-						<View>
-							<View style={styles.pinLabel}><Text style={styles.pinLabelText} numberOfLines={1} ellipsizeMode="tail">{sourceLabel ?? "Start"}</Text></View>
-							<Image source={SOURCE_MARKER_ICON} style={{ width: 26, height: 26, resizeMode: "contain" }} />
-						</View>
+						<LocationPin label={sourceLabel ?? "Start"} tone="neutral" />
 					</Marker>
 				)}
 				{/* LIVE: rider markers with pulse */}
@@ -327,10 +457,7 @@ export function LiveMapSection({
 				{/* Destination pin — geocoded once, never moves */}
 				{destCoord && (
 					<Marker coordinate={destCoord} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
-						<View>
-							<View style={styles.pinLabel}><Text style={styles.pinLabelText} numberOfLines={1} ellipsizeMode="tail">{destinationLabel ?? "Destination"}</Text></View>
-							<Image source={DESTINATION_MARKER_ICON} style={{ width: 26, height: 26, resizeMode: "contain" }} />
-						</View>
+						<LocationPin label={destinationLabel ?? "Destination"} tone="primary" />
 					</Marker>
 				)}
 			</MapView>

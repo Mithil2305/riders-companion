@@ -25,7 +25,7 @@ export function ToggleSwitch({ value, onToggle }: ToggleSwitchProps) {
           borderRadius: metrics.radius.full,
           borderWidth: 1,
           borderColor: value ? colors.primary : colors.border,
-          backgroundColor: value ? colors.primary : colors.surface,
+          backgroundColor: value ? colors.primary : colors.inputBackground,
           justifyContent: 'center',
           paddingHorizontal: 3,
         },

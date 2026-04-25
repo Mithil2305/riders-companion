@@ -19,6 +19,7 @@ const toClipPayload = async (clip, viewerId) => {
 	return {
 		id: clip.id,
 		videoUrl: clip.video_url,
+		caption: clip.caption,
 		songId: clip.song_id,
 		createdAt: clip.created_at,
 		rider: {
@@ -49,6 +50,19 @@ const validateCommentText = (value) => {
 	}
 
 	return trimmed;
+};
+
+const normalizeCaption = (value) => {
+	if (typeof value !== "string") {
+		return null;
+	}
+
+	const trimmed = value.trim();
+	if (trimmed.length > 2000) {
+		return null;
+	}
+
+	return trimmed.length === 0 ? "" : trimmed;
 };
 
 exports.listClips = async (req, res) => {
@@ -106,6 +120,7 @@ exports.createClip = async (req, res) => {
 		const createdClip = await Clip.create({
 			rider_id: req.user.id,
 			video_url: videoUrl,
+			caption: typeof req.body.caption === "string" ? req.body.caption : null,
 			song_id:
 				typeof req.body.songId === "string"
 					? req.body.songId
@@ -152,6 +167,82 @@ exports.getClipById = async (req, res) => {
 	return res.status(200).json({ success: true, data: { clip: payloadClip } });
 };
 
+exports.updateClip = async (req, res) => {
+	const clip = await Clip.findByPk(req.params.clipId, {
+		include: [
+			{
+				model: RiderAccount,
+				attributes: ["id", "name", "username", "profile_image_url"],
+			},
+		],
+	});
+
+	if (!clip) {
+		return formatError(res, 404, "Clip not found", "CLIP_NOT_FOUND");
+	}
+
+	if (clip.rider_id !== req.user.id) {
+		return formatError(
+			res,
+			403,
+			"You can only edit your own clips",
+			"CLIP_EDIT_FORBIDDEN",
+		);
+	}
+
+	const nextCaption = normalizeCaption(req.body.caption);
+	if (nextCaption === null) {
+		return formatError(
+			res,
+			400,
+			"caption must be a string up to 2000 characters",
+			"CLIP_CAPTION_INVALID",
+		);
+	}
+
+	clip.caption = nextCaption.length > 0 ? nextCaption : null;
+	await clip.save();
+
+	return res.status(200).json({
+		success: true,
+		data: {
+			message: "Clip updated",
+			clip: await toClipPayload(clip, req.user.id),
+		},
+	});
+};
+
+exports.deleteClip = async (req, res) => {
+	const clip = await Clip.findByPk(req.params.clipId, {
+		attributes: ["id", "rider_id"],
+	});
+
+	if (!clip) {
+		return formatError(res, 404, "Clip not found", "CLIP_NOT_FOUND");
+	}
+
+	if (clip.rider_id !== req.user.id) {
+		return formatError(
+			res,
+			403,
+			"You can only delete your own clips",
+			"CLIP_DELETE_FORBIDDEN",
+		);
+	}
+
+	await Promise.all([
+		ClipLike.destroy({ where: { clip_id: clip.id } }),
+		ClipComment.destroy({ where: { clip_id: clip.id } }),
+	]);
+
+	await clip.destroy();
+
+	return res.status(200).json({
+		success: true,
+		data: { message: "Clip deleted", clipId: req.params.clipId },
+	});
+};
+
 exports.getClipComments = async (req, res) => {
 	const clip = await Clip.findByPk(req.params.clipId, { attributes: ["id"] });
 
@@ -179,6 +270,8 @@ exports.getClipComments = async (req, res) => {
 				id: comment.id,
 				commentText: comment.comment_text,
 				createdAt: comment.created_at,
+				likesCount: 0,
+				likedByMe: false,
 				rider: {
 					id: comment.RiderAccount?.id,
 					name: comment.RiderAccount?.name,
@@ -213,6 +306,15 @@ exports.addClipComment = async (req, res) => {
 		comment_text: commentText,
 	});
 
+	const commentWithRider = await ClipComment.findByPk(createdComment.id, {
+		include: [
+			{
+				model: RiderAccount,
+				attributes: ["id", "name", "username", "profile_image_url"],
+			},
+		],
+	});
+
 	const commentsCount = await ClipComment.count({
 		where: { clip_id: clip.id },
 	});
@@ -221,11 +323,139 @@ exports.addClipComment = async (req, res) => {
 		success: true,
 		data: {
 			clipId: clip.id,
-			comment: {
-				id: createdComment.id,
-				commentText: createdComment.comment_text,
-				createdAt: createdComment.created_at,
+			comment: commentWithRider
+				? {
+						id: commentWithRider.id,
+						commentText: commentWithRider.comment_text,
+						createdAt: commentWithRider.created_at,
+						likesCount: 0,
+						likedByMe: false,
+						rider: {
+							id: commentWithRider.RiderAccount?.id,
+							name: commentWithRider.RiderAccount?.name,
+							username: commentWithRider.RiderAccount?.username,
+							profileImageUrl:
+								commentWithRider.RiderAccount?.profile_image_url,
+						},
+					}
+				: {
+						id: createdComment.id,
+						commentText: createdComment.comment_text,
+						createdAt: createdComment.created_at,
+						likesCount: 0,
+						likedByMe: false,
+					},
+			commentsCount,
+		},
+	});
+};
+
+exports.updateClipComment = async (req, res) => {
+	const clip = await Clip.findByPk(req.params.clipId, { attributes: ["id"] });
+
+	if (!clip) {
+		return formatError(res, 404, "Clip not found", "CLIP_NOT_FOUND");
+	}
+
+	const comment = await ClipComment.findOne({
+		where: {
+			id: req.params.commentId,
+			clip_id: clip.id,
+		},
+		include: [
+			{
+				model: RiderAccount,
+				attributes: ["id", "name", "username", "profile_image_url"],
 			},
+		],
+	});
+
+	if (!comment) {
+		return formatError(res, 404, "Comment not found", "CLIP_COMMENT_NOT_FOUND");
+	}
+
+	if (comment.rider_id !== req.user.id) {
+		return formatError(
+			res,
+			403,
+			"You can only edit your own comments",
+			"CLIP_COMMENT_EDIT_FORBIDDEN",
+		);
+	}
+
+	const commentText = validateCommentText(req.body.commentText);
+	if (!commentText) {
+		return formatError(
+			res,
+			400,
+			"commentText must be 1-2000 characters",
+			"CLIP_COMMENT_INVALID",
+		);
+	}
+
+	comment.comment_text = commentText;
+	await comment.save();
+
+	return res.status(200).json({
+		success: true,
+		data: {
+			clipId: clip.id,
+			comment: {
+				id: comment.id,
+				commentText: comment.comment_text,
+				createdAt: comment.created_at,
+				likesCount: 0,
+				likedByMe: false,
+				rider: {
+					id: comment.RiderAccount?.id,
+					name: comment.RiderAccount?.name,
+					username: comment.RiderAccount?.username,
+					profileImageUrl: comment.RiderAccount?.profile_image_url,
+				},
+			},
+		},
+	});
+};
+
+exports.deleteClipComment = async (req, res) => {
+	const clip = await Clip.findByPk(req.params.clipId, { attributes: ["id"] });
+
+	if (!clip) {
+		return formatError(res, 404, "Clip not found", "CLIP_NOT_FOUND");
+	}
+
+	const comment = await ClipComment.findOne({
+		where: {
+			id: req.params.commentId,
+			clip_id: clip.id,
+		},
+		attributes: ["id", "rider_id"],
+	});
+
+	if (!comment) {
+		return formatError(res, 404, "Comment not found", "CLIP_COMMENT_NOT_FOUND");
+	}
+
+	if (comment.rider_id !== req.user.id) {
+		return formatError(
+			res,
+			403,
+			"You can only delete your own comments",
+			"CLIP_COMMENT_DELETE_FORBIDDEN",
+		);
+	}
+
+	await comment.destroy();
+
+	const commentsCount = await ClipComment.count({
+		where: { clip_id: clip.id },
+	});
+
+	return res.status(200).json({
+		success: true,
+		data: {
+			clipId: clip.id,
+			commentId: comment.id,
 			commentsCount,
 		},
 	});

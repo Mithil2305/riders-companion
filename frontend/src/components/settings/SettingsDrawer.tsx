@@ -18,6 +18,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
+import { usePlaybackSettings } from '../../hooks/usePlaybackSettings';
+import { withAlpha } from '../../utils/color';
 
 type DrawerItem = {
   id: 'profile' | 'notifications' | 'privacy' | 'help';
@@ -37,6 +39,8 @@ interface SettingsDrawerProps {
   avatarLetter?: string;
   version?: string;
   build?: string;
+  dataSaverEnabled?: boolean;
+  onToggleDataSaver?: () => void;
 }
 
 const accountItems: DrawerItem[] = [
@@ -66,31 +70,6 @@ const accountItems: DrawerItem[] = [
   },
 ];
 
-function getSoftSurface(hexColor: string, alpha: number, fallback: string): string {
-  if (!hexColor.startsWith('#')) {
-    return fallback;
-  }
-
-  const hex = hexColor.replace('#', '');
-  const value =
-    hex.length === 3
-      ? hex
-          .split('')
-          .map((char) => char + char)
-          .join('')
-      : hex;
-
-  const r = Number.parseInt(value.slice(0, 2), 16);
-  const g = Number.parseInt(value.slice(2, 4), 16);
-  const b = Number.parseInt(value.slice(4, 6), 16);
-
-  if ([r, g, b].some((channel) => Number.isNaN(channel))) {
-    return fallback;
-  }
-
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
 function DrawerHeader({
   username,
   avatarLetter,
@@ -108,13 +87,13 @@ function DrawerHeader({
   }));
 
   const closeCircleBg = React.useMemo(
-    () => getSoftSurface(colors.textInverse, 0.2, colors.overlayLight),
-    [colors.overlayLight, colors.textInverse],
+    () => withAlpha(colors.textInverse, 0.2),
+    [colors.textInverse],
   );
 
   const avatarBg = React.useMemo(
-    () => getSoftSurface(colors.textInverse, 0.28, colors.overlayLight),
-    [colors.overlayLight, colors.textInverse],
+    () => withAlpha(colors.textInverse, 0.28),
+    [colors.textInverse],
   );
 
   const styles = React.useMemo(
@@ -140,7 +119,7 @@ function DrawerHeader({
           alignItems: 'center',
           justifyContent: 'center',
           borderWidth: 1,
-          borderColor: getSoftSurface(colors.textInverse, 0.35, colors.textInverse),
+          borderColor: withAlpha(colors.textInverse, 0.35),
         },
         avatarText: {
           color: colors.textInverse,
@@ -214,8 +193,11 @@ export function SettingsDrawer({
   avatarLetter = 'G',
   version = 'Version 2.0.1',
   build = 'Build 2024.01',
+  dataSaverEnabled,
+  onToggleDataSaver,
 }: SettingsDrawerProps) {
   const { colors, metrics, typography, resolvedMode, setMode } = useTheme();
+  const playbackSettings = usePlaybackSettings();
   const { width } = useWindowDimensions();
 
   const drawerWidth = Math.min(width * 0.88, 420);
@@ -266,6 +248,10 @@ export function SettingsDrawer({
   }, [onClose, openProgress]);
 
   const isDarkModeEnabled = resolvedMode === 'dark';
+  const isDataSaverEnabled =
+    typeof dataSaverEnabled === 'boolean'
+      ? dataSaverEnabled
+      : playbackSettings.dataSaverEnabled;
 
   const toggleTheme = React.useCallback(() => {
     const nextMode = isDarkModeEnabled ? 'light' : 'dark';
@@ -295,9 +281,9 @@ export function SettingsDrawer({
   );
 
   const softSurface = React.useMemo(() => {
-    const alpha = resolvedMode === 'dark' ? 0.18 : 0.045;
-    return getSoftSurface(colors.textPrimary, alpha, colors.surface);
-  }, [colors.surface, colors.textPrimary, resolvedMode]);
+    const opacity = resolvedMode === 'dark' ? 0.18 : 0.045;
+    return withAlpha(colors.textPrimary, opacity);
+  }, [colors.textPrimary, resolvedMode]);
 
   const styles = React.useMemo(
     () =>
@@ -377,6 +363,9 @@ export function SettingsDrawer({
           marginTop: 2,
           color: colors.textSecondary,
           fontSize: typography.sizes.sm,
+        },
+        settingsStack: {
+          gap: metrics.sm,
         },
         switchRoot: {
           width: 46,
@@ -473,7 +462,6 @@ export function SettingsDrawer({
       colors,
       isDarkModeEnabled,
       metrics,
-      resolvedMode,
       softSurface,
       typography,
     ],
@@ -509,6 +497,42 @@ export function SettingsDrawer({
                   </View>
                   <Pressable onPress={toggleTheme} style={styles.switchRoot}>
                     <Animated.View style={[styles.switchThumb, animatedSwitchThumbStyle]} />
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={styles.appearanceCard}>
+                <View style={styles.appearanceRow}>
+                  <View style={styles.appearanceIconWrap}>
+                    <Ionicons color={colors.primary} name="cellular-outline" size={metrics.icon.md} />
+                  </View>
+                  <View style={styles.appearanceTextWrap}>
+                    <Text style={styles.appearanceTitle}>Data Saver</Text>
+                    <Text style={styles.appearanceSubtitle}>
+                      {isDataSaverEnabled
+                        ? 'Smaller buffer and lighter preloading for clips'
+                        : 'Preload nearby clips for faster playback'}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={onToggleDataSaver ?? (() => void playbackSettings.toggleDataSaver())}
+                    style={[
+                      styles.switchRoot,
+                      {
+                        backgroundColor: isDataSaverEnabled
+                          ? colors.primary
+                          : colors.background,
+                      },
+                    ]}
+                  >
+                    <Animated.View
+                      style={[
+                        styles.switchThumb,
+                        {
+                          transform: [{ translateX: isDataSaverEnabled ? 18 : 0 }],
+                        },
+                      ]}
+                    />
                   </Pressable>
                 </View>
               </View>

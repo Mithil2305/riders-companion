@@ -24,9 +24,11 @@ import {
 	SafeAreaView,
 	useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useUploadManager } from "../src/contexts/UploadContext";
 import { useCreateMediaUpload } from "../src/hooks/useCreateMediaUpload";
 import FeedService from "../src/services/FeedService";
 import { useTheme } from "../src/hooks/useTheme";
+import { withAlpha } from "../src/utils/color";
 import {
 	AspectPreset,
 	GalleryMediaAsset,
@@ -123,6 +125,7 @@ export default function CreateMediaScreen() {
 	const editMediaType =
 		typeof params.editMediaType === "string" ? params.editMediaType : "IMAGE";
 	const isEditMode = editPostId.length > 0;
+	const { startUpload } = useUploadManager();
 	const {
 		step,
 		uploadType,
@@ -137,6 +140,7 @@ export default function CreateMediaScreen() {
 		isLoadingAssets,
 		isLoadingMore,
 		hasMoreAssets,
+		isOpeningSystemPicker,
 		isUploading,
 		setDescription,
 		changeUploadType,
@@ -146,7 +150,7 @@ export default function CreateMediaScreen() {
 		goBack,
 		refreshAssets,
 		loadMoreAssets,
-		upload,
+		openSystemPicker,
 	} = useCreateMediaUpload();
 	const [aspectPreset, setAspectPreset] =
 		React.useState<AspectPreset>("original");
@@ -288,6 +292,34 @@ export default function CreateMediaScreen() {
 					borderBottomColor: colors.border,
 					backgroundColor: colors.background,
 				},
+				albumToolsRow: {
+					flexDirection: "row",
+					alignItems: "center",
+					justifyContent: "space-between",
+					gap: metrics.sm,
+					marginBottom: metrics.sm,
+				},
+				albumToolsLabel: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "600",
+				},
+				systemGalleryButton: {
+					minHeight: 34,
+					borderRadius: metrics.radius.full,
+					borderWidth: 1,
+					borderColor: colors.border,
+					backgroundColor: colors.surface,
+					paddingHorizontal: metrics.md,
+					flexDirection: "row",
+					alignItems: "center",
+					gap: metrics.xs,
+				},
+				systemGalleryButtonText: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "600",
+				},
 				albumChip: {
 					paddingHorizontal: metrics.md,
 					height: 34,
@@ -341,12 +373,12 @@ export default function CreateMediaScreen() {
 					width: 56,
 					height: 4,
 					borderRadius: metrics.radius.full,
-					backgroundColor: "rgba(255,255,255,0.75)",
+					backgroundColor: withAlpha(colors.textInverse, 0.75),
 				},
 				previewFrame: {
 					width: "100%",
 					height: "100%",
-					backgroundColor: "#000000",
+					backgroundColor: colors.black,
 					alignItems: "center",
 					justifyContent: "center",
 					overflow: "hidden",
@@ -384,13 +416,13 @@ export default function CreateMediaScreen() {
 					position: "absolute",
 					top: 6,
 					right: 6,
-					backgroundColor: "rgba(0,0,0,0.45)",
+					backgroundColor: colors.overlay,
 					borderRadius: metrics.radius.full,
 					paddingHorizontal: 8,
 					paddingVertical: 2,
 				},
 				videoBadgeText: {
-					color: "#ffffff",
+					color: colors.textInverse,
 					fontSize: typography.sizes.xs,
 					fontWeight: "600",
 				},
@@ -453,7 +485,7 @@ export default function CreateMediaScreen() {
 					bottom: 0,
 					left: "33.33%",
 					width: 1,
-					backgroundColor: "rgba(255,255,255,0.45)",
+					backgroundColor: withAlpha(colors.textInverse, 0.45),
 				},
 				cropGridVerticalTwo: {
 					position: "absolute",
@@ -461,7 +493,7 @@ export default function CreateMediaScreen() {
 					bottom: 0,
 					left: "66.66%",
 					width: 1,
-					backgroundColor: "rgba(255,255,255,0.45)",
+					backgroundColor: withAlpha(colors.textInverse, 0.45),
 				},
 				cropGridHorizontalOne: {
 					position: "absolute",
@@ -469,7 +501,7 @@ export default function CreateMediaScreen() {
 					right: 0,
 					top: "33.33%",
 					height: 1,
-					backgroundColor: "rgba(255,255,255,0.45)",
+					backgroundColor: withAlpha(colors.textInverse, 0.45),
 				},
 				cropGridHorizontalTwo: {
 					position: "absolute",
@@ -477,7 +509,7 @@ export default function CreateMediaScreen() {
 					right: 0,
 					top: "66.66%",
 					height: 1,
-					backgroundColor: "rgba(255,255,255,0.45)",
+					backgroundColor: withAlpha(colors.textInverse, 0.45),
 				},
 				clipWarning: {
 					paddingHorizontal: metrics.md,
@@ -492,7 +524,7 @@ export default function CreateMediaScreen() {
 					left: metrics.md,
 					right: metrics.md,
 					bottom: Math.max(metrics.lg, insets.bottom + metrics.sm),
-					backgroundColor: "#0f1217",
+					backgroundColor: colors.secondary,
 					borderRadius: metrics.radius.full,
 					padding: 6,
 					flexDirection: "row",
@@ -500,7 +532,7 @@ export default function CreateMediaScreen() {
 					justifyContent: "space-between",
 				},
 				bottomPickerInline: {
-					backgroundColor: "#0f1217",
+					backgroundColor: colors.secondary,
 					borderRadius: metrics.radius.full,
 					padding: 6,
 					flexDirection: "row",
@@ -514,17 +546,17 @@ export default function CreateMediaScreen() {
 					alignItems: "center",
 				},
 				bottomPickerItemActive: {
-					backgroundColor: "#ffffff",
+					backgroundColor: colors.textInverse,
 				},
 				bottomPickerText: {
 					fontSize: typography.sizes.base,
 					fontWeight: "700",
-					color: "rgba(255,255,255,0.58)",
+					color: withAlpha(colors.textInverse, 0.58),
 					textTransform: "uppercase",
 					letterSpacing: 1,
 				},
 				bottomPickerTextActive: {
-					color: "#111318",
+					color: colors.black,
 				},
 				detailsWrap: {
 					padding: metrics.md,
@@ -729,8 +761,16 @@ export default function CreateMediaScreen() {
 				return;
 			}
 
-			await upload();
-			router.replace("/(tabs)/profile");
+			if (selectedAsset == null) {
+				throw new Error("Select media to upload.");
+			}
+
+			await startUpload({
+				description,
+				selectedAsset,
+				uploadType,
+			});
+			router.replace("/(tabs)");
 		} catch (error) {
 			const message =
 				error instanceof Error
@@ -738,7 +778,15 @@ export default function CreateMediaScreen() {
 					: "Unable to upload media right now.";
 			Alert.alert("Upload failed", message);
 		}
-	}, [description, editPostId, isEditMode, router, upload]);
+	}, [
+		description,
+		editPostId,
+		isEditMode,
+		router,
+		selectedAsset,
+		startUpload,
+		uploadType,
+	]);
 
 	if (isEditMode) {
 		return (
@@ -871,6 +919,29 @@ export default function CreateMediaScreen() {
 
 			{step === "picker" ? (
 				<View style={styles.albumRow}>
+					<View style={styles.albumToolsRow}>
+						<Text style={styles.albumToolsLabel}>Choose from gallery</Text>
+						<Pressable
+							disabled={isOpeningSystemPicker}
+							onPress={() => void openSystemPicker()}
+							style={styles.systemGalleryButton}
+						>
+							{isOpeningSystemPicker ? (
+								<ActivityIndicator color={colors.primary} size="small" />
+							) : (
+								<>
+									<Ionicons
+										color={colors.textPrimary}
+										name="images-outline"
+										size={16}
+									/>
+									<Text style={styles.systemGalleryButtonText}>
+										Gallery App
+									</Text>
+								</>
+							)}
+						</Pressable>
+					</View>
 					<ScrollView horizontal showsHorizontalScrollIndicator={false}>
 						{albums.map((album) => {
 							const active = album.id === selectedAlbumId;

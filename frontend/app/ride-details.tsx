@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../src/contexts/AuthContext";
+import { useTheme } from "../src/hooks/useTheme";
 import RideService, { RideFriend } from "../src/services/RideService";
 import {
 	hasCompletedProfile,
@@ -29,19 +30,12 @@ type PrivacyMode = "friends" | "strangers" | "mixed";
 type RidePace = "calm" | "balanced" | "fast";
 type RoadPreference = "scenic" | "highway" | "mixed";
 type DateField = "start" | "end";
-
-const palette = {
-	bg: "#F9FAFB",
-	card: "#FFFFFF",
-	border: "#E5E7EB",
-	textPrimary: "#111827",
-	textSecondary: "#6B7280",
-	activeBg: "#FDE8E8",
-	activeBorder: "#D97768",
-	activeText: "#D97768",
-	button: "#000000",
-	buttonText: "#FFFFFF",
-	overlay: "rgba(0, 0, 0, 0.4)",
+type RideDetailsScreenProps = {
+	forcedRideType?: "solo" | "group";
+	showBackButton?: boolean;
+	showTypeBadge?: boolean;
+	actionPlacement?: "sticky" | "inline";
+	showSafetySection?: boolean;
 };
 
 const resolveRideType = (
@@ -70,13 +64,41 @@ const formatDateLabel = (value: Date | null) => {
 const titleCase = (value: string) =>
 	value.charAt(0).toUpperCase() + value.slice(1);
 
-export default function RideDetailsScreen() {
+export function RideDetailsScreen({
+	forcedRideType,
+	showBackButton = true,
+	showTypeBadge = true,
+	actionPlacement = "sticky",
+	showSafetySection = true,
+}: RideDetailsScreenProps) {
 	const router = useRouter();
 	const params = useLocalSearchParams();
 	const { user: authUser } = useAuth();
+	const { colors } = useTheme();
 
-	const [selectedType] = React.useState<"solo" | "group">(
-		resolveRideType(params.rideType),
+	const palette = React.useMemo(
+		() => ({
+			bg: colors.background,
+			card: colors.surface,
+			border: colors.border,
+			textPrimary: colors.textPrimary,
+			textSecondary: colors.textSecondary,
+			activeBg: colors.overlayLight,
+			activeBorder: colors.primary,
+			activeText: colors.primary,
+			button: colors.buttonPrimaryBg,
+			buttonText: colors.buttonPrimaryText,
+			overlay: colors.overlay,
+			shadow: colors.shadow,
+		}),
+		[colors],
+	);
+
+	const styles = React.useMemo(() => createStyles(palette), [palette]);
+
+	const selectedType = React.useMemo<"solo" | "group">(
+		() => forcedRideType ?? resolveRideType(params.rideType),
+		[forcedRideType, params.rideType],
 	);
 
 	const [rideTitle, setRideTitle] = React.useState("");
@@ -645,19 +667,23 @@ export default function RideDetailsScreen() {
 					<View style={styles.headerBlock}>
 						<View style={styles.headerRow}>
 							<View style={styles.headerLeft}>
-								<Pressable hitSlop={8} onPress={() => router.back()}>
-									<Ionicons
-										color={palette.textPrimary}
-										name="arrow-back"
-										size={22}
-									/>
-								</Pressable>
+								{showBackButton ? (
+									<Pressable hitSlop={8} onPress={() => router.back()}>
+										<Ionicons
+											color={palette.textPrimary}
+											name="arrow-back"
+											size={22}
+										/>
+									</Pressable>
+								) : null}
 								<Text style={styles.headerTitle}>Ride details</Text>
-								<View style={styles.groupPill}>
-									<Text style={styles.groupPillText}>
-										{selectedType === "group" ? "GROUP" : "SOLO"}
-									</Text>
-								</View>
+								{showTypeBadge ? (
+									<View style={styles.groupPill}>
+										<Text style={styles.groupPillText}>
+											{selectedType === "group" ? "GROUP" : "SOLO"}
+										</Text>
+									</View>
+								) : null}
 							</View>
 						</View>
 						<Text style={styles.subtitle}>
@@ -899,40 +925,42 @@ export default function RideDetailsScreen() {
 								) : null}
 							</View>
 
-							<View style={styles.card}>
-								<Text style={styles.sectionTitle}>Safety and communication</Text>
-								<TextInput
-									onChangeText={setEmergencyContactName}
-									placeholder="Emergency contact name"
-									placeholderTextColor={palette.textSecondary}
-									style={styles.input}
-									value={emergencyContactName}
-								/>
-								<TextInput
-									keyboardType="phone-pad"
-									onChangeText={setEmergencyContactPhone}
-									placeholder="Emergency contact phone"
-									placeholderTextColor={palette.textSecondary}
-									style={styles.input}
-									value={emergencyContactPhone}
-								/>
-								<TextInput
-									multiline
-									onChangeText={setMeetupNotes}
-									placeholder="Meetup notes (helmet checks, exact landmark, fuel stop before departure)"
-									placeholderTextColor={palette.textSecondary}
-									style={[styles.input, styles.textArea]}
-									value={meetupNotes}
-								/>
-								<TextInput
-									multiline
-									onChangeText={setRideNotes}
-									placeholder="Extra ride notes (weather backup route, regroup points, leader instructions)"
-									placeholderTextColor={palette.textSecondary}
-									style={[styles.input, styles.textArea]}
-									value={rideNotes}
-								/>
-							</View>
+							{showSafetySection ? (
+								<View style={styles.card}>
+									<Text style={styles.sectionTitle}>Safety and communication</Text>
+									<TextInput
+										onChangeText={setEmergencyContactName}
+										placeholder="Emergency contact name"
+										placeholderTextColor={palette.textSecondary}
+										style={styles.input}
+										value={emergencyContactName}
+									/>
+									<TextInput
+										keyboardType="phone-pad"
+										onChangeText={setEmergencyContactPhone}
+										placeholder="Emergency contact phone"
+										placeholderTextColor={palette.textSecondary}
+										style={styles.input}
+										value={emergencyContactPhone}
+									/>
+									<TextInput
+										multiline
+										onChangeText={setMeetupNotes}
+										placeholder="Meetup notes (helmet checks, exact landmark, fuel stop before departure)"
+										placeholderTextColor={palette.textSecondary}
+										style={[styles.input, styles.textArea]}
+										value={meetupNotes}
+									/>
+									<TextInput
+										multiline
+										onChangeText={setRideNotes}
+										placeholder="Extra ride notes (weather backup route, regroup points, leader instructions)"
+										placeholderTextColor={palette.textSecondary}
+										style={[styles.input, styles.textArea]}
+										value={rideNotes}
+									/>
+								</View>
+							) : null}
 						</>
 					) : null}
 
@@ -967,29 +995,66 @@ export default function RideDetailsScreen() {
 					) : null}
 
 					{message ? <Text style={styles.message}>{message}</Text> : null}
+
+					{actionPlacement === "inline" ? (
+						<View style={styles.inlineActionWrap}>
+							<Pressable
+								disabled={submitting}
+								onPress={onPressCreate}
+								style={styles.createButton}
+							>
+								{submitting ? (
+									<ActivityIndicator color={palette.buttonText} size="small" />
+								) : (
+									<Text style={styles.createButtonText}>
+										Create {selectedType === "solo" ? "Solo" : "Group"} Ride
+									</Text>
+								)}
+							</Pressable>
+						</View>
+					) : null}
 				</ScrollView>
 
-				<View style={styles.footer}>
-					<Pressable
-						disabled={submitting}
-						onPress={onPressCreate}
-						style={styles.createButton}
-					>
-						{submitting ? (
-							<ActivityIndicator color={palette.buttonText} size="small" />
-						) : (
-							<Text style={styles.createButtonText}>
-								Create {selectedType === "solo" ? "Solo" : "Group"} Ride
-							</Text>
-						)}
-					</Pressable>
-				</View>
+				{actionPlacement === "sticky" ? (
+					<View style={styles.footer}>
+						<Pressable
+							disabled={submitting}
+							onPress={onPressCreate}
+							style={styles.createButton}
+						>
+							{submitting ? (
+								<ActivityIndicator color={palette.buttonText} size="small" />
+							) : (
+								<Text style={styles.createButtonText}>
+									Create {selectedType === "solo" ? "Solo" : "Group"} Ride
+								</Text>
+							)}
+						</Pressable>
+					</View>
+				) : null}
 			</View>
 		</SafeAreaView>
 	);
 }
 
-const styles = StyleSheet.create({
+export default function RideDetailsRoute() {
+	return <RideDetailsScreen />;
+}
+
+const createStyles = (palette: {
+	bg: string;
+	card: string;
+	border: string;
+	textPrimary: string;
+	textSecondary: string;
+	activeBg: string;
+	activeBorder: string;
+	activeText: string;
+	button: string;
+	buttonText: string;
+	overlay: string;
+	shadow: string;
+}) => StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: palette.bg,
@@ -1049,7 +1114,7 @@ const styles = StyleSheet.create({
 		borderColor: palette.border,
 		borderRadius: 16,
 		padding: 16,
-		shadowColor: "#000",
+		shadowColor: palette.shadow,
 		shadowOpacity: 0.03,
 		shadowOffset: { width: 0, height: 6 },
 		shadowRadius: 10,
@@ -1189,6 +1254,10 @@ const styles = StyleSheet.create({
 		lineHeight: 20,
 		color: palette.activeBorder,
 	},
+	inlineActionWrap: {
+		paddingTop: 4,
+		paddingBottom: 8,
+	},
 	suggestionWrap: {
 		borderWidth: 1,
 		borderColor: palette.border,
@@ -1217,7 +1286,7 @@ const styles = StyleSheet.create({
 		backgroundColor: palette.card,
 		borderTopWidth: 1,
 		borderTopColor: palette.border,
-		shadowColor: "#000",
+		shadowColor: palette.shadow,
 		shadowOpacity: 0.06,
 		shadowOffset: { width: 0, height: -2 },
 		shadowRadius: 8,
