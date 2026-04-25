@@ -28,6 +28,7 @@ type CommentsSheetProps = {
   currentUsername?: string;
   currentUserAvatarUrl?: string;
   contentType?: InteractionContentType;
+  onCommentAdded?: (newCount: number) => void;
 };
 
 export function CommentsSheet({
@@ -37,6 +38,7 @@ export function CommentsSheet({
   currentUsername,
   currentUserAvatarUrl,
   contentType = 'feed',
+  onCommentAdded,
 }: CommentsSheetProps) {
   const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=11';
   const { user } = useAuth();
@@ -54,12 +56,17 @@ export function CommentsSheet({
     likeComment,
     editComment,
     deleteComment,
+    replyingTo,
+    addReply,
+    cancelReply,
   } = useComments(postId, {
     currentUsername: resolvedUsername,
     currentUserAvatarUrl: resolvedAvatarUrl,
     contentType,
     enabled: visible,
   });
+
+  const [expandedReplies, setExpandedReplies] = React.useState<Set<string>>(new Set());
 
   const [mounted, setMounted] = React.useState(visible);
   const translateY = React.useRef(new Animated.Value(520)).current;
@@ -90,8 +97,21 @@ export function CommentsSheet({
       setIsActionMenuVisible(false);
       setIsEditModalVisible(false);
       setEditDraft('');
+      setExpandedReplies(new Set());
     }
   }, [visible]);
+
+  const toggleReplies = React.useCallback((commentId: string) => {
+    setExpandedReplies((prev) => {
+      const next = new Set(prev);
+      if (next.has(commentId)) {
+        next.delete(commentId);
+      } else {
+        next.add(commentId);
+      }
+      return next;
+    });
+  }, []);
 
   React.useEffect(() => {
     if (visible) {
@@ -283,6 +303,22 @@ export function CommentsSheet({
           flexDirection: 'row',
           alignItems: 'center',
         },
+        replyingToWrap: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: metrics.md,
+          paddingVertical: metrics.xs,
+          backgroundColor: colors.chatComposerBg,
+          borderTopLeftRadius: metrics.radius.md,
+          borderTopRightRadius: metrics.radius.md,
+          marginBottom: metrics.xs,
+        },
+        replyingToText: {
+          color: colors.textSecondary,
+          fontSize: typography.sizes.sm,
+          fontWeight: '500',
+        },
         composerAvatar: {
           width: 40,
           height: 40,
@@ -463,11 +499,11 @@ export function CommentsSheet({
                       isOwner={isOwner}
                       isSelected={isSelected}
                       isDimmed={isDimmed}
+                      expandedReplies={expandedReplies.has(item.id)}
                       onLike={likeComment}
-                      onReply={() => {
-                        setDraft(`@${item?.author?.username || 'Unknown-User'} `);
-                      }}
+                      onReply={addReply}
                       onLongPress={handleCommentLongPress}
+                      onToggleReplies={toggleReplies}
                     />
                   );
                 }}
@@ -478,20 +514,38 @@ export function CommentsSheet({
             )}
 
             <View style={[styles.composerWrap, { paddingBottom: Math.max(insets.bottom, metrics.sm) }]}>
+              {replyingTo && (
+                <View style={styles.replyingToWrap}>
+                  <Text style={styles.replyingToText}>
+                    Replying to @{replyingTo.author.username}
+                  </Text>
+                  <Pressable onPress={cancelReply}>
+                    <Ionicons color={colors.textSecondary} name="close" size={16} />
+                  </Pressable>
+                </View>
+              )}
               <View style={styles.composerRow}>
-                <Image
+                {/* <Image
                   onError={() => setComposerAvatarUri(DEFAULT_AVATAR)}
                   source={{ uri: composerAvatarUri }}
                   style={styles.composerAvatar}
-                />
+                /> */}
                 <TextInput
                   onChangeText={setDraft}
-                  placeholder="Add a comment..."
+                  placeholder={replyingTo ? 'Add a reply...' : 'Add a comment...'}
                   placeholderTextColor={colors.textSecondary}
                   style={styles.input}
                   value={draft}
                 />
-                <Pressable disabled={!canSend} onPress={() => void addComment()} style={styles.sendButton}>
+                <Pressable
+                  disabled={!canSend}
+                  onPress={async () => {
+                    await addComment();
+                    const totalCount = comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0), 0);
+                    onCommentAdded?.(totalCount);
+                  }}
+                  style={styles.sendButton}
+                >
                   <Ionicons
                     color={canSend ? colors.primary : colors.textTertiary}
                     name="paper-plane"
