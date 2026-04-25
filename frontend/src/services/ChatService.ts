@@ -7,10 +7,10 @@ import {
 } from "../types/chat";
 
 type ChatRoomListResponse = {
-	communities: Array<{
+	communities: {
 		id: string;
 		name: string;
-	}>;
+	}[];
 };
 
 type ChatMessagesResponse = {

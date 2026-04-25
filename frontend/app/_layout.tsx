@@ -3,9 +3,9 @@ import { Animated, Easing, StyleSheet, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Video, ResizeMode, AVPlaybackStatusSuccess } from "expo-av";
 import Constants from "expo-constants";
 
 // Contexts & Hooks
@@ -39,7 +39,7 @@ export default function RootLayout() {
 
 function RootNavigator() {
 	const { colors, resolvedMode } = useTheme();
-	const { isAuthenticated, isRestoring } = useAuth();
+	const { isAuthenticated } = useAuth();
 	const [showVideoSplash, setShowVideoSplash] = useState(true);
 	
 	// Animation Refs
@@ -48,6 +48,10 @@ function RootNavigator() {
 	const appEntryY = useRef(new Animated.Value(110)).current;
 	const appEntryOpacity = useRef(new Animated.Value(0)).current;
 	const hasStartedAppEntry = useRef(false);
+	const splashVideoPlayer = useVideoPlayer(require("../assets/logo.mp4"), (player) => {
+		player.loop = false;
+		player.muted = true;
+	});
 
 	const hideNativeSplash = useCallback(async () => {
 		try {
@@ -99,13 +103,37 @@ function RootNavigator() {
 		return () => { cancelled = true; };
 	}, [isAuthenticated]);
 
-	const onPlaybackStatusUpdate = (status: any) => {
-		const playbackStatus = status as AVPlaybackStatusSuccess;
-		if (playbackStatus.didJustFinish) {
-			setShowVideoSplash(false);
-			startAppEntryAnimation();
+	const finishVideoSplash = useCallback(() => {
+		setShowVideoSplash(false);
+		startAppEntryAnimation();
+	}, [startAppEntryAnimation]);
+
+	useEffect(() => {
+		const subscription = splashVideoPlayer.addListener("playToEnd", () => {
+			finishVideoSplash();
+		});
+
+		return () => {
+			subscription.remove();
+		};
+	}, [finishVideoSplash, splashVideoPlayer]);
+
+	useEffect(() => {
+		if (showVideoSplash) {
+			splashVideoPlayer.play();
+			return;
 		}
-	};
+
+		splashVideoPlayer.pause();
+	}, [showVideoSplash, splashVideoPlayer]);
+
+	useEffect(() => {
+		if (showVideoSplash) {
+			return;
+		}
+
+		void hideNativeSplash();
+	}, [hideNativeSplash, showVideoSplash]);
 
 	useEffect(() => {
 		Animated.parallel([
@@ -124,14 +152,12 @@ function RootNavigator() {
 		]).start();
 
 		const fallbackTimer = setTimeout(() => {
-			if (showVideoSplash) {
-				setShowVideoSplash(false);
-				startAppEntryAnimation();
-			}
+			setShowVideoSplash(false);
+			startAppEntryAnimation();
 		}, 5000);
 
 		return () => clearTimeout(fallbackTimer);
-	}, []);
+	}, [boomOpacity, boomScale, startAppEntryAnimation]);
 
 	return (
 		<>
@@ -189,16 +215,15 @@ function RootNavigator() {
 							},
 						]}
 					>
-						<Video
-							source={require("../assets/logo.mp4")} 
-							style={styles.video}
-							resizeMode={ResizeMode.COVER}
-							shouldPlay
-							isMuted={true}
-							onLoad={() => {
+						<VideoView
+							contentFit="cover"
+							fullscreenOptions={{ enable: false }}
+							nativeControls={false}
+							onFirstFrameRender={() => {
 								void hideNativeSplash();
 							}}
-							onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+							player={splashVideoPlayer}
+							style={styles.video}
 						/>
 					</Animated.View>
 				</View>

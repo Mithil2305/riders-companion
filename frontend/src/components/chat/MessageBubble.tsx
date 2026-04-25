@@ -97,7 +97,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           fontSize: typography.sizes.lg,
         },
       }),
-    [colors, metrics, typography],
+    [colors, message.kind, metrics, typography],
   );
 
   const tickIcon =

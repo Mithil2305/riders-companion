@@ -76,7 +76,7 @@ export function GroupChatHeader({
 					justifyContent: "center",
 				},
 			}),
-		[colors, isEnded, metrics, typography],
+		[colors, metrics, typography],
 	);
 
 	return (

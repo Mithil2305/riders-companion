@@ -16,12 +16,14 @@ interface HeaderBarProps {
 	title?: string;
 	titleIcon?: ImageSourcePropType;
 	showSpinner?: boolean;
+	showBottomBorder?: boolean;
 }
 
 export function HeaderBar({
 	title = "Moments",
 	titleIcon,
 	showSpinner = false,
+	showBottomBorder = true,
 }: HeaderBarProps) {
 	const { colors, metrics, typography } = useTheme();
 	const router = useRouter();
@@ -37,7 +39,7 @@ export function HeaderBar({
 					paddingTop: metrics.sm,
 					paddingBottom: metrics.sm,
 					backgroundColor: colors.background,
-					borderBottomWidth: 1,
+					borderBottomWidth: showBottomBorder ? 1 : 0,
 					borderBottomColor: colors.borderDark,
 				},
 				left: {
@@ -80,7 +82,7 @@ export function HeaderBar({
 					alignItems: "center",
 				},
 			}),
-		[colors, metrics, typography],
+		[colors, metrics, showBottomBorder, typography],
 	);
 
 	return (

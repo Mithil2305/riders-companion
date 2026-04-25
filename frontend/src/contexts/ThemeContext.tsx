@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { useColorScheme } from 'react-native';
 import { darkTheme } from '../theme/dark';
@@ -39,19 +39,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const palette = resolvedMode === 'dark' ? darkTheme.colors : lightTheme.colors;
 
-  const setMode = async (nextMode: ThemeMode) => {
+  const setMode = useCallback(async (nextMode: ThemeMode) => {
     setModeState(nextMode);
     await SecureStore.setItemAsync(THEME_MODE_KEY, nextMode);
-  };
+  }, []);
 
-  const toggleMode = async () => {
+  const toggleMode = useCallback(async () => {
     const nextMode: ThemeMode = resolvedMode === 'dark' ? 'light' : 'dark';
     await setMode(nextMode);
-  };
+  }, [resolvedMode, setMode]);
 
   const value = useMemo(
     () => ({ mode, resolvedMode, colors: palette, setMode, toggleMode }),
-    [mode, resolvedMode, palette],
+    [mode, resolvedMode, palette, setMode, toggleMode],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

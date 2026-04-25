@@ -23,7 +23,7 @@ function formatDateHumanReadable(dateStr: string): string {
 			minute: '2-digit',
 		};
 		return d.toLocaleDateString("en-US", options).replace(',', '').replace(' PM', ' PM').replace(' AM', ' AM');
-	} catch (e) {
+	} catch {
 		return dateStr;
 	}
 }
