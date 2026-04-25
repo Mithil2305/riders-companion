@@ -33,17 +33,17 @@ import { useTheme } from "../../src/hooks/useTheme";
 type ProfileSection = "moments" | "clips" | "garage";
 
 type AchievementTier = {
-	emoji: string;
+	icon: React.ComponentProps<typeof Ionicons>["name"];
 	label: string;
 	thresholdKm: number;
 };
 
 const ACHIEVEMENT_TIERS: AchievementTier[] = [
-	{ emoji: "🥉", label: "Bronze", thresholdKm: 10000 },
-	{ emoji: "🥈", label: "Silver", thresholdKm: 14000 },
-	{ emoji: "🥇", label: "Gold", thresholdKm: 19000 },
-	{ emoji: "💎", label: "Crystal", thresholdKm: 25000 },
-	{ emoji: "👑", label: "Elite", thresholdKm: 30000 },
+	{ icon: "medal-outline", label: "Bronze", thresholdKm: 10000 },
+	{ icon: "ribbon-outline", label: "Silver", thresholdKm: 14000 },
+	{ icon: "trophy-outline", label: "Gold", thresholdKm: 19000 },
+	{ icon: "diamond-outline", label: "Crystal", thresholdKm: 25000 },
+	{ icon: "shield-checkmark-outline", label: "Elite", thresholdKm: 30000 },
 ];
 
 const sectionMap: Record<
@@ -75,13 +75,13 @@ function AchievementsButton({ onPress }: { onPress: () => void }) {
 		() =>
 			StyleSheet.create({
 				button: {
-					minHeight: metrics.button.md.height,
-					borderRadius: 26,
+					minHeight: 46,
+					borderRadius: metrics.radius.full,
 					alignItems: "center",
 					justifyContent: "center",
 					flexDirection: "row",
 					gap: metrics.sm,
-					paddingHorizontal: metrics.md,
+					paddingHorizontal: metrics.lg,
 					alignSelf: "center",
 					backgroundColor: colors.primary,
 				},
@@ -96,7 +96,8 @@ function AchievementsButton({ onPress }: { onPress: () => void }) {
 
 	return (
 		<Pressable onPress={onPress} style={styles.button}>
-			<Text style={styles.text}>🏆 Achievements</Text>
+			<Ionicons color={colors.textInverse} name="trophy-outline" size={18} />
+			<Text style={styles.text}>Achievements</Text>
 		</Pressable>
 	);
 }
@@ -336,9 +337,10 @@ function AchievementsModal({
 
 	const tierRows = React.useMemo(() => {
 		return ACHIEVEMENT_TIERS.map((tier, index) => {
-			const prev = index === 0 ? 0 : ACHIEVEMENT_TIERS[index - 1].thresholdKm;
-			const range = Math.max(1, tier.thresholdKm - prev);
-			const fill = Math.max(0, Math.min(1, (totalKm - prev) / range));
+			const previous =
+				index === 0 ? 0 : ACHIEVEMENT_TIERS[index - 1].thresholdKm;
+			const range = Math.max(1, tier.thresholdKm - previous);
+			const fill = Math.max(0, Math.min(1, (totalKm - previous) / range));
 
 			return {
 				...tier,
@@ -391,9 +393,6 @@ function AchievementsModal({
 					paddingVertical: metrics.xs + 2,
 					gap: metrics.sm,
 				},
-				emoji: {
-					fontSize: typography.sizes.base + 4,
-				},
 				rowMiddle: {
 					flex: 1,
 					gap: 4,
@@ -419,7 +418,7 @@ function AchievementsModal({
 				},
 				closeButton: {
 					marginTop: metrics.sm,
-					minHeight: metrics.button.md.height,
+					minHeight: 46,
 					borderRadius: metrics.radius.full,
 					alignItems: "center",
 					justifyContent: "center",
@@ -446,8 +445,8 @@ function AchievementsModal({
 					<Text style={styles.title}>Achievements</Text>
 					<Text style={styles.subtitle}>
 						{progress.current
-							? `${progress.current.emoji} ${progress.current.label}`
-							: "🏁 Start riding"}
+							? `${progress.current.label} tier unlocked`
+							: "Start riding to unlock the first tier"}
 					</Text>
 					<View style={styles.overallTrack}>
 						<View
@@ -460,18 +459,25 @@ function AchievementsModal({
 					<Text style={styles.subtitle}>
 						{Math.round(totalKm).toLocaleString()} km
 						{progress.next
-							? ` • ${progress.remainingKm.toLocaleString()} km to ${progress.next.emoji}`
-							: " • Max tier reached"}
+							? ` - ${progress.remainingKm.toLocaleString()} km to ${progress.next.label}`
+							: " - Max tier reached"}
 					</Text>
 
 					{tierRows.map((tier) => (
 						<View key={tier.label} style={styles.listItem}>
-							<Text style={styles.emoji}>{tier.emoji}</Text>
+							<Ionicons
+								color={tier.done ? colors.primary : colors.textSecondary}
+								name={tier.icon}
+								size={20}
+							/>
 							<View style={styles.rowMiddle}>
 								<Text style={styles.badgeName}>{tier.label}</Text>
 								<View style={styles.tierTrack}>
 									<View
-										style={[styles.tierFill, { width: `${tier.fill * 100}%` }]}
+										style={[
+											styles.tierFill,
+											{ width: `${tier.fill * 100}%` },
+										]}
 									/>
 								</View>
 							</View>
@@ -541,7 +547,7 @@ function PostDetailModal({
 					flex: 1,
 					backgroundColor: "rgba(0,0,0,0.62)",
 					justifyContent: "center",
-					paddingHorizontal: metrics.md,
+					paddingHorizontal: metrics.lg,
 				},
 				card: {
 					borderRadius: metrics.radius.lg,
@@ -582,7 +588,7 @@ function PostDetailModal({
 					flexWrap: "wrap",
 				},
 				actionBtn: {
-					paddingHorizontal: metrics.md,
+					paddingHorizontal: metrics.lg,
 					paddingVertical: metrics.xs + 4,
 					borderRadius: metrics.radius.full,
 					borderWidth: 1,
@@ -835,7 +841,7 @@ export default function ProfileScreen() {
 					backgroundColor: colors.background,
 				},
 				header: {
-					paddingHorizontal: metrics.md,
+					paddingHorizontal: metrics.lg,
 					paddingVertical: metrics.md,
 					backgroundColor: colors.background,
 					flexDirection: "row",
@@ -879,7 +885,7 @@ export default function ProfileScreen() {
 					backgroundColor: colors.surface,
 				},
 				content: {
-					paddingHorizontal: metrics.md,
+					paddingHorizontal: metrics.lg,
 					paddingTop: metrics.md,
 				},
 				identityBlock: {
@@ -1241,3 +1247,4 @@ export default function ProfileScreen() {
 		</Animated.View>
 	);
 }
+
