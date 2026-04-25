@@ -44,6 +44,7 @@ type GarageBike = {
 type PublicSection = "moments" | "clips" | "garage";
 
 type PublicClipItem = Pick<ClipPayload, "id" | "videoUrl"> & {
+	thumbnailUrl?: string | null;
 	sourcePostId?: string;
 };
 
@@ -418,6 +419,7 @@ export default function RiderProfileScreen() {
 					.map((post) => ({
 						id: `post-${post.id}`,
 						videoUrl: post.mediaUrl ?? "",
+						thumbnailUrl: null,
 						sourcePostId: post.id,
 					}));
 				const riderClips = clipsResponse.clips
@@ -425,6 +427,7 @@ export default function RiderProfileScreen() {
 					.map((clip) => ({
 						id: clip.id,
 						videoUrl: clip.videoUrl,
+						thumbnailUrl: clip.thumbnailUrl,
 					}));
 
 				setMoments(riderMoments);
@@ -821,7 +824,7 @@ export default function RiderProfileScreen() {
 							>
 								<ClipThumbnail
 									style={styles.tileImage}
-									uri={clip.videoUrl}
+									uri={clip.thumbnailUrl ?? null}
 								/>
 								<View style={styles.videoPill}>
 									<Text style={styles.videoPillText}>CLIP</Text>
@@ -897,14 +900,6 @@ export default function RiderProfileScreen() {
 						<View style={styles.stat}>
 							<Text style={styles.statValue}>{moments.length}</Text>
 							<Text style={styles.statLabel}>Moments</Text>
-						</View>
-						<View style={styles.stat}>
-							<Text style={styles.statValue}>{clips.length}</Text>
-							<Text style={styles.statLabel}>Clips</Text>
-						</View>
-						<View style={styles.stat}>
-							<Text style={styles.statValue}>{garage.length}</Text>
-							<Text style={styles.statLabel}>Garage</Text>
 						</View>
 						<View style={styles.stat}>
 							<Text style={styles.statValue}>{profile.followersCount}</Text>
