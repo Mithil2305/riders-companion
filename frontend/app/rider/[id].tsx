@@ -2,6 +2,7 @@ import React from "react";
 import {
 	ActivityIndicator,
 	Image,
+	Modal,
 	Pressable,
 	ScrollView,
 	StyleSheet,
@@ -55,12 +56,299 @@ const FALLBACK_PROFILE: RiderProfile = {
 };
 
 const ACHIEVEMENT_TIERS = [
-	{ label: "Bronze", thresholdKm: 10000 },
-	{ label: "Silver", thresholdKm: 14000 },
-	{ label: "Gold", thresholdKm: 19000 },
-	{ label: "Crystal", thresholdKm: 25000 },
-	{ label: "Elite", thresholdKm: 30000 },
-];
+	{ icon: "medal-outline", label: "Bronze", thresholdKm: 10000 },
+	{ icon: "ribbon-outline", label: "Silver", thresholdKm: 14000 },
+	{ icon: "trophy-outline", label: "Gold", thresholdKm: 19000 },
+	{ icon: "diamond-outline", label: "Crystal", thresholdKm: 25000 },
+	{ icon: "shield-checkmark-outline", label: "Elite", thresholdKm: 30000 },
+] as const;
+
+function toBadgeProgress(totalKm: number) {
+	const current =
+		[...ACHIEVEMENT_TIERS]
+			.reverse()
+			.find((tier) => totalKm >= tier.thresholdKm) ?? null;
+	const next = ACHIEVEMENT_TIERS.find((tier) => totalKm < tier.thresholdKm) ?? null;
+
+	return {
+		current,
+		next,
+		remainingKm: next ? Math.max(0, next.thresholdKm - totalKm) : 0,
+	};
+}
+
+function AchievementsButton({ onPress }: { onPress: () => void }) {
+	const { colors, metrics, typography } = useTheme();
+
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				button: {
+					minHeight: 46,
+					borderRadius: metrics.radius.full,
+					alignItems: "center",
+					justifyContent: "center",
+					flexDirection: "row",
+					gap: metrics.sm,
+					paddingHorizontal: metrics.lg,
+					alignSelf: "center",
+					backgroundColor: colors.primary,
+				},
+				text: {
+					color: colors.textInverse,
+					fontSize: typography.sizes.sm,
+					fontWeight: "700",
+				},
+			}),
+		[colors, metrics, typography],
+	);
+
+	return (
+		<Pressable onPress={onPress} style={styles.button}>
+			<Ionicons color={colors.textInverse} name="trophy-outline" size={18} />
+			<Text style={styles.text}>Achievements</Text>
+		</Pressable>
+	);
+}
+
+function ProfileActionButton({
+	label,
+	icon,
+	onPress,
+	variant = "secondary",
+	disabled = false,
+	loading = false,
+}: {
+	label: string;
+	icon: React.ComponentProps<typeof Ionicons>["name"];
+	onPress: () => void;
+	variant?: "primary" | "secondary";
+	disabled?: boolean;
+	loading?: boolean;
+}) {
+	const { colors, metrics, typography } = useTheme();
+	const isPrimary = variant === "primary";
+
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				button: {
+					flex: 1,
+					minHeight: 46,
+					borderRadius: metrics.radius.full,
+					alignItems: "center",
+					justifyContent: "center",
+					flexDirection: "row",
+					gap: metrics.xs,
+					paddingHorizontal: metrics.sm,
+					backgroundColor: isPrimary ? colors.primary : colors.card,
+					borderWidth: 1,
+					borderColor: isPrimary ? colors.primary : colors.border,
+					opacity: disabled ? 0.6 : 1,
+				},
+				text: {
+					color: isPrimary ? colors.textInverse : colors.textPrimary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "700",
+				},
+			}),
+		[colors, disabled, isPrimary, metrics, typography],
+	);
+
+	return (
+		<Pressable disabled={disabled} onPress={onPress} style={styles.button}>
+			{loading ? (
+				<ActivityIndicator
+					color={isPrimary ? colors.textInverse : colors.primary}
+					size="small"
+				/>
+			) : (
+				<>
+					<Ionicons
+						color={isPrimary ? colors.textInverse : colors.textPrimary}
+						name={icon}
+						size={16}
+					/>
+					<Text numberOfLines={1} style={styles.text}>
+						{label}
+					</Text>
+				</>
+			)}
+		</Pressable>
+	);
+}
+
+function AchievementsModal({
+	visible,
+	onClose,
+	totalKm,
+}: {
+	visible: boolean;
+	onClose: () => void;
+	totalKm: number;
+}) {
+	const { colors, metrics, typography } = useTheme();
+	const progress = React.useMemo(() => toBadgeProgress(totalKm), [totalKm]);
+	const maxKm = ACHIEVEMENT_TIERS[ACHIEVEMENT_TIERS.length - 1].thresholdKm;
+	const overallPercent = Math.max(0, Math.min(1, totalKm / maxKm));
+
+	const tierRows = React.useMemo(() => {
+		return ACHIEVEMENT_TIERS.map((tier, index) => {
+			const previous =
+				index === 0 ? 0 : ACHIEVEMENT_TIERS[index - 1].thresholdKm;
+			const range = Math.max(1, tier.thresholdKm - previous);
+			const fill = Math.max(0, Math.min(1, (totalKm - previous) / range));
+
+			return {
+				...tier,
+				fill,
+				done: totalKm >= tier.thresholdKm,
+			};
+		});
+	}, [totalKm]);
+
+	const styles = React.useMemo(
+		() =>
+			StyleSheet.create({
+				backdrop: {
+					flex: 1,
+					backgroundColor: "rgba(0,0,0,0.45)",
+					justifyContent: "center",
+					paddingHorizontal: metrics.lg,
+				},
+				card: {
+					borderRadius: metrics.radius.xl,
+					backgroundColor: colors.card,
+					borderWidth: 1,
+					borderColor: colors.border,
+					padding: metrics.lg,
+					gap: metrics.sm,
+				},
+				title: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.lg,
+					fontWeight: "700",
+				},
+				subtitle: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.sm,
+				},
+				overallTrack: {
+					height: 10,
+					borderRadius: metrics.radius.full,
+					backgroundColor: colors.surface,
+					overflow: "hidden",
+					marginTop: metrics.xs,
+				},
+				overallFill: {
+					height: "100%",
+					backgroundColor: colors.primary,
+				},
+				listItem: {
+					flexDirection: "row",
+					alignItems: "center",
+					paddingVertical: metrics.xs + 2,
+					gap: metrics.sm,
+				},
+				rowMiddle: {
+					flex: 1,
+					gap: 4,
+				},
+				badgeName: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "600",
+				},
+				tierTrack: {
+					height: 8,
+					borderRadius: metrics.radius.full,
+					backgroundColor: colors.surface,
+					overflow: "hidden",
+				},
+				tierFill: {
+					height: "100%",
+					backgroundColor: colors.primary,
+				},
+				badgeMeta: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.xs,
+				},
+				closeButton: {
+					marginTop: metrics.sm,
+					minHeight: 46,
+					borderRadius: metrics.radius.full,
+					alignItems: "center",
+					justifyContent: "center",
+					backgroundColor: colors.primary,
+				},
+				closeText: {
+					color: colors.textInverse,
+					fontWeight: "700",
+					fontSize: typography.sizes.sm,
+				},
+			}),
+		[colors, metrics, typography],
+	);
+
+	return (
+		<Modal
+			animationType="fade"
+			onRequestClose={onClose}
+			transparent
+			visible={visible}
+		>
+			<View style={styles.backdrop}>
+				<View style={styles.card}>
+					<Text style={styles.title}>Achievements</Text>
+					<Text style={styles.subtitle}>
+						{progress.current
+							? `${progress.current.label} tier unlocked`
+							: "Start riding to unlock the first tier"}
+					</Text>
+					<View style={styles.overallTrack}>
+						<View
+							style={[
+								styles.overallFill,
+								{ width: `${overallPercent * 100}%` },
+							]}
+						/>
+					</View>
+					<Text style={styles.subtitle}>
+						{Math.round(totalKm).toLocaleString()} km
+						{progress.next
+							? ` - ${progress.remainingKm.toLocaleString()} km to ${progress.next.label}`
+							: " - Max tier reached"}
+					</Text>
+
+					{tierRows.map((tier) => (
+						<View key={tier.label} style={styles.listItem}>
+							<Ionicons
+								color={tier.done ? colors.primary : colors.textSecondary}
+								name={tier.icon}
+								size={20}
+							/>
+							<View style={styles.rowMiddle}>
+								<Text style={styles.badgeName}>{tier.label}</Text>
+								<View style={styles.tierTrack}>
+									<View
+										style={[styles.tierFill, { width: `${tier.fill * 100}%` }]}
+									/>
+								</View>
+							</View>
+							<Text style={styles.badgeMeta}>
+								{tier.done ? "Done" : `${tier.thresholdKm.toLocaleString()} km`}
+							</Text>
+						</View>
+					))}
+
+					<Pressable onPress={onClose} style={styles.closeButton}>
+						<Text style={styles.closeText}>Close</Text>
+					</Pressable>
+				</View>
+			</View>
+		</Modal>
+	);
+}
 
 export default function RiderProfileScreen() {
 	const { colors, metrics, typography } = useTheme();
@@ -75,6 +363,7 @@ export default function RiderProfileScreen() {
 		React.useState<PublicSection>("moments");
 	const [isLoading, setIsLoading] = React.useState(true);
 	const [isFollowBusy, setIsFollowBusy] = React.useState(false);
+	const [showAchievements, setShowAchievements] = React.useState(false);
 
 	React.useEffect(() => {
 		let active = true;
@@ -261,14 +550,19 @@ export default function RiderProfileScreen() {
 					fontSize: typography.sizes.xs,
 					marginTop: 2,
 				},
-				achievementCard: {
+				actionRow: {
 					marginTop: metrics.lg,
-					borderRadius: metrics.radius.lg,
-					borderWidth: 1,
-					borderColor: colors.border,
-					backgroundColor: colors.card,
-					padding: metrics.md,
+					flexDirection: "row",
 					gap: metrics.sm,
+				},
+				actionHalf: {
+					flex: 1,
+				},
+				actionFullRow: {
+					marginTop: metrics.sm,
+				},
+				achievementCard: {
+					display: "none",
 				},
 				achievementSummary: {
 					color: colors.textPrimary,
@@ -305,23 +599,6 @@ export default function RiderProfileScreen() {
 					fontSize: typography.sizes.xs,
 					minWidth: 78,
 					textAlign: "right",
-				},
-				followButton: {
-					marginTop: metrics.lg,
-					minHeight: 46,
-					minWidth: 154,
-					borderRadius: metrics.radius.full,
-					alignSelf: "center",
-					alignItems: "center",
-					justifyContent: "center",
-					backgroundColor: profile.isFollowing ? colors.surface : colors.primary,
-					borderWidth: 1,
-					borderColor: profile.isFollowing ? colors.border : colors.primary,
-				},
-				followText: {
-					color: profile.isFollowing ? colors.textPrimary : colors.textInverse,
-					fontSize: typography.sizes.sm,
-					fontWeight: "700",
 				},
 				tabsWrap: {
 					marginTop: metrics.xl,
@@ -423,7 +700,7 @@ export default function RiderProfileScreen() {
 					textAlign: "center",
 				},
 			}),
-		[colors, metrics, profile.isFollowing, typography],
+		[colors, metrics, typography],
 	);
 
 	const toggleFollow = React.useCallback(async () => {
@@ -459,6 +736,23 @@ export default function RiderProfileScreen() {
 			setIsFollowBusy(false);
 		}
 	}, [isFollowBusy, profile.id, profile.isFollowing, profile.isMe]);
+
+	const openMessage = React.useCallback(() => {
+		if (!profile.id || profile.isMe) {
+			return;
+		}
+
+		router.push({
+			pathname: "/chats",
+			params: {
+				autoOpen: "1",
+				riderId: profile.id,
+				name: profile.name || "Rider",
+				avatar: avatarUri,
+				username: profile.username || "rider",
+			},
+		});
+	}, [avatarUri, profile.id, profile.isMe, profile.name, profile.username, router]);
 
 	const renderSection = () => {
 		if (activeSection === "moments") {
@@ -598,19 +892,36 @@ export default function RiderProfileScreen() {
 					</View>
 
 					{!profile.isMe ? (
-						<Pressable
-							disabled={isFollowBusy || isLoading}
-							onPress={() => void toggleFollow()}
-							style={styles.followButton}
-						>
-							{isFollowBusy ? (
-								<ActivityIndicator color={colors.primary} size="small" />
-							) : (
-								<Text style={styles.followText}>
-									{profile.isFollowing ? "Unfollow" : "Follow"}
-								</Text>
-							)}
-						</Pressable>
+						<>
+							<View style={styles.actionRow}>
+								<View style={styles.actionHalf}>
+									<ProfileActionButton
+										disabled={isFollowBusy || isLoading}
+										icon={profile.isFollowing ? "person-remove-outline" : "person-add-outline"}
+										label={profile.isFollowing ? "Unfollow" : "Follow"}
+										loading={isFollowBusy}
+										onPress={() => void toggleFollow()}
+										variant={profile.isFollowing ? "secondary" : "primary"}
+									/>
+								</View>
+								<View style={styles.actionHalf}>
+									<ProfileActionButton
+										disabled={isLoading || !profile.id}
+										icon="chatbubble-ellipses-outline"
+										label="Message"
+										onPress={openMessage}
+									/>
+								</View>
+							</View>
+							<View style={styles.actionFullRow}>
+								<ProfileActionButton
+									disabled={isLoading}
+									icon="trophy-outline"
+									label="Achievements"
+									onPress={() => setShowAchievements(true)}
+								/>
+							</View>
+						</>
 					) : null}
 
 					<View style={styles.achievementCard}>
@@ -635,6 +946,10 @@ export default function RiderProfileScreen() {
 								</Text>
 							</View>
 						))}
+					</View>
+
+					<View style={{ display: "none" }}>
+						<AchievementsButton onPress={() => setShowAchievements(true)} />
 					</View>
 
 					<View style={styles.tabsWrap}>
@@ -679,6 +994,12 @@ export default function RiderProfileScreen() {
 					</View>
 				</View>
 			</ScrollView>
+
+			<AchievementsModal
+				onClose={() => setShowAchievements(false)}
+				totalKm={profile.totalMiles}
+				visible={showAchievements}
+			/>
 		</SafeAreaView>
 	);
 }

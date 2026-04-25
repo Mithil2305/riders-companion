@@ -111,8 +111,6 @@ export function FeedPost({
 						colors.background === "#181515" ? colors.card : colors.surface,
 					marginBottom: metrics.lg,
 					paddingBottom: metrics.md,
-					borderBottomWidth: 1,
-					borderBottomColor: colors.borderDark,
 				},
 				header: {
 					flexDirection: "row",
