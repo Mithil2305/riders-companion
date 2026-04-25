@@ -12,8 +12,8 @@ import {
 	FeedPost,
 	FeedSkeleton,
 	HeaderBar,
-	CommentSheet,
 } from "../../src/components/feed";
+import { CommentsSheet } from "../../src/components/comments";
 import { useHomeFeed } from "../../src/hooks/useHomeFeed";
 import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
 import { useTheme } from "../../src/hooks/useTheme";
@@ -159,10 +159,11 @@ export default function HomeScreen() {
 					renderItem={renderPost}
 					showsVerticalScrollIndicator={false}
 				/>
-				<CommentSheet
-					postId={selectedPostId}
+				<CommentsSheet
+					postId={selectedPostId ?? ''}
 					visible={isCommentSheetVisible}
 					onClose={() => setIsCommentSheetVisible(false)}
+					contentType="feed"
 					onCommentAdded={(newCount: number) => {
 						if (selectedPostId) {
 							updateCommentCount(selectedPostId, newCount);
