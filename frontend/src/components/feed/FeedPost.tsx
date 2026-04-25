@@ -368,7 +368,7 @@ export function FeedPost({
 					>
 						<Ionicons
 							color={colors.icon}
-							name="share-social-outline"
+							name="share-outline"
 							size={metrics.icon.md - 2}
 						/>
 					</Pressable>
