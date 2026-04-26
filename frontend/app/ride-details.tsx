@@ -19,7 +19,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../src/contexts/AuthContext";
 import { useTheme } from "../src/hooks/useTheme";
-import RideService, { RideFriend } from "../src/services/RideService";
+import RideService, {
+	RideFriend,
+	type RideFormPayload,
+} from "../src/services/RideService";
 import {
 	hasCompletedProfile,
 	isPrivilegedAccount,
@@ -72,9 +75,16 @@ export function RideDetailsScreen({
 	showSafetySection = true,
 }: RideDetailsScreenProps) {
 	const router = useRouter();
-	const params = useLocalSearchParams();
+	const params = useLocalSearchParams<{
+		rideType?: string;
+		rideId?: string;
+		editMode?: string;
+	}>();
 	const { user: authUser } = useAuth();
 	const { colors } = useTheme();
+	const editMode = params.editMode === "true";
+	const editingRideId =
+		typeof params.rideId === "string" ? params.rideId : undefined;
 
 	const palette = React.useMemo(
 		() => ({
@@ -130,6 +140,7 @@ export function RideDetailsScreen({
 	);
 	const [loadingFriends, setLoadingFriends] = React.useState(false);
 	const [submitting, setSubmitting] = React.useState(false);
+	const [loadingRideDetails, setLoadingRideDetails] = React.useState(false);
 	const [message, setMessage] = React.useState("");
 	const [activeField, setActiveField] = React.useState<
 		"source" | "destination" | "pickup" | "drop" | null
@@ -198,16 +209,70 @@ export function RideDetailsScreen({
 		};
 	}, [privacy, selectedType]);
 
-	const redirectToLiveScreen = React.useCallback(
-		(rideId: string) => {
-			if (selectedType === "group") {
-				router.replace(`/group-chat/${rideId}`);
-				return;
-			}
+	React.useEffect(() => {
+		if (!editMode || !editingRideId) {
+			return;
+		}
 
-			router.replace(`/solo-ride/${rideId}`);
+		let mounted = true;
+		setLoadingRideDetails(true);
+
+		RideService.getRideById(editingRideId)
+			.then((response) => {
+				if (!mounted) {
+					return;
+				}
+
+				const details = response.ride.details;
+				setRideTitle(details.rideTitle ?? "");
+				setSource(details.source ?? "");
+				setDestination(details.destination ?? "");
+				setPickupLocation(details.pickupLocation ?? "");
+				setDropLocation(details.dropLocation ?? "");
+				setStartDate(details.startDate ? new Date(details.startDate) : null);
+				setEndDate(details.endDate ? new Date(details.endDate) : null);
+				setDays(details.days != null ? String(details.days) : "");
+				setBudget(details.budget != null ? String(details.budget) : "");
+				setMaxRiders(
+					details.maxRiders != null ? String(details.maxRiders) : "",
+				);
+				setRidePace(details.ridePace ?? "balanced");
+				setRoadPreference(details.roadPreference ?? "mixed");
+				setMeetupNotes(details.meetupNotes ?? "");
+				setEmergencyContactName(details.emergencyContactName ?? "");
+				setEmergencyContactPhone(details.emergencyContactPhone ?? "");
+				setRideNotes(details.rideNotes ?? "");
+				setPrivacy(details.privacy === "solo" ? "mixed" : details.privacy ?? "mixed");
+				setIncludesFood(Boolean(details.includesFood));
+				setIncludesFuel(Boolean(details.includesFuel));
+				setBikeProvided(Boolean(details.bikeProvided));
+				setStayArranged(Boolean(details.stayArranged));
+				setStayDetails(details.stayDetails ?? "");
+			})
+			.catch(() => {
+				if (mounted) {
+					setMessage("Failed to load ride details for editing.");
+				}
+			})
+			.finally(() => {
+				if (mounted) {
+					setLoadingRideDetails(false);
+				}
+			});
+
+		return () => {
+			mounted = false;
+		};
+	}, [editMode, editingRideId]);
+
+	const redirectToLiveScreen = React.useCallback(
+		(_rideId: string, rideAction: "created" | "updated") => {
+			router.replace({
+				pathname: "/community",
+				params: { rideAction },
+			});
 		},
-		[router, selectedType],
+		[router],
 	);
 
 	const toggleFriend = React.useCallback((friendId: string) => {
@@ -314,35 +379,45 @@ export function RideDetailsScreen({
 	);
 
 	const startRideNowOrLater = React.useCallback(
-		async (rideId: string, startIso: string) => {
+		async (rideId: string, startIso: string, rideAction: "created" | "updated") => {
 			const startAt = new Date(startIso).getTime();
 			if (Number.isNaN(startAt)) {
 				await RideService.startRide(rideId);
-				setMessage("Ride created and started.");
-				redirectToLiveScreen(rideId);
+				setMessage(
+					rideAction === "updated"
+						? "Ride updated and started."
+						: "Ride created and started.",
+				);
+				redirectToLiveScreen(rideId, rideAction);
 				return;
 			}
 
 			const delay = startAt - Date.now();
 			if (delay <= 0) {
 				await RideService.startRide(rideId);
-				setMessage("Ride started.");
-				redirectToLiveScreen(rideId);
+				setMessage(
+					rideAction === "updated" ? "Ride updated and started." : "Ride started.",
+				);
+				redirectToLiveScreen(rideId, rideAction);
 				return;
 			}
 
 			setMessage(
-				"Ride created. It will auto-start at your scheduled time while this app session is active.",
+				rideAction === "updated"
+					? "Ride updated. It will auto-start at your scheduled time while this app session is active."
+					: "Ride created. It will auto-start at your scheduled time while this app session is active.",
 			);
 			setTimeout(() => {
 				RideService.startRide(rideId)
 					.then(() => {
 						setMessage("Scheduled ride started.");
-						redirectToLiveScreen(rideId);
+						redirectToLiveScreen(rideId, rideAction);
 					})
 					.catch(() => {
 						setMessage(
-							"Ride was created but auto-start failed. Tap start manually in community.",
+							rideAction === "updated"
+								? "Ride was updated but auto-start failed. Tap start manually in community."
+								: "Ride was created but auto-start failed. Tap start manually in community.",
 						);
 					});
 			}, delay);
@@ -411,7 +486,7 @@ export function RideDetailsScreen({
 				const startIso = startDate.toISOString();
 				const endIso = endDate?.toISOString();
 
-				const response = await RideService.createRide({
+				const payload: RideFormPayload = {
 					rideType: selectedType,
 					privacy: selectedType === "solo" ? "solo" : privacy,
 					rideTitle: rideTitle.trim(),
@@ -446,12 +521,25 @@ export function RideDetailsScreen({
 								? selectedFriendIds
 								: []
 							: [],
-				});
+				};
 
-				await startRideNowOrLater(response.ride.id, startIso);
+				const response =
+					editMode && editingRideId
+						? await RideService.updateRide(editingRideId, payload)
+						: await RideService.createRide(payload);
+
+				await startRideNowOrLater(
+					response.ride.id,
+					startIso,
+					editMode ? "updated" : "created",
+				);
 			} catch (error) {
 				setMessage(
-					error instanceof Error ? error.message : "Failed to create ride.",
+					error instanceof Error
+						? error.message
+						: editMode
+							? "Failed to update ride."
+							: "Failed to create ride.",
 				);
 			} finally {
 				setSubmitting(false);
@@ -470,6 +558,8 @@ export function RideDetailsScreen({
 			includesFuel,
 			maxRiders,
 			meetupNotes,
+			editMode,
+			editingRideId,
 			pickupLocation,
 			dropLocation,
 			privacy,
@@ -999,15 +1089,17 @@ export function RideDetailsScreen({
 					{actionPlacement === "inline" ? (
 						<View style={styles.inlineActionWrap}>
 							<Pressable
-								disabled={submitting}
+								disabled={submitting || loadingRideDetails}
 								onPress={onPressCreate}
 								style={styles.createButton}
 							>
-								{submitting ? (
+								{submitting || loadingRideDetails ? (
 									<ActivityIndicator color={palette.buttonText} size="small" />
 								) : (
 									<Text style={styles.createButtonText}>
-										Create {selectedType === "solo" ? "Solo" : "Group"} Ride
+										{editMode
+											? `Update ${selectedType === "solo" ? "Solo" : "Group"} Ride`
+											: `Create ${selectedType === "solo" ? "Solo" : "Group"} Ride`}
 									</Text>
 								)}
 							</Pressable>
@@ -1018,15 +1110,17 @@ export function RideDetailsScreen({
 				{actionPlacement === "sticky" ? (
 					<View style={styles.footer}>
 						<Pressable
-							disabled={submitting}
+							disabled={submitting || loadingRideDetails}
 							onPress={onPressCreate}
 							style={styles.createButton}
 						>
-							{submitting ? (
+							{submitting || loadingRideDetails ? (
 								<ActivityIndicator color={palette.buttonText} size="small" />
 							) : (
 								<Text style={styles.createButtonText}>
-									Create {selectedType === "solo" ? "Solo" : "Group"} Ride
+									{editMode
+										? `Update ${selectedType === "solo" ? "Solo" : "Group"} Ride`
+										: `Create ${selectedType === "solo" ? "Solo" : "Group"} Ride`}
 								</Text>
 							)}
 						</Pressable>

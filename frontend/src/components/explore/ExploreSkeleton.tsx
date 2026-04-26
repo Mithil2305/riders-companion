@@ -9,7 +9,7 @@ import Animated, {
 import { useTheme } from "../../hooks/useTheme";
 
 export function ExploreSkeleton() {
-	const { colors, metrics } = useTheme();
+	const { colors, metrics, resolvedMode } = useTheme();
 	const opacity = useSharedValue(0.35);
 
 	React.useEffect(() => {
@@ -35,7 +35,7 @@ export function ExploreSkeleton() {
 				searchBar: {
 					height: 44,
 					borderRadius: metrics.radius.lg,
-					backgroundColor: colors.surface,
+					backgroundColor: resolvedMode === "light" ? "#d3d3d3e3" : colors.background,
 					width: "100%",
 				},
 				grid: {
@@ -47,19 +47,19 @@ export function ExploreSkeleton() {
 					width: cellSize,
 					height: cellSize,
 					borderRadius: metrics.radius.md,
-					backgroundColor: colors.surface,
+					backgroundColor: resolvedMode === "light" ? "#d3d3d3e3" : colors.background,
 				},
 				tallCell: {
 					width: cellSize,
 					height: cellSize * 2 + metrics.xs,
 					borderRadius: metrics.radius.md,
-					backgroundColor: colors.surface,
+					backgroundColor: resolvedMode === "light" ? "#d3d3d3e3" : colors.background,
 				},
 				wideCell: {
 					width: cellSize * 2 + metrics.xs,
 					height: cellSize,
 					borderRadius: metrics.radius.md,
-					backgroundColor: colors.surface,
+					backgroundColor: resolvedMode === "light" ? "#d3d3d3e3" : colors.background,
 				},
 			}),
 		[cellSize, colors, metrics],
