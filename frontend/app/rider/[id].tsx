@@ -25,6 +25,7 @@ type RiderProfile = {
 	username: string;
 	bio: string | null;
 	profileImageUrl: string | null;
+	coverImageUrl: string | null;
 	totalMiles: number;
 	followersCount: number;
 	followingCount: number;
@@ -54,6 +55,7 @@ const FALLBACK_PROFILE: RiderProfile = {
 	username: "rider",
 	bio: null,
 	profileImageUrl: null,
+	coverImageUrl: null,
 	totalMiles: 0,
 	followersCount: 0,
 	followingCount: 0,
@@ -400,6 +402,7 @@ export default function RiderProfileScreen() {
 					username: profileResponse.profile.username,
 					bio: profileResponse.profile.bio,
 					profileImageUrl: profileResponse.profile.profileImageUrl,
+					coverImageUrl: profileResponse.profile.coverImageUrl,
 					totalMiles: Number(profileResponse.profile.totalMiles ?? 0),
 					followersCount: Number(profileResponse.profile.followersCount ?? 0),
 					followingCount: Number(profileResponse.profile.followingCount ?? 0),
@@ -457,6 +460,13 @@ export default function RiderProfileScreen() {
 	const avatarUri =
 		profile.profileImageUrl && profile.profileImageUrl.trim().length > 0
 			? profile.profileImageUrl
+			: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+					profile.name || "Rider",
+				)}&background=212121&color=FFFFFF`;
+
+	const coverUri =
+		profile.coverImageUrl && profile.coverImageUrl.trim().length > 0
+			? profile.coverImageUrl
 			: `https://ui-avatars.com/api/?name=${encodeURIComponent(
 					profile.name || "Rider",
 				)}&background=212121&color=FFFFFF`;
@@ -825,6 +835,7 @@ export default function RiderProfileScreen() {
 								<ClipThumbnail
 									style={styles.tileImage}
 									uri={clip.thumbnailUrl ?? null}
+									videoUri={clip.videoUrl ?? null}
 								/>
 								<View style={styles.videoPill}>
 									<Text style={styles.videoPillText}>CLIP</Text>
@@ -882,7 +893,7 @@ export default function RiderProfileScreen() {
 				contentContainerStyle={styles.scrollContent}
 				showsVerticalScrollIndicator={false}
 			>
-				<Image source={{ uri: avatarUri }} style={styles.cover} />
+				<Image source={{ uri: coverUri }} style={styles.cover} />
 				<Image source={{ uri: avatarUri }} style={styles.avatar} />
 
 				<View style={styles.content}>

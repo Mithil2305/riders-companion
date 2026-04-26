@@ -4,6 +4,31 @@ export type ChatRoomType = 'personal' | 'group';
 export type ChatStatus = 'active' | 'ended' | 'blocked';
 export type MessageSender = 'me' | 'other';
 export type MessageDelivery = 'sent' | 'delivered' | 'read' | 'failed';
+export type RideInviteStatus = 'pending' | 'joined' | 'rejected';
+
+export interface RideInvitePayload {
+  type: 'ride-invite';
+  inviteId: string;
+  rideId: string;
+  roomName: string;
+  inviterId: string;
+  inviterName: string;
+  status: RideInviteStatus;
+  sentAt: string;
+  respondedBy?: string;
+}
+
+export interface SharedContentPayload {
+  type: 'shared-content';
+  resourceType: 'post' | 'clip';
+  resourceId: string;
+  title?: string;
+  caption?: string;
+  thumbnailUrl?: string;
+  senderId: string;
+  senderName: string;
+  sentAt: string;
+}
 
 export interface ChatPreview {
   id: string;
@@ -47,7 +72,21 @@ export interface PersonalImageMessage extends PersonalMessageBase {
   text?: string;
 }
 
-export type PersonalChatMessage = PersonalTextMessage | PersonalImageMessage;
+export interface PersonalInviteMessage extends PersonalMessageBase {
+  kind: 'invite';
+  invite: RideInvitePayload;
+}
+
+export interface PersonalSharedMessage extends PersonalMessageBase {
+  kind: 'shared-content';
+  shared: SharedContentPayload;
+}
+
+export type PersonalChatMessage =
+  | PersonalTextMessage
+  | PersonalImageMessage
+  | PersonalInviteMessage
+  | PersonalSharedMessage;
 export type PersonalChatListItem = DateSeparatorItem | PersonalChatMessage;
 
 export type PersonalChatMenuAction = 'toggle-block-user';
