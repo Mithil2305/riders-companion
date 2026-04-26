@@ -134,7 +134,7 @@ class AuthService {
 		}
 
 		throw new Error(
-			`Cannot reach backend for auth. Tried: ${tried}. Update EXPO_PUBLIC_API_URL or ensure backend is reachable on your current LAN IP.`,
+			`Cannot reach backend for auth. Tried: ${tried}. For an APK build, set EXPO_PUBLIC_API_URL to a public backend URL before rebuilding.`,
 		);
 	}
 
