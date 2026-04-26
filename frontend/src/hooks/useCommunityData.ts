@@ -50,6 +50,7 @@ const toRideItem = (
 			includesFuel?: boolean;
 			stayArranged?: boolean;
 		};
+		isOrganizer?: boolean;
 	},
 	mode: "nearby" | "myRides",
 ): RideItem => ({
@@ -71,6 +72,7 @@ const toRideItem = (
 				? "ENDED"
 				: ride.status
 			: undefined,
+	isOrganizer: ride.isOrganizer,
 });
 
 export function useCommunityData() {

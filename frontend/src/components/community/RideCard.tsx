@@ -1,6 +1,12 @@
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+	Pressable,
+	StyleSheet,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { useTheme } from "../../hooks/useTheme";
 import type { RideItem } from "../../types/community";
 import { TagChip } from "./TagChip";
@@ -9,6 +15,8 @@ interface RideCardProps {
 	item: RideItem;
 	mode: "nearby" | "myRides";
 	onPrimaryAction?: (id: string) => void;
+	onEdit?: (item: RideItem) => void;
+	onDelete?: (id: string) => void;
 }
 
 function formatDateHumanReadable(dateStr: string): string {
@@ -28,11 +36,18 @@ function formatDateHumanReadable(dateStr: string): string {
 	}
 }
 
-export function RideCard({ item, mode, onPrimaryAction }: RideCardProps) {
+export function RideCard({
+	item,
+	mode,
+	onPrimaryAction,
+	onEdit,
+	onDelete,
+}: RideCardProps) {
 	const { colors, metrics, typography } = useTheme();
 	const isMyRide = mode === "myRides";
 	const isCompleted = isMyRide && item.status === "completed";
 	const isActionDisabled = isCompleted;
+	const [showMenu, setShowMenu] = React.useState(false);
 
 	// Parse route into source and destination if formatted as "A -> B"
 	const routeParts = item.route.split("->").map(r => r.trim());
@@ -160,6 +175,46 @@ export function RideCard({ item, mode, onPrimaryAction }: RideCardProps) {
 					fontSize: typography.sizes.sm,
 					fontWeight: "700",
 				},
+				menuBtn: {
+					padding: 4,
+					marginLeft: metrics.sm,
+				},
+				menuBackdrop: {
+					...StyleSheet.absoluteFillObject,
+					zIndex: 10,
+				},
+				menuCard: {
+					position: "absolute",
+					top: 4,
+					right: 8,
+					zIndex: 11,
+					backgroundColor: colors.card,
+					borderRadius: 12,
+					borderWidth: 1,
+					borderColor: colors.border,
+					paddingVertical: metrics.sm,
+					minWidth: 160,
+					shadowColor: colors.shadow,
+					shadowOffset: { width: 0, height: 4 },
+					shadowOpacity: 0.12,
+					shadowRadius: 12,
+					elevation: 6,
+				},
+				menuItem: {
+					flexDirection: "row",
+					alignItems: "center",
+					paddingHorizontal: metrics.md,
+					paddingVertical: metrics.sm,
+					gap: metrics.sm,
+				},
+				menuItemText: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "600",
+				},
+				menuItemDanger: {
+					color: colors.error || "#EF4444",
+				},
 				endedBadge: {
 					position: 'absolute',
 					top: metrics.md,
@@ -189,6 +244,52 @@ export function RideCard({ item, mode, onPrimaryAction }: RideCardProps) {
 
 	return (
 		<View style={styles.card}>
+			{showMenu ? (
+				<>
+					<Pressable
+						style={styles.menuBackdrop}
+						onPress={() => setShowMenu(false)}
+					/>
+					<View style={styles.menuCard}>
+						<Pressable
+							style={styles.menuItem}
+							onPress={() => {
+								setShowMenu(false);
+								onEdit?.(item);
+							}}
+						>
+							<Ionicons
+								name="create-outline"
+								size={18}
+								color={colors.textPrimary}
+							/>
+							<Text style={styles.menuItemText}>Edit</Text>
+						</Pressable>
+						<Pressable
+							style={styles.menuItem}
+							onPress={() => {
+								setShowMenu(false);
+								onDelete?.(item.id);
+							}}
+						>
+							<Ionicons
+								name="trash-outline"
+								size={18}
+								color={colors.error || "#EF4444"}
+							/>
+							<Text
+								style={[
+									styles.menuItemText,
+									styles.menuItemDanger,
+								]}
+							>
+								Delete
+							</Text>
+						</Pressable>
+					</View>
+				</>
+			) : null}
+
 			{isCompleted && (
 				<View style={styles.endedBadge}>
 					<Text style={styles.statusEnded}>ENDED</Text>
@@ -212,12 +313,28 @@ export function RideCard({ item, mode, onPrimaryAction }: RideCardProps) {
 					)}
 				</View>
 
-				{!isMyRide && (
-					<View style={styles.priceWrap}>
-						<Text style={styles.price}>{item.pricePerDay}</Text>
-						<Text style={styles.perDay}>PER DAY</Text>
-					</View>
-				)}
+				<View style={{ flexDirection: "row", alignItems: "center" }}>
+					{!isMyRide && (
+						<View style={styles.priceWrap}>
+							<Text style={styles.price}>{item.pricePerDay}</Text>
+							<Text style={styles.perDay}>PER DAY</Text>
+						</View>
+					)}
+					{item.isOrganizer && mode == "myRides" && (
+						<TouchableOpacity
+							hitSlop={8}
+							onPress={() => setShowMenu(true)}
+							style={styles.menuBtn}
+							disabled={item.status == "completed"}
+						>
+							<Ionicons
+								name="ellipsis-vertical"
+								size={20}
+								color={colors.textSecondary}
+							/>
+						</TouchableOpacity>
+					)}
+				</View>
 			</View>
 
 			<View style={styles.dateRow}>
