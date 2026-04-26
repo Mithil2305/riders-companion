@@ -180,11 +180,19 @@ export default function HomeScreen() {
 					onClose={() => setIsCommentSheetVisible(false)}
 					onCommentsCountChange={handleCommentsCountChange}
 				/>
-				<ShareSheet
-					postId={selectedPostId}
-					visible={isShareSheetVisible}
-					onClose={() => setIsShareSheetVisible(false)}
-				/>
+				{(() => {
+					const selectedPost = posts.find((p) => p.id === selectedPostId);
+					return (
+						<ShareSheet
+							postId={selectedPostId}
+							visible={isShareSheetVisible}
+							onClose={() => setIsShareSheetVisible(false)}
+							caption={selectedPost?.caption}
+							thumbnailUrl={selectedPost?.image}
+							resourceType="post"
+						/>
+					);
+				})()}
 			</SafeAreaView>
 		</Animated.View>
 	);

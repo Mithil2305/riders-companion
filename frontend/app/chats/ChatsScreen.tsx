@@ -37,15 +37,23 @@ export default function ChatsScreen() {
 		(item: ChatPreview) => {
 			const { id: chatId, roomType, status } = item;
 			if (roomType === "group") {
+				const roomName =
+					typeof item.name === "string" && item.name.trim().length > 0
+						? item.name
+						: undefined;
+
 				if (status === "ended") {
 					router.push({
 						pathname: `/group-chat/${chatId}`,
-						params: { status: "ended" },
+						params: { status: "ended", name: roomName },
 					});
 					return;
 				}
 
-				router.push(`/group-chat/${chatId}`);
+				router.push({
+					pathname: `/group-chat/${chatId}`,
+					params: { name: roomName },
+				});
 				return;
 			}
 

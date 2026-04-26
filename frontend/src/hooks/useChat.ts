@@ -1,13 +1,23 @@
 import React from "react";
 import ChatService, { PersonalMessagePayload } from "../services/ChatService";
+import RideService from "../services/RideService";
 import {
 	PersonalChatListItem,
+	PersonalInviteMessage,
+	PersonalSharedMessage,
 	PersonalChatMenuAction,
 	PersonalChatMessage,
 	PersonalChatMeta,
 	PersonalImageMessage,
+	RideInvitePayload,
 } from "../types/chat";
 import { useWebSocket } from "./useWebSocket";
+import {
+	createRideInvitePayload,
+	parseRideInviteMessage,
+	serializeRideInviteMessage,
+} from "../utils/rideInviteMessage";
+import { parseSharedContentMessage } from "../utils/sharedContentMessage";
 
 const FALLBACK_META: PersonalChatMeta = {
 	roomId: "",
@@ -110,9 +120,11 @@ export function useChat(roomId: string) {
 	const mapMessage = React.useCallback(
 		(item: PersonalMessagePayload): PersonalChatMessage => {
 			const isOutgoing = item.senderId !== roomId;
+			const invitePayload = parseRideInviteMessage(item.message);
+			const sender: "me" | "other" = isOutgoing ? "me" : "other";
 			const base = {
 				id: item.id,
-				sender: (isOutgoing ? "me" : "other") as const,
+				sender,
 				createdAt: item.createdAt,
 				timeLabel: toTimeLabel(item.createdAt),
 				delivery: isOutgoing ? ("read" as const) : undefined,
@@ -126,6 +138,25 @@ export function useChat(roomId: string) {
 					text: item.message,
 				};
 				return imageMessage;
+			}
+
+			if (invitePayload) {
+				const inviteMessage: PersonalInviteMessage = {
+					...base,
+					kind: "invite",
+					invite: invitePayload,
+				};
+				return inviteMessage;
+			}
+
+			const sharedPayload = parseSharedContentMessage(item.message);
+			if (sharedPayload) {
+				const sharedMessage: PersonalSharedMessage = {
+					...base,
+					kind: "shared-content",
+					shared: sharedPayload,
+				};
+				return sharedMessage;
 			}
 
 			return {
@@ -288,6 +319,75 @@ export function useChat(roomId: string) {
 		[mapMessage, meta.isBlocked, roomId, toTimeLabel],
 	);
 
+	const respondToRideInvite = React.useCallback(
+		async (
+			inviteMessageId: string,
+			action: "join" | "reject",
+		): Promise<RideInvitePayload | null> => {
+			if (meta.isBlocked) {
+				return null;
+			}
+
+			const target = messages.find(
+				(message): message is PersonalInviteMessage =>
+					message.id === inviteMessageId &&
+					message.kind === "invite" &&
+					message.sender === "other",
+			);
+
+			if (!target || target.invite.status !== "pending") {
+				return null;
+			}
+
+			const nextStatus = action === "join" ? "joined" : "rejected";
+			const updatedInvite = createRideInvitePayload({
+				...target.invite,
+				status: nextStatus,
+				respondedBy: "You",
+			});
+
+			setMessages((prev) =>
+				prev.map((message) =>
+					message.id === inviteMessageId && message.kind === "invite"
+						? { ...message, invite: updatedInvite }
+						: message,
+				),
+			);
+
+			try {
+				if (action === "join") {
+					await RideService.acceptInvitation(target.invite.rideId);
+				} else {
+					await RideService.declineInvitation(target.invite.rideId);
+				}
+
+				await ChatService.sendPersonalMessage(roomId, {
+					kind: "text",
+					text: serializeRideInviteMessage(updatedInvite),
+				});
+
+				return updatedInvite;
+			} catch {
+				setMessages((prev) =>
+					prev.map((message) =>
+						message.id === inviteMessageId && message.kind === "invite"
+							? {
+									...message,
+									invite: {
+										...message.invite,
+										status: "pending",
+										respondedBy: undefined,
+									},
+							  }
+							: message,
+					),
+				);
+				return null;
+			}
+		},
+		[meta.isBlocked, messages, roomId],
+	);
+
 	const toggleBlockUser = React.useCallback(async () => {
 		if (meta.blockedByViewer) {
 			await ChatService.unblockPersonalUser(roomId);
@@ -334,6 +434,7 @@ export function useChat(roomId: string) {
 		openMenu,
 		closeMenu,
 		runMenuAction,
+		respondToRideInvite,
 		isBlocked: Boolean(meta.isBlocked),
 		isBlockedByViewer: Boolean(meta.blockedByViewer),
 	};

@@ -12,7 +12,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
 	useGroupChatScreen,
-	INVITE_FRIENDS,
 } from "../../src/hooks/useGroupChatScreen";
 import {
 	GroupChatHeader,
@@ -33,6 +32,8 @@ export default function GroupChatScreen() {
 	const roomId = typeof params.id === "string" ? params.id : "1";
 	const roomStatus =
 		typeof params.status === "string" ? params.status : undefined;
+	const initialRoomName =
+		typeof params.name === "string" ? params.name : undefined;
 	const { colors } = useTheme();
 	const [rideDetailsVisible, setRideDetailsVisible] = React.useState(false);
 	const [recenterSignal, setRecenterSignal] = React.useState(0);
@@ -54,6 +55,12 @@ export default function GroupChatScreen() {
 		riderLocations,
 		roomTitle,
 		roomSubtitle,
+		inviteFriends,
+		inviteLoading,
+		inviteStateByFriendId,
+		inviteSearchResults,
+		isInviteSearching,
+		searchInviteCandidates,
 		rideSourceLabel,
 		rideDestinationLabel,
 		rideStatus,
@@ -65,10 +72,11 @@ export default function GroupChatScreen() {
 		closeMenu,
 		closeInvite,
 		inviteFromMenu,
+		sendRideInvite,
 		toggleTrackRider,
 		endRide,
 		sendMessage,
-	} = useGroupChatScreen(roomId, roomStatus);
+	} = useGroupChatScreen(roomId, roomStatus, initialRoomName);
 
 	const styles = React.useMemo(
 		() =>
@@ -281,9 +289,15 @@ export default function GroupChatScreen() {
 			/>
 
 			<InviteFriendsModal
-				friends={INVITE_FRIENDS}
+				friends={inviteFriends}
 				onClose={closeInvite}
+				onInvite={sendRideInvite}
+				inviteStateByFriendId={inviteStateByFriendId}
+				loading={inviteLoading}
 				visible={inviteVisible}
+				onSearch={searchInviteCandidates}
+				searchResults={inviteSearchResults}
+				isSearching={isInviteSearching}
 			/>
 		</SafeAreaView>
 	);
