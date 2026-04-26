@@ -67,7 +67,7 @@ export function ChatHeader({
         },
         subtitle: {
           marginTop: 2,
-          color: colors.chatOnline,
+          color: statusLabel?.toLowerCase() == "online" ? colors.chatOnline : "grey",
           fontSize: typography.sizes.sm,
           fontWeight: '500',
         },

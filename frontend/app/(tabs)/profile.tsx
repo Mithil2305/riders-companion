@@ -320,6 +320,7 @@ function ClipsGrid({
 							<ClipThumbnail
 								style={styles.image}
 								uri={clip.thumbnailUrl ?? null}
+								videoUri={clip.videoUrl ?? null}
 							/>
 							<View style={styles.videoPill}>
 								<Text style={styles.videoPillText}>CLIP</Text>
@@ -952,6 +953,20 @@ export default function ProfileScreen() {
 		[reloadDashboard],
 	);
 
+	const avatarUri =
+		user.avatar && user.avatar.trim().length > 0
+			? user.avatar
+			: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+					user.name || "Rider",
+				)}&background=212121&color=FFFFFF`;
+
+	const coverUri =
+		user.coverImage && user.coverImage.trim().length > 0
+			? user.coverImage
+			: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+					user.name || "Rider",
+				)}&background=212121&color=FFFFFF`;
+
 	const styles = React.useMemo(
 		() =>
 			StyleSheet.create({
@@ -1233,8 +1248,8 @@ export default function ProfileScreen() {
 					}
 					style={styles.container}
 				>
-					<Image source={{ uri: user.coverImage }} style={styles.coverImage} />
-					<Image source={{ uri: user.avatar }} style={styles.avatar} />
+					<Image source={{ uri: coverUri }} style={styles.coverImage} />
+					<Image source={{ uri: avatarUri }} style={styles.avatar} />
 
 					<View style={styles.content}>
 						<View style={styles.identityBlock}>

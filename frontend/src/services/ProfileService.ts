@@ -22,6 +22,7 @@ type PublicProfilePayload = {
 	name: string;
 	bio: string | null;
 	profileImageUrl: string | null;
+	coverImageUrl: string | null;
 	totalMiles?: string | number;
 	followersCount?: number;
 	followingCount?: number;

@@ -2,6 +2,8 @@ import React from "react";
 import { ChatFilter, ChatPreview } from "../types/chat";
 import ChatService from "../services/ChatService";
 import { useWebSocket } from "./useWebSocket";
+import { parseRideInviteMessage, toRideInvitePreview } from "../utils/rideInviteMessage";
+import { parseSharedContentMessage, toSharedContentPreview } from "../utils/sharedContentMessage";
 
 const formatPreviewTime = (iso?: string) => {
 	if (!iso) {
@@ -41,6 +43,8 @@ export function useChatListData() {
 			const personalPreviews: ChatPreview[] = personalData.conversations.map(
 				(conversation) => {
 					const latest = conversation.latestMessage;
+					const invitePayload = parseRideInviteMessage(latest?.message);
+					const sharedPayload = parseSharedContentMessage(latest?.message);
 					const avatar =
 						conversation.meta.avatar && conversation.meta.avatar.trim().length > 0
 							? conversation.meta.avatar
@@ -51,11 +55,18 @@ export function useChatListData() {
 						name: conversation.meta.name,
 						username: conversation.meta.username ?? undefined,
 						message:
-							latest?.attachmentUrl && !latest.message
-								? "Photo"
-								: latest?.message && latest.message.trim().length > 0
-									? latest.message
-									: "No messages yet",
+							invitePayload
+								? toRideInvitePreview(
+										invitePayload,
+										latest?.senderId === conversation.id ? "receiver" : "sender",
+								  )
+								: sharedPayload
+									? toSharedContentPreview(sharedPayload)
+									: latest?.attachmentUrl && !latest.message
+										? "Photo"
+										: latest?.message && latest.message.trim().length > 0
+											? latest.message
+											: "No messages yet",
 						time: formatPreviewTime(latest?.createdAt),
 						avatar,
 						roomType: "personal",

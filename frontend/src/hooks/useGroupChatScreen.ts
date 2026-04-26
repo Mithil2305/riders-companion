@@ -2,6 +2,8 @@ import React from "react";
 import {
 	GroupChatItem,
 	GroupRideMember,
+	InviteActionState,
+	InviteFriendItem,
 	RiderLocation,
 } from "../types/groupChat";
 import { useAuth } from "../contexts/AuthContext";
@@ -10,13 +12,11 @@ import { useWebSocket } from "./useWebSocket";
 import ChatService from "../services/ChatService";
 import RideService from "../services/RideService";
 import TrackerService from "../services/TrackerService";
-
-export const INVITE_FRIENDS = [
-	"Cameron Williamson",
-	"Annette Black",
-	"Marvin McKinney",
-	"Brooklyn Simmons",
-];
+import ProfileService from "../services/ProfileService";
+import {
+	createRideInvitePayload,
+	serializeRideInviteMessage,
+} from "../utils/rideInviteMessage";
 
 const AVATAR_MAP: Record<string, string> = {
 	SARAH: "https://randomuser.me/api/portraits/women/65.jpg",
@@ -73,6 +73,43 @@ const avatarForName = (name: string) => {
 	return `https://ui-avatars.com/api/?name=${encodeURIComponent(
 		name,
 	)}&background=0D8ABC&color=fff`;
+};
+
+const normalizeToInviteFriendItem = (value: unknown): InviteFriendItem | null => {
+	if (!value || typeof value !== "object") {
+		return null;
+	}
+
+	const record = value as Record<string, unknown>;
+	const id =
+		typeof record.id === "string" && record.id.trim().length > 0
+			? record.id.trim()
+			: "";
+	if (!id) {
+		return null;
+	}
+
+	const rawName =
+		typeof record.name === "string" && record.name.trim().length > 0
+			? record.name.trim()
+			: "";
+	const rawUsername =
+		typeof record.username === "string" && record.username.trim().length > 0
+			? record.username.trim().replace(/^@+/, "")
+			: "";
+	const name = rawName || rawUsername || "Rider";
+	const avatar =
+		typeof record.avatar === "string" && record.avatar.trim().length > 0
+			? record.avatar
+			: typeof record.profileImageUrl === "string" &&
+				  record.profileImageUrl.trim().length > 0
+				? record.profileImageUrl
+				: typeof record.coverImageUrl === "string" &&
+					  record.coverImageUrl.trim().length > 0
+					? record.coverImageUrl
+					: avatarForName(name);
+
+	return { id, name, username: rawUsername || undefined, avatar };
 };
 
 const toClockTime = (isoDate: string) => {
@@ -147,7 +184,11 @@ const upsertRiderLocation = (
 	return updated;
 };
 
-export function useGroupChatScreen(roomId: string, initialStatus?: string) {
+export function useGroupChatScreen(
+	roomId: string,
+	initialStatus?: string,
+	initialRoomName?: string,
+) {
 	const { user } = useAuth();
 	const { location, startWatching, getCurrentLocation } = useLocation({
 		autoRequest: false,
@@ -167,6 +208,14 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 	const [locationEnabled, setLocationEnabled] = React.useState(
 		!(initialStatus === "ended" || ENDED_ROOM_IDS.has(roomId)),
 	);
+	const [inviteLoading, setInviteLoading] = React.useState(false);
+	const [inviteStateByFriendId, setInviteStateByFriendId] = React.useState<
+		Record<string, InviteActionState>
+	>({});
+	const [inviteCandidates, setInviteCandidates] = React.useState<InviteFriendItem[]>([]);
+	const [inviteSearchQuery, setInviteSearchQuery] = React.useState("");
+	const [inviteSearchResults, setInviteSearchResults] = React.useState<InviteFriendItem[]>([]);
+	const [isInviteSearching, setIsInviteSearching] = React.useState(false);
 	const [isAdmin, setIsAdmin] = React.useState(false);
 	const [draft, setDraft] = React.useState("");
 	const [messages, setMessages] = React.useState<GroupChatItem[]>([]);
@@ -179,7 +228,11 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 	const [locationsRefreshMinutes, setLocationsRefreshMinutes] = React.useState(
 		LOCATION_REFRESH_MINUTES,
 	);
-	const [roomTitle, setRoomTitle] = React.useState(`Ride Room ${roomId}`);
+	const [roomTitle, setRoomTitle] = React.useState(
+		initialRoomName && initialRoomName.trim().length > 0
+			? initialRoomName
+			: `Ride Room ${roomId}`,
+	);
 	const [roomSubtitle, setRoomSubtitle] = React.useState("0 online • 0 riders");
 	const [rideSourceLabel, setRideSourceLabel] =
 		React.useState("Current location");
@@ -207,6 +260,10 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 
 	React.useEffect(() => {
 		let isMounted = true;
+		const sanitizedInitialRoomName =
+			typeof initialRoomName === "string" && initialRoomName.trim().length > 0
+				? initialRoomName
+				: null;
 
 		setMessages([]);
 		setRiderLocations(SAMPLE_RIDER_LOCATIONS);
@@ -215,6 +272,8 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		setOrganizerProfile(null);
 		setRideSourceLabel("Current location");
 		setRideDestinationLabel("Destination");
+		setInviteStateByFriendId({});
+		setRoomTitle(sanitizedInitialRoomName ?? `Ride Room ${roomId}`);
 
 		ChatService.getRoomMessages(roomId)
 			.then((response) => {
@@ -256,7 +315,7 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 					return;
 				}
 
-				setRoomTitle(`Ride Room ${roomId}`);
+				setRoomTitle(sanitizedInitialRoomName ?? `Ride Room ${roomId}`);
 				setRoomSubtitle("Live rider updates");
 			})
 			.catch(() => {
@@ -264,8 +323,68 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 					return;
 				}
 
-				setRoomTitle(`Ride Room ${roomId}`);
+				setRoomTitle(sanitizedInitialRoomName ?? `Ride Room ${roomId}`);
 				setRoomSubtitle("0 online • 0 riders");
+			});
+
+		setInviteLoading(true);
+		Promise.all([
+			ChatService.getPersonalConversations(),
+			user?.id ? TrackerService.getFollowers(user.id).catch(() => ({ followers: [] })) : Promise.resolve({ followers: [] }),
+			user?.id ? TrackerService.getFollowing(user.id).catch(() => ({ following: [] })) : Promise.resolve({ following: [] }),
+		])
+			.then(([conversationsResponse, followersResponse, followingResponse]) => {
+				if (!isMounted) {
+					return;
+				}
+
+				const chatCandidates = (conversationsResponse.conversations || [])
+					.map((conversation) => {
+						const name =
+							typeof conversation.meta?.name === "string" &&
+							conversation.meta.name.trim().length > 0
+								? conversation.meta.name
+								: typeof conversation.meta?.username === "string" &&
+								  conversation.meta.username.trim().length > 0
+									? conversation.meta.username
+									: "Rider";
+
+						return {
+							id: conversation.id,
+							name,
+							username: conversation.meta?.username ?? undefined,
+							avatar: conversation.meta?.avatar ?? null,
+						} as InviteFriendItem;
+					});
+
+				const followerCandidates = (followersResponse.followers || [])
+					.map(normalizeToInviteFriendItem)
+					.filter(Boolean) as InviteFriendItem[];
+
+				const followingCandidates = (followingResponse.following || [])
+					.map(normalizeToInviteFriendItem)
+					.filter(Boolean) as InviteFriendItem[];
+
+				const mergedMap = new Map<string, InviteFriendItem>();
+				for (const item of [...chatCandidates, ...followerCandidates, ...followingCandidates]) {
+					if (item.id !== user?.id) {
+						mergedMap.set(item.id, item);
+					}
+				}
+
+				setInviteCandidates([...mergedMap.values()]);
+			})
+			.catch(() => {
+				if (!isMounted) {
+					return;
+				}
+
+				setInviteCandidates([]);
+			})
+			.finally(() => {
+				if (isMounted) {
+					setInviteLoading(false);
+				}
 			});
 
 		RideService.getRideById(roomId)
@@ -339,7 +458,13 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		return () => {
 			isMounted = false;
 		};
-	}, [roomId, user?.id]);
+	}, [initialRoomName, roomId, user?.id]);
+
+	const inviteFriends = React.useMemo(() => {
+		const existingMemberIds = new Set(rideMembers.map((member) => member.id));
+
+		return inviteCandidates.filter((friend) => !existingMemberIds.has(friend.id));
+	}, [inviteCandidates, rideMembers]);
 
 	const onlineRiders = React.useMemo(() => {
 		if (riderLocations.length > 0) {
@@ -725,6 +850,69 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		openInvite();
 	}, [closeMenu, isRideEnded, openInvite]);
 
+	const searchInviteCandidates = React.useCallback(
+		async (query: string) => {
+			const trimmed = query.trim();
+			setInviteSearchQuery(trimmed);
+			if (!trimmed) {
+				setInviteSearchResults([]);
+				return;
+			}
+
+			setIsInviteSearching(true);
+			try {
+				const response = await ProfileService.searchRiders(trimmed);
+				const results = (response.users || [])
+					.map(normalizeToInviteFriendItem)
+					.filter((item): item is InviteFriendItem => Boolean(item && item.id !== user?.id));
+				setInviteSearchResults(results);
+			} catch {
+				setInviteSearchResults([]);
+			} finally {
+				setIsInviteSearching(false);
+			}
+		},
+		[user?.id],
+	);
+
+	const sendRideInvite = React.useCallback(
+		async (friend: InviteFriendItem) => {
+			if (isRideEnded || !friend.id || !user?.id) {
+				return;
+			}
+
+			setInviteStateByFriendId((prev) => ({
+				...prev,
+				[friend.id]: "sending",
+			}));
+
+			const invitePayload = createRideInvitePayload({
+				rideId: roomId,
+				roomName: roomTitle,
+				inviterId: user.id,
+				inviterName: user.name || user.username || "Rider",
+			});
+
+			try {
+				await ChatService.sendPersonalMessage(friend.id, {
+					kind: "text",
+					text: serializeRideInviteMessage(invitePayload),
+				});
+
+				setInviteStateByFriendId((prev) => ({
+					...prev,
+					[friend.id]: "sent",
+				}));
+			} catch {
+				setInviteStateByFriendId((prev) => ({
+					...prev,
+					[friend.id]: "idle",
+				}));
+			}
+		},
+		[isRideEnded, roomId, roomTitle, user?.id, user?.name, user?.username],
+	);
+
 	const toggleTrackRider = React.useCallback((riderId: string) => {
 		if (!riderId) {
 			return;
@@ -777,6 +965,14 @@ export function useGroupChatScreen(roomId: string, initialStatus?: string) {
 		openInvite,
 		closeInvite,
 		inviteFromMenu,
+		inviteFriends,
+		inviteLoading,
+		inviteStateByFriendId,
+		inviteSearchQuery,
+		inviteSearchResults,
+		isInviteSearching,
+		searchInviteCandidates,
+		sendRideInvite,
 		toggleTrackRider,
 		endRide,
 		sendMessage,

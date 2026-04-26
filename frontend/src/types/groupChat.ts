@@ -46,3 +46,12 @@ export type GroupRideMember = {
 	isOrganizer?: boolean;
 	isFollowing?: boolean;
 };
+
+export type InviteFriendItem = {
+	id: string;
+	name: string;
+	username?: string;
+	avatar?: string | null;
+};
+
+export type InviteActionState = "idle" | "sending" | "sent";
