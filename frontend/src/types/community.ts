@@ -43,6 +43,7 @@ export interface RideItem {
 	joinedText: string;
 	status?: RideStatusType;
 	statusLabel?: string;
+	isOrganizer?: boolean;
 }
 
 export interface CommunityData {
