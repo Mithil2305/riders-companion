@@ -1,5 +1,6 @@
 import React from "react";
 import {
+	Alert,
 	FlatList,
 	RefreshControl,
 	StyleSheet,
@@ -8,7 +9,7 @@ import {
 	type ListRenderItemInfo,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../hooks/useTheme";
 import { useCommunityData } from "../../hooks/useCommunityData";
@@ -25,6 +26,7 @@ const sectionOrder: SectionKey[] = ["nearby", "myRides"];
 
 export function CommunityScreen() {
 	const router = useRouter();
+	const params = useLocalSearchParams<{ rideAction?: string }>();
 	const { colors, metrics, typography } = useTheme();
 	const {
 		activeRide,
@@ -33,6 +35,19 @@ export function CommunityScreen() {
 		refreshing,
 		refreshCommunity,
 	} = useCommunityData();
+
+	const [showConfirmation, setShowConfirmation] = React.useState(false);
+
+	React.useEffect(() => {
+		if (params.rideAction === "created" || params.rideAction === "updated") {
+			setShowConfirmation(true);
+			const timer = setTimeout(() => {
+				setShowConfirmation(false);
+				router.replace("/community");
+			}, 3000);
+			return () => clearTimeout(timer);
+		}
+	}, [params.rideAction, router]);
 
 	const styles = React.useMemo(
 		() =>
@@ -70,8 +85,64 @@ export function CommunityScreen() {
 					fontSize: typography.sizes.sm,
 					textAlign: "center",
 				},
+				confirmationBanner: {
+					marginHorizontal: metrics.md,
+					marginBottom: metrics.md,
+					backgroundColor: "#22C55E",
+					borderRadius: 12,
+					paddingHorizontal: metrics.md,
+					paddingVertical: metrics.sm,
+					flexDirection: "row",
+					alignItems: "center",
+					gap: metrics.sm,
+				},
+				confirmationText: {
+					color: "#FFFFFF",
+					fontSize: typography.sizes.sm,
+					fontWeight: "600",
+					flex: 1,
+				},
 			}),
 		[colors, metrics, typography],
+	);
+
+	const handleEdit = React.useCallback(
+		(ride: RideItem) => {
+			router.push({
+				pathname: "/ride-details",
+				params: {
+					editMode: "true",
+					rideId: ride.id,
+					rideType: "group",
+				},
+			});
+		},
+		[router],
+	);
+
+	const handleDelete = React.useCallback(
+		(rideId: string) => {
+			Alert.alert(
+				"Delete Ride",
+				"Are you sure you want to delete this ride? This action cannot be undone.",
+				[
+					{ text: "Cancel", style: "cancel" },
+					{
+						text: "Delete",
+						style: "destructive",
+						onPress: async () => {
+							try {
+								await RideService.deleteRide(rideId);
+								refreshCommunity();
+							} catch {
+								Alert.alert("Error", "Failed to delete ride. Please try again.");
+							}
+						},
+					},
+				],
+			);
+		},
+		[refreshCommunity],
 	);
 
 	const renderSection = React.useCallback(
@@ -127,13 +198,15 @@ export function CommunityScreen() {
 											: `/group-chat/${rideId}`,
 									);
 								}}
+								onEdit={handleEdit}
+								onDelete={handleDelete}
 							/>
 						))}
 					</View>
 				</View>
 			);
 		},
-		[myRides, nearbyRides, styles, router, colors.borderDark],
+		[myRides, nearbyRides, styles, router, colors.borderDark, handleEdit, handleDelete],
 	);
 
 	return (
@@ -141,6 +214,16 @@ export function CommunityScreen() {
 			edges={["left", "right", "top", "bottom"]}
 			style={styles.container}
 		>
+			{showConfirmation && (
+				<View style={styles.confirmationBanner}>
+					<Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+					<Text style={styles.confirmationText}>
+						Ride {params.rideAction} successfully!
+					</Text>
+					<Ionicons name="close" size={18} color="#FFFFFF" />
+				</View>
+			)}
+
 			<Header
 				onBack={() => router.back()}
 				onStartRide={() =>

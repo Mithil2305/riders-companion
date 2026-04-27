@@ -1,8 +1,19 @@
 import React from "react";
 import InteractionService from "../services/InteractionService";
 import { ShareTargetType, ShareUser } from "../types/interactions";
+import { useAuth } from "../contexts/AuthContext";
 
-export function useShare(postId: string, postUrl?: string) {
+export function useShare(
+	postId: string,
+	postUrl?: string,
+	resourceType: "post" | "clip" = "post",
+	preview?: {
+		title?: string;
+		caption?: string;
+		thumbnailUrl?: string;
+	},
+) {
+	const { user } = useAuth();
 	const [query, setQuery] = React.useState("");
 	const [users, setUsers] = React.useState<ShareUser[]>([]);
 	const [isLoading, setIsLoading] = React.useState(false);
@@ -24,14 +35,39 @@ export function useShare(postId: string, postUrl?: string) {
 		void getShareUsers("");
 	}, [getShareUsers, postId]);
 
-	const shareToUser = React.useCallback(async (userId: string, username?: string) => {
-		setIsSharing(true);
-		try {
-			await InteractionService.shareToUser(userId, postUrl, username);
-		} finally {
-			setIsSharing(false);
-		}
-	}, [postUrl]);
+	const shareToUser = React.useCallback(
+		async (userId: string) => {
+			if (!postId) {
+				return;
+			}
+
+			setIsSharing(true);
+			try {
+				await InteractionService.shareToUserAsMessage({
+					userId,
+					resourceType,
+					resourceId: postId,
+					title: preview?.title,
+					caption: preview?.caption,
+					thumbnailUrl: preview?.thumbnailUrl,
+					senderId: user?.id,
+					senderName: user?.name || user?.username || "Rider",
+				});
+			} finally {
+				setIsSharing(false);
+			}
+		},
+		[
+			postId,
+			preview?.caption,
+			preview?.thumbnailUrl,
+			preview?.title,
+			resourceType,
+			user?.id,
+			user?.name,
+			user?.username,
+		],
+	);
 
 	const shareToAction = React.useCallback(
 		async (target: ShareTargetType) => {

@@ -40,8 +40,11 @@ type RideDetails = {
 	rideTitle?: string;
 	source?: string;
 	destination?: string;
+	pickupLocation?: string;
+	dropLocation?: string;
 	startDate?: string;
 	endDate?: string | null;
+	days?: number;
 	budget?: number;
 	maxRiders?: number;
 	ridePace?: "calm" | "balanced" | "fast";
@@ -134,6 +137,13 @@ class RideService {
 		});
 	}
 
+	async updateRide(rideId: string, payload: RideFormPayload) {
+		return apiRequest<RideCreateResponse>(`/rides/${rideId}`, {
+			method: "PATCH",
+			body: payload,
+		});
+	}
+
 	async getCommunityRides() {
 		return apiRequest<CommunityRidesResponse>("/rides/community");
 	}
@@ -181,6 +191,12 @@ class RideService {
 				method: "POST",
 			},
 		);
+	}
+
+	async deleteRide(rideId: string) {
+		return apiRequest<{ deleted: boolean }>(`/rides/${rideId}`, {
+			method: "DELETE",
+		});
 	}
 
 	async getRideById(rideId: string) {
