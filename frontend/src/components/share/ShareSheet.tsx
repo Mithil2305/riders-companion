@@ -25,6 +25,9 @@ type ShareSheetProps = {
   onClose: () => void;
   postUrl?: string;
   resourceType?: 'post' | 'clip';
+  title?: string;
+  caption?: string;
+  thumbnailUrl?: string;
   onShared?: () => void;
   users?: ShareUser[];
 };
@@ -35,6 +38,9 @@ export function ShareSheet({
   onClose,
   postUrl,
   resourceType = 'post',
+  title,
+  caption,
+  thumbnailUrl,
   onShared,
   users: usersProp,
 }: ShareSheetProps) {
@@ -51,7 +57,11 @@ export function ShareSheet({
     shareToUser,
     shareToAction,
     copyLink,
-  } = useShare(postId ?? '', postUrl);
+  } = useShare(postId ?? '', postUrl, resourceType, {
+    title,
+    caption,
+    thumbnailUrl,
+  });
 
   const [mounted, setMounted] = React.useState(visible);
   const translateY = React.useRef(new Animated.Value(540)).current;
@@ -276,7 +286,7 @@ export function ShareSheet({
         return;
       }
 
-      await shareToUser(user.id, user.username);
+      await shareToUser(user.id);
       onShared?.();
       onClose();
       router.push({

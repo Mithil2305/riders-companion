@@ -29,19 +29,41 @@ export default function ChatRoomScreen() {
     openMenu,
     closeMenu,
     runMenuAction,
+    respondToRideInvite,
     isBlocked,
     isBlockedByViewer,
   } = useChat(roomId);
+
+	const onInviteAction = React.useCallback(
+		async (messageId: string, action: "join" | "reject") => {
+			const invite = await respondToRideInvite(messageId, action);
+			if (!invite || action !== "join") {
+				return;
+			}
+
+			router.push({
+				pathname: `/group-chat/${invite.rideId}`,
+				params: {
+					name: invite.roomName,
+				},
+			});
+		},
+		[respondToRideInvite, router],
+	);
 
   const displayMeta = React.useMemo(
     () => ({
       ...meta,
       name:
-        typeof params.username === 'string' && params.username.trim().length > 0
-          ? `@${params.username}`
-          : typeof params.name === 'string' && params.name.trim().length > 0
-            ? params.name
+        typeof params.name === 'string' && params.name.trim().length > 0
+          ? params.name
+          : typeof params.username === 'string' && params.username.trim().length > 0
+            ? params.username
             : meta.name,
+      username:
+        typeof params.username === 'string' && params.username.trim().length > 0
+          ? params.username
+          : meta.username ?? undefined,
       avatar:
         typeof params.avatar === 'string' && params.avatar.trim().length > 0
           ? params.avatar
@@ -82,7 +104,7 @@ export default function ChatRoomScreen() {
           statusLabel={displayMeta.isOnline ? 'Online' : 'Offline'}
           title={displayMeta.name}
         />
-        <MessageList messages={listData} />
+        <MessageList messages={listData} onInviteAction={onInviteAction} />
         <ChatInput disabled={isBlocked} onChangeText={setDraft} onSend={sendMessage} onSendImage={sendImage} value={draft} />
       </KeyboardAvoidingView>
 

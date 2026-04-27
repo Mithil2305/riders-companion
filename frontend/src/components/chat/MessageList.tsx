@@ -8,9 +8,10 @@ import { TypingIndicator } from './TypingIndicator';
 interface MessageListProps {
   messages: PersonalChatListItem[];
   showTyping?: boolean;
+  onInviteAction?: (messageId: string, action: 'join' | 'reject') => void;
 }
 
-export function MessageList({ messages, showTyping = false }: MessageListProps) {
+export function MessageList({ messages, showTyping = false, onInviteAction }: MessageListProps) {
   const { colors, metrics } = useTheme();
   const listRef = React.useRef<FlatList<PersonalChatListItem>>(null);
 
@@ -80,7 +81,7 @@ export function MessageList({ messages, showTyping = false }: MessageListProps) 
             </View>
           </View>
         ) : (
-          <MessageBubble message={item} />
+          <MessageBubble message={item} onInviteAction={onInviteAction} />
         )
       }
       showsVerticalScrollIndicator={false}

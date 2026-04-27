@@ -37,4 +37,26 @@ router.post(
 	chatController.sendRoomMessage,
 );
 
+// Group chat invitations
+router.get(
+	"/invitations",
+	requireAuth,
+	chatController.listGroupChatInvitations,
+);
+router.post(
+	"/invitations/:invitationId/accept",
+	requireAuth,
+	chatController.acceptGroupChatInvitation,
+);
+router.post(
+	"/invitations/:invitationId/decline",
+	requireAuth,
+	chatController.declineGroupChatInvitation,
+);
+router.post(
+	"/communities/:communityId/invite",
+	requireAuth,
+	chatController.inviteUserToGroupChat,
+);
+
 module.exports = router;
