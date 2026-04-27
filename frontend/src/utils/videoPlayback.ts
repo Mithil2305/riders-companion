@@ -27,7 +27,7 @@ export const getVideoBufferOptions = (
 	}
 
 	return {
-		preferredForwardBufferDuration: 8,
+		preferredForwardBufferDuration: 10,
 		minBufferForPlayback: 1.5,
 		maxBufferBytes: 0,
 		prioritizeTimeOverSizeThreshold: false,
@@ -36,7 +36,7 @@ export const getVideoBufferOptions = (
 };
 
 export const getVideoPreloadRadius = (dataSaverEnabled: boolean) =>
-	dataSaverEnabled ? 1 : 2;
+	dataSaverEnabled ? 2 : 3;
 
 export const buildStreamingVideoSource = (
 	uri: string,

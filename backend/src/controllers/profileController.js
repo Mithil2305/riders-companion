@@ -8,6 +8,30 @@ const {
 
 const normalizeUsername = (value) => value.trim().toLowerCase();
 
+const rankRiderSearch = (rider, normalizedQuery, rawQuery) => {
+	const username = (rider.username || "").toLowerCase();
+	const name = (rider.name || "").toLowerCase();
+	const normalizedNameQuery = rawQuery.toLowerCase();
+
+	if (username === normalizedQuery) {
+		return 0;
+	}
+	if (username.startsWith(normalizedQuery)) {
+		return 1;
+	}
+	if (name.startsWith(normalizedNameQuery)) {
+		return 2;
+	}
+	if (username.includes(normalizedQuery)) {
+		return 3;
+	}
+	if (name.includes(normalizedNameQuery)) {
+		return 4;
+	}
+
+	return 5;
+};
+
 const toProfilePayload = (user) => ({
 	id: user.id,
 	email: user.email,
@@ -46,7 +70,7 @@ const toPublicProfilePayload = (user, extras = {}) => ({
 exports.searchRiders = async (req, res) => {
 	const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
 
-	if (query.length < 2) {
+	if (query.length < 1) {
 		return res.status(200).json({
 			success: true,
 			data: { users: [] },
@@ -67,13 +91,25 @@ exports.searchRiders = async (req, res) => {
 			["username", "ASC"],
 			["name", "ASC"],
 		],
-		limit: 20,
+		limit: 40,
 	});
+
+	const rankedRiders = riders
+		.sort((left, right) => {
+			const leftRank = rankRiderSearch(left, normalized, query);
+			const rightRank = rankRiderSearch(right, normalized, query);
+			if (leftRank !== rightRank) {
+				return leftRank - rightRank;
+			}
+
+			return (left.username || "").localeCompare(right.username || "");
+		})
+		.slice(0, 20);
 
 	return res.status(200).json({
 		success: true,
 		data: {
-			users: riders.map((rider) => toPublicProfilePayload(rider)),
+			users: rankedRiders.map((rider) => toPublicProfilePayload(rider)),
 		},
 	});
 };

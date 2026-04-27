@@ -10,10 +10,21 @@ const { randomUUID } = require("crypto");
 
 const dataUriRegex = /^data:([^;,]+);base64,(.+)$/i;
 const COMPRESS_IMAGE_QUALITY = 80;
-const COMPRESS_VIDEO_CRF = 30;
 const MB = 1024 * 1024;
 const MAX_VIDEO_INPUT_BYTES = 500 * MB;
 const MAX_VIDEO_OUTPUT_BYTES = 200 * MB;
+const DEFAULT_VIDEO_COMPRESSION_ATTEMPTS = [
+	{ crf: 30, maxWidth: 1280, audioBitrate: "128k" },
+	{ crf: 34, maxWidth: 960, audioBitrate: "128k" },
+	{ crf: 38, maxWidth: 720, audioBitrate: "112k" },
+	{ crf: 42, maxWidth: 540, audioBitrate: "96k" },
+];
+const CLIP_VIDEO_COMPRESSION_ATTEMPTS = [
+	{ crf: 34, maxWidth: 960, audioBitrate: "112k" },
+	{ crf: 38, maxWidth: 720, audioBitrate: "96k" },
+	{ crf: 42, maxWidth: 540, audioBitrate: "80k" },
+	{ crf: 46, maxWidth: 480, audioBitrate: "64k" },
+];
 
 if (ffmpegPath) {
 	ffmpeg.setFfmpegPath(ffmpegPath);
@@ -94,13 +105,19 @@ const compressImageBuffer = async (buffer) => {
 		.toBuffer();
 };
 
-const runVideoCompression = async ({ inputPath, outputPath, crf, maxWidth }) => {
+const runVideoCompression = async ({
+	inputPath,
+	outputPath,
+	crf,
+	maxWidth,
+	audioBitrate = "128k",
+}) => {
 	const outputOptions = [
 		"-vcodec libx264",
 		`-crf ${crf}`,
 		"-preset veryfast",
 		"-acodec aac",
-		"-b:a 128k",
+		`-b:a ${audioBitrate}`,
 		"-movflags +faststart",
 	];
 
@@ -148,7 +165,12 @@ const generateVideoThumbnailBuffer = async (buffer) => {
 	}
 };
 
-const compressVideoBuffer = async (buffer) => {
+const resolveVideoCompressionAttempts = (profile) =>
+	profile === "clip-fast"
+		? CLIP_VIDEO_COMPRESSION_ATTEMPTS
+		: DEFAULT_VIDEO_COMPRESSION_ATTEMPTS;
+
+const compressVideoBuffer = async (buffer, profile = "default") => {
 	if (!ffmpegPath) {
 		throw new Error(
 			"FFmpeg binary not available. Install ffmpeg-static to enable video compression.",
@@ -167,12 +189,7 @@ const compressVideoBuffer = async (buffer) => {
 	await fs.writeFile(inputPath, buffer);
 
 	try {
-		const attempts = [
-			{ crf: COMPRESS_VIDEO_CRF, maxWidth: 1280 },
-			{ crf: 34, maxWidth: 960 },
-			{ crf: 38, maxWidth: 720 },
-			{ crf: 42, maxWidth: 540 },
-		];
+		const attempts = resolveVideoCompressionAttempts(profile);
 
 		let smallestBuffer = buffer;
 
@@ -206,7 +223,11 @@ const compressVideoBuffer = async (buffer) => {
 	}
 };
 
-const compressMediaPayload = async ({ buffer, mimeType }) => {
+const compressMediaPayload = async ({
+	buffer,
+	mimeType,
+	videoCompressionProfile = "default",
+}) => {
 	if (/^image\//i.test(mimeType || "")) {
 		const compressedBuffer = await compressImageBuffer(buffer);
 		return {
@@ -216,7 +237,10 @@ const compressMediaPayload = async ({ buffer, mimeType }) => {
 	}
 
 	if (/^video\//i.test(mimeType || "")) {
-		const compressedBuffer = await compressVideoBuffer(buffer);
+		const compressedBuffer = await compressVideoBuffer(
+			buffer,
+			videoCompressionProfile,
+		);
 		const thumbnailBuffer = await generateVideoThumbnailBuffer(compressedBuffer).catch(
 			() => null,
 		);
@@ -246,6 +270,7 @@ async function uploadMediaFromBody(body, options) {
 		const compressed = await compressMediaPayload({
 			buffer: decodeBase64(parsedDataUri.base64),
 			mimeType: parsedDataUri.mimeType,
+			videoCompressionProfile: options.videoCompressionProfile,
 		});
 		const folder = resolveFolder({
 			options,
@@ -282,6 +307,7 @@ async function uploadMediaFromBody(body, options) {
 			buffer: Buffer.from(arrayBuffer),
 			mimeType:
 				response.headers.get("content-type") || options.fallbackMimeType,
+			videoCompressionProfile: options.videoCompressionProfile,
 		});
 		const folder = resolveFolder({
 			options,
@@ -321,6 +347,7 @@ async function uploadMediaFromBody(body, options) {
 	const compressed = await compressMediaPayload({
 		buffer: decodeBase64(input.value),
 		mimeType: fallbackMimeType,
+		videoCompressionProfile: options.videoCompressionProfile,
 	});
 	const folder = resolveFolder({
 		options,
