@@ -15,6 +15,8 @@ import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
 import { UploadProvider } from "../src/contexts/UploadContext";
 import { useTheme } from "../src/hooks/useTheme";
 import { FIXED_PALETTE } from "../src/theme/colors";
+import FeedService from "../src/services/FeedService";
+import ClipService from "../src/services/ClipService";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Ignore if splash is already controlled by Expo runtime.
@@ -102,6 +104,17 @@ function RootNavigator() {
 
 		void setupPushNotifications();
 		return () => { cancelled = true; };
+	}, [isAuthenticated]);
+
+	useEffect(() => {
+		if (!isAuthenticated) {
+			return;
+		}
+
+		void Promise.allSettled([
+			FeedService.preloadFeed(),
+			ClipService.preloadClips(),
+		]);
 	}, [isAuthenticated]);
 
 	const finishVideoSplash = useCallback(() => {

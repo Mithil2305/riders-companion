@@ -47,38 +47,55 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 	};
 };
 
+const buildFeedState = (
+	data: Awaited<ReturnType<typeof FeedService.getFeed>> | null,
+) => {
+	const posts = (data?.posts ?? [])
+		.map(toFeedPostItem)
+		.filter((item): item is FeedPostItem => item != null);
+
+	const stories: Story[] = posts.slice(0, 8).map((item) => ({
+		id: item.id,
+		name: item.user.replace("@", ""),
+		avatar: item.avatar,
+	}));
+
+	const likedPostIds: Record<string, boolean> = {};
+	posts.forEach((post) => {
+		if (post.likedByMe) {
+			likedPostIds[post.id] = true;
+		}
+	});
+
+	return {
+		posts,
+		stories,
+		likedPostIds,
+	};
+};
+
 export function useHomeFeed(): UseHomeFeedResult {
 	const { lastCompletedUploadAt } = useUploadManager();
-	const [loading, setLoading] = React.useState(true);
+	const cachedFeed = React.useMemo(() => FeedService.peekFeedCache(), []);
+	const initialFeedState = React.useMemo(
+		() => buildFeedState(cachedFeed),
+		[cachedFeed],
+	);
+	const [loading, setLoading] = React.useState(initialFeedState.posts.length === 0);
 	const [refreshing, setRefreshing] = React.useState(false);
-	const [posts, setPosts] = React.useState<FeedPostItem[]>([]);
-	const [stories, setStories] = React.useState<Story[]>([]);
+	const [posts, setPosts] = React.useState<FeedPostItem[]>(initialFeedState.posts);
+	const [stories, setStories] = React.useState<Story[]>(initialFeedState.stories);
 	const [likedPostIds, setLikedPostIds] = React.useState<
 		Record<string, boolean>
-	>({});
+	>(initialFeedState.likedPostIds);
 
 	const loadFeed = React.useCallback(async () => {
 		const data = await FeedService.getFeed();
-		const nextPosts = data.posts
-			.map(toFeedPostItem)
-			.filter((item): item is FeedPostItem => item != null);
+		const nextState = buildFeedState(data);
 
-		setPosts(nextPosts);
-
-		const nextStories: Story[] = nextPosts.slice(0, 8).map((item) => ({
-			id: item.id,
-			name: item.user.replace("@", ""),
-			avatar: item.avatar,
-		}));
-		setStories(nextStories);
-
-		const nextLikedMap: Record<string, boolean> = {};
-		nextPosts.forEach((post) => {
-			if (post.likedByMe) {
-				nextLikedMap[post.id] = true;
-			}
-		});
-		setLikedPostIds(nextLikedMap);
+		setPosts(nextState.posts);
+		setStories(nextState.stories);
+		setLikedPostIds(nextState.likedPostIds);
 	}, []);
 
 	React.useEffect(() => {
@@ -106,6 +123,7 @@ export function useHomeFeed(): UseHomeFeedResult {
 			return;
 		}
 
+		FeedService.clearFeedCache();
 		void loadFeed();
 	}, [lastCompletedUploadAt, loadFeed]);
 

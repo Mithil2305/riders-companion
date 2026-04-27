@@ -16,6 +16,8 @@ interface UseClipsFeedResult {
 	onRefresh: () => Promise<void>;
 }
 
+let clipsFeedCache: ClipItem[] | null = null;
+
 const mergeClips = (liveClips: ClipItem[], legacyClips: ClipItem[]) => {
 	const clipByKey = new Map<string, ClipItem>();
 	for (const clip of liveClips) {
@@ -81,51 +83,46 @@ const toLegacyClipItem = (
 export function useClipsFeed(): UseClipsFeedResult {
 	const { lastCompletedUploadAt } = useUploadManager();
 	const [activeIndex, setActiveIndex] = React.useState(0);
-	const [clips, setClips] = React.useState<ClipItem[]>([]);
+	const [clips, setClips] = React.useState<ClipItem[]>(clipsFeedCache ?? []);
 	const [refreshing, setRefreshing] = React.useState(false);
 	const mountedRef = React.useRef(true);
 
 	const loadClips = React.useCallback(async () => {
 		try {
-			const liveClipsPromise = ClipService.getClips()
-				.then((clipsData) =>
-					clipsData.clips
-						.filter(
-							(clip) =>
-								typeof clip.videoUrl === "string" && clip.videoUrl.length > 0,
-						)
-						.map(toClipItem),
-				)
-				.catch(() => [] as ClipItem[]);
-
-			const legacyClipsPromise = FeedService.getFeed()
-				.then((feedData) =>
-					feedData.posts
-						.filter(
-							(post) =>
-								post.mediaType === "VIDEO" &&
-								typeof post.mediaUrl === "string" &&
-								post.mediaUrl.length > 0,
-						)
-						.map(toLegacyClipItem),
-				)
-				.catch(() => [] as ClipItem[]);
-
-			const liveClips = await liveClipsPromise;
+			const [liveClips, legacyClips] = await Promise.all([
+				ClipService.getClips()
+					.then((clipsData) =>
+						clipsData.clips
+							.filter(
+								(clip) =>
+									typeof clip.videoUrl === "string" && clip.videoUrl.length > 0,
+							)
+							.map(toClipItem),
+					)
+					.catch(() => [] as ClipItem[]),
+				FeedService.getFeed()
+					.then((feedData) =>
+						feedData.posts
+							.filter(
+								(post) =>
+									post.mediaType === "VIDEO" &&
+									typeof post.mediaUrl === "string" &&
+									post.mediaUrl.length > 0,
+							)
+							.map(toLegacyClipItem),
+					)
+					.catch(() => [] as ClipItem[]),
+			]);
 			if (!mountedRef.current) {
 				return;
 			}
 
-			setClips(mergeClips(liveClips, []));
-
-			const legacyClips = await legacyClipsPromise;
-			if (!mountedRef.current) {
-				return;
-			}
-
-			setClips(mergeClips(liveClips, legacyClips));
+			const mergedClips = mergeClips(liveClips, legacyClips);
+			clipsFeedCache = mergedClips;
+			setClips(mergedClips);
 		} catch {
 			if (mountedRef.current) {
+				clipsFeedCache = [];
 				setClips([]);
 			}
 		}
@@ -145,6 +142,8 @@ export function useClipsFeed(): UseClipsFeedResult {
 			return;
 		}
 
+		ClipService.clearClipsCache();
+		FeedService.clearFeedCache();
 		void loadClips();
 	}, [lastCompletedUploadAt, loadClips]);
 
@@ -184,7 +183,8 @@ export function useClipsFeed(): UseClipsFeedResult {
 							: await ClipService.unlikeClip(clipId);
 
 					setClips((latest) =>
-						latest.map((item) =>
+						{
+							const next = latest.map((item) =>
 							item.id === clipId
 								? {
 										...item,
@@ -192,11 +192,15 @@ export function useClipsFeed(): UseClipsFeedResult {
 										likedByMe: nextLiked,
 									}
 								: item,
-						),
+							);
+							clipsFeedCache = next;
+							return next;
+						},
 					);
 				} catch {
 					setClips((latest) =>
-						latest.map((item) =>
+						{
+							const next = latest.map((item) =>
 							item.id === clipId
 								? {
 										...item,
@@ -204,12 +208,15 @@ export function useClipsFeed(): UseClipsFeedResult {
 										likedByMe: !nextLiked,
 									}
 								: item,
-						),
+							);
+							clipsFeedCache = next;
+							return next;
+						},
 					);
 				}
 			})();
 
-			return current.map((item) =>
+			const next = current.map((item) =>
 				item.id === clipId
 					? {
 							...item,
@@ -221,6 +228,8 @@ export function useClipsFeed(): UseClipsFeedResult {
 						}
 					: item,
 			);
+			clipsFeedCache = next;
+			return next;
 		});
 	}, []);
 
@@ -239,21 +248,25 @@ export function useClipsFeed(): UseClipsFeedResult {
 	);
 
 	const updateCommentCount = React.useCallback((clipId: string, count: number) => {
-		setClips((current) =>
-			current.map((clip) =>
+		setClips((current) => {
+			const next = current.map((clip) =>
 				clip.id === clipId ? { ...clip, comments: count } : clip,
-			),
-		);
+			);
+			clipsFeedCache = next;
+			return next;
+		});
 	}, []);
 
 	const incrementShareCount = React.useCallback((clipId: string) => {
-		setClips((current) =>
-			current.map((clip) =>
+		setClips((current) => {
+			const next = current.map((clip) =>
 				clip.id === clipId
 					? { ...clip, shares: Math.max(0, clip.shares + 1) }
 					: clip,
-			),
-		);
+			);
+			clipsFeedCache = next;
+			return next;
+		});
 	}, []);
 
 	return {

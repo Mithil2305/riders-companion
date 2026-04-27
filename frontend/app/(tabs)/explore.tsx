@@ -32,6 +32,7 @@ export default function ExploreScreen() {
 		query,
 		setQuery,
 		clips,
+		visibleClips,
 		clipAspects,
 		isInitialLoading,
 		refreshing,
@@ -294,7 +295,7 @@ export default function ExploreScreen() {
 					/>
 				</View>
 
-				{searchResults.length > 0 ? (
+				{showSuggestions ? (
 					<View style={styles.suggestionsWrap}>
 						<SearchSuggestions
 							results={searchResults}
@@ -309,7 +310,7 @@ export default function ExploreScreen() {
 					<ExploreSkeleton />
 				) : (
 					<ExploreGrid
-						clips={clips}
+						clips={visibleClips}
 						clipAspects={clipAspects}
 						refreshing={refreshing}
 						onRefresh={onRefresh}
