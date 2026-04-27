@@ -606,6 +606,8 @@ export default function ClipsScreen() {
 					postId={selectedClip?.sourcePostId ?? selectedClip?.id ?? null}
 					resourceType={selectedClip?.sourcePostId ? "post" : "clip"}
 					visible={isShareSheetVisible}
+					caption={selectedClip?.caption ?? undefined}
+					thumbnailUrl={selectedClip?.media ?? undefined}
 				/>
 			</SafeAreaView>
 		</Animated.View>

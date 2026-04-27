@@ -2,8 +2,10 @@ import { Alert, Linking, Platform, Share } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import FeedService from "./FeedService";
 import ClipService from "./ClipService";
+import ChatService from "./ChatService";
 import ProfileService from "./ProfileService";
 import TrackerService from "./TrackerService";
+import { createSharedContentPayload, serializeSharedContentMessage } from "../utils/sharedContentMessage";
 import {
 	CommentModel,
 	InteractionContentType,
@@ -86,6 +88,7 @@ const toShareUserFromTracker = (value: unknown): ShareUser | null => {
 			typeof record.name === "string" && record.name.trim().length > 0
 				? record.name
 				: rawUsername || "Rider",
+		user: rawUsername ? `@${rawUsername}` : `@${normalizedId}`,
 		username: rawUsername || normalizedId,
 		avatarUrl:
 			typeof record.avatar === "string" && record.avatar.trim().length > 0
@@ -245,6 +248,7 @@ class InteractionService {
 				users.set(riderId, {
 					id: riderId,
 					name: post.rider?.name ?? username,
+					user: `@${username}`,
 					username,
 					avatarUrl: post.rider?.profileImageUrl ?? DEFAULT_AVATAR,
 				});
@@ -262,6 +266,7 @@ class InteractionService {
 				users.set(riderId, {
 					id: riderId,
 					name: clip.rider?.name ?? username,
+					user: `@${username}`,
 					username,
 					avatarUrl: clip.rider?.profileImageUrl ?? DEFAULT_AVATAR,
 				});
@@ -284,11 +289,38 @@ class InteractionService {
 	}
 
 	async shareToUser(userId: string, resourceUrl?: string, username?: string) {
-		const displayUsername = normalizeUsername(username ?? userId);
-		const message = resourceUrl
-			? `Shared with @${displayUsername}. Open chat and paste this link:\n${resourceUrl}`
-			: `Shared with @${displayUsername}.`;
-		Alert.alert("Share ready", message);
+		await this.shareToUserAsMessage({
+			userId,
+			resourceType: "post",
+			resourceId: resourceUrl ?? "",
+			title: username,
+		});
+	}
+
+	async shareToUserAsMessage(input: {
+		userId: string;
+		resourceType: "post" | "clip";
+		resourceId: string;
+		title?: string;
+		caption?: string;
+		thumbnailUrl?: string;
+		senderId?: string;
+		senderName?: string;
+	}) {
+		const payload = createSharedContentPayload({
+			resourceType: input.resourceType,
+			resourceId: input.resourceId,
+			title: input.title,
+			caption: input.caption,
+			thumbnailUrl: input.thumbnailUrl,
+			senderId: input.senderId ?? "me",
+			senderName: input.senderName ?? "You",
+		});
+
+		await ChatService.sendPersonalMessage(input.userId, {
+			kind: "text",
+			text: serializeSharedContentMessage(payload),
+		});
 	}
 
 	async shareToAction(target: ShareTargetType, postUrl?: string, resourceId?: string | null) {

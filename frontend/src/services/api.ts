@@ -74,32 +74,22 @@ const resolveApiUrlCandidates = () => {
 	const fromHost = fromExpoHost();
 	const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
 
+	if (envApiUrl && envApiUrl.trim().length > 0) {
+		add(envApiUrl);
+	}
+
 	add(BASE_URL);
 
 	if (isDev) {
 		if (fromHost) {
 			add(fromHost);
 		}
-
-		if (envApiUrl && envApiUrl.trim().length > 0) {
-			add(envApiUrl);
+		if (Platform.OS === "android") {
+			add("http://10.0.2.2:3000/api");
 		}
-	} else {
-		if (envApiUrl && envApiUrl.trim().length > 0) {
-			add(envApiUrl);
-		}
-
-		if (fromHost) {
-			add(fromHost);
-		}
+		add("http://localhost:3000/api");
+		add("http://127.0.0.1:3000/api");
 	}
-
-	if (Platform.OS === "android") {
-		add("http://10.0.2.2:3000/api");
-	}
-
-	add("http://localhost:3000/api");
-	add("http://127.0.0.1:3000/api");
 
 	return urls;
 };
@@ -256,7 +246,7 @@ export async function apiRequest<T>(
 	}
 
 	throw new Error(
-		`Cannot reach backend from app. Tried: ${tried}. Set EXPO_PUBLIC_API_URL or start frontend/backend on same network.`,
+		`Cannot reach backend from app. Tried: ${tried}. For an APK build, set EXPO_PUBLIC_API_URL to a public backend URL before rebuilding.`,
 	);
 }
 
@@ -375,6 +365,6 @@ export async function apiUploadRequest<T>(
 	}
 
 	throw new Error(
-		`Cannot reach backend from app. Tried: ${tried}. Set EXPO_PUBLIC_API_URL or start frontend/backend on same network.`,
+		`Cannot reach backend from app. Tried: ${tried}. For an APK build, set EXPO_PUBLIC_API_URL to a public backend URL before rebuilding.`,
 	);
 }

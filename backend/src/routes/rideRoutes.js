@@ -7,6 +7,8 @@ const router = express.Router();
 router.get("/friends", requireAuth, rideController.listFriends);
 router.get("/community", requireAuth, rideController.getCommunityRides);
 router.post("/", requireAuth, rideController.createRide);
+router.patch("/:rideId", requireAuth, rideController.updateRide);
+router.delete("/:rideId", requireAuth, rideController.deleteRide);
 router.post(
 	"/:rideId/invitations/accept",
 	requireAuth,

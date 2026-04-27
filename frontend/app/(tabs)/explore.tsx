@@ -380,12 +380,19 @@ export default function ExploreScreen() {
 				}}
 			/>
 
-			<ShareSheet
-				postId={selectedActionPostId ? normalizePostId(selectedActionPostId) : null}
-				resourceType="post"
-				visible={isShareSheetVisible}
-				onClose={() => setIsShareSheetVisible(false)}
-			/>
+			{(() => {
+				const selectedPost = allPosts.find((p) => p.id === selectedActionPostId);
+				return (
+					<ShareSheet
+						postId={selectedActionPostId ? normalizePostId(selectedActionPostId) : null}
+						resourceType="post"
+						visible={isShareSheetVisible}
+						onClose={() => setIsShareSheetVisible(false)}
+						caption={selectedPost?.title ?? undefined}
+						thumbnailUrl={selectedPost?.thumbnail ?? undefined}
+					/>
+				);
+			})()}
 		</SafeAreaView>
 	)
 }

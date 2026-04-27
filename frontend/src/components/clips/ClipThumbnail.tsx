@@ -2,13 +2,16 @@ import React from "react";
 import { Image, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
+import { StreamingVideo } from "../common";
 
 export function ClipThumbnail({
 	style,
 	uri,
+	videoUri,
 }: {
 	style: StyleProp<ViewStyle>;
 	uri?: string | null;
+	videoUri?: string | null;
 }) {
 	const { colors, metrics } = useTheme();
 
@@ -33,6 +36,14 @@ export function ClipThumbnail({
 		<View style={[styles.container, style]}>
 			{uri ? (
 				<Image resizeMode="cover" source={{ uri }} style={styles.image} />
+			) : videoUri ? (
+				<StreamingVideo
+					contentFit="cover"
+					muted
+					shouldPlay
+					style={styles.image}
+					uri={videoUri}
+				/>
 			) : (
 				<Ionicons color={colors.textSecondary} name="videocam-outline" size={metrics.icon.lg} />
 			)}

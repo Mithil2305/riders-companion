@@ -107,18 +107,21 @@ class ChatService {
 		roomId: string,
 		payload: PersonalSendInput,
 	): Promise<PersonalMessagePayload> {
-		return apiRequest<PersonalMessagePayload>(`/chat/personal/${roomId}/messages`, {
-			method: "POST",
-			body:
-				payload.kind === "image"
-					? {
-							text: payload.text ?? "",
-							imageUrl: payload.imageUrl ?? "",
-					  }
-					: {
-							message: payload.text ?? "",
-					  },
-		});
+		return apiRequest<PersonalMessagePayload>(
+			`/chat/personal/${roomId}/messages`,
+			{
+				method: "POST",
+				body:
+					payload.kind === "image"
+						? {
+								text: payload.text ?? "",
+								imageUrl: payload.imageUrl ?? "",
+							}
+						: {
+								message: payload.text ?? "",
+							},
+			},
+		);
 	}
 
 	async blockPersonalUser(roomId: string): Promise<PersonalBlockResponse> {
@@ -130,6 +133,52 @@ class ChatService {
 	async unblockPersonalUser(roomId: string): Promise<PersonalBlockResponse> {
 		return apiRequest<PersonalBlockResponse>(`/chat/personal/${roomId}/block`, {
 			method: "DELETE",
+		});
+	}
+
+	async listGroupChatInvitations() {
+		return apiRequest<{
+			invitations: Array<{
+				id: string;
+				communityId: string;
+				communityName: string;
+				inviterId: string;
+				inviterName: string;
+				inviterUsername?: string | null;
+				inviterAvatar?: string | null;
+				status: string;
+				createdAt: string;
+			}>;
+		}>("/chat/invitations");
+	}
+
+	async acceptGroupChatInvitation(invitationId: string) {
+		return apiRequest<{
+			invitationId: string;
+			communityId: string;
+			status: string;
+		}>(`/chat/invitations/${invitationId}/accept`, {
+			method: "POST",
+		});
+	}
+
+	async declineGroupChatInvitation(invitationId: string) {
+		return apiRequest<{
+			invitationId: string;
+			communityId: string;
+			status: string;
+		}>(`/chat/invitations/${invitationId}/decline`, {
+			method: "POST",
+		});
+	}
+
+	async inviteUsersToGroupChat(communityId: string, invitedRiderIds: string[]) {
+		return apiRequest<{
+			communityId: string;
+			invitedCount: number;
+		}>(`/chat/communities/${communityId}/invite`, {
+			method: "POST",
+			body: { invitedRiderIds },
 		});
 	}
 }
