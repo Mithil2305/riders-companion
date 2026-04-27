@@ -30,7 +30,7 @@ function formatFollowers(count: number): string {
 	return `${count}`
 }
 
-function SuggestionRow({
+const SuggestionRow = React.memo(function SuggestionRow({
 	user,
 	onPress,
 }: {
@@ -111,7 +111,7 @@ function SuggestionRow({
 			</View>
 		</Pressable>
 	)
-}
+})
 
 export function SearchSuggestions({
 	results,
@@ -187,12 +187,17 @@ export function SearchSuggestions({
 			)}
 			<FlatList
 				data={results}
+				initialNumToRender={8}
 				keyExtractor={(item) => item.id}
+				keyboardDismissMode="on-drag"
+				maxToRenderPerBatch={10}
+				removeClippedSubviews
 				renderItem={({ item }) => (
 					<SuggestionRow user={item} onPress={() => handlePress(item)} />
 				)}
 				keyboardShouldPersistTaps="handled"
 				showsVerticalScrollIndicator={false}
+				windowSize={6}
 			/>
 		</View>
 	)

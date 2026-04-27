@@ -37,7 +37,7 @@ interface FeedPostProps {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function FeedPost({
+function FeedPostComponent({
 	item,
 	index,
 	liked,
@@ -232,6 +232,10 @@ export function FeedPost({
 					position: "absolute",
 					alignSelf: "center",
 					top: "42%",
+					shadowColor: colors.primary,
+					shadowOpacity: 0.55,
+					shadowRadius: 18,
+					shadowOffset: { width: 0, height: 6 },
 				},
 			}),
 		[colors, metrics, resolvedMode, typography],
@@ -245,7 +249,7 @@ export function FeedPost({
 		require("../../../assets/icons/fist-bump-white.png");
 
 	const activeFistBumpIcon: ImageSourcePropType =
-		require("../../../assets/icons/fist-bump-white.png");
+		require("../../../assets/icons/fist-bump-color.png");
 
 	const runBumpPulse = React.useCallback(() => {
 		setShowBumpPulse(true);
@@ -340,7 +344,6 @@ export function FeedPost({
 							style={{
 								width: metrics.icon.xl * 1.5,
 								height: metrics.icon.xl * 1.5,
-								tintColor: colors.primary,
 							}}
 						/>
 					</Animated.View>
@@ -384,7 +387,7 @@ export function FeedPost({
 						style={{
 							width: metrics.icon.md + 6,
 							height: metrics.icon.md + 6,
-							tintColor: liked ? colors.primary : colors.textPrimary,
+							tintColor: liked ? undefined : colors.textPrimary,
 						}}
 					/>
 				</Pressable>
@@ -427,3 +430,16 @@ export function FeedPost({
 		</Animated.View>
 	);
 }
+
+export const FeedPost = React.memo(
+	FeedPostComponent,
+	(previous, next) =>
+		previous.item === next.item &&
+		previous.index === next.index &&
+		previous.liked === next.liked &&
+		previous.onToggleLike === next.onToggleLike &&
+		previous.onAddComment === next.onAddComment &&
+		previous.onShare === next.onShare &&
+		previous.onOpenProfile === next.onOpenProfile &&
+		previous.scrollY === next.scrollY,
+);
