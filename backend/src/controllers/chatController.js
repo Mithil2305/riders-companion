@@ -4,7 +4,14 @@ const {
 	mediaUploadError,
 	uploadMediaFromBody,
 } = require("../utils/mediaUpload");
-const { Friend, RiderAccount, UserEncryptedChat } = require("../models");
+const {
+	Friend,
+	RiderAccount,
+	UserEncryptedChat,
+	GroupChatInvitation,
+	Community,
+	CommunityMember,
+} = require("../models");
 const chatCryptoService = require("../services/chatCryptoService");
 const { createNotifications } = require("../services/notificationService");
 
@@ -124,7 +131,9 @@ const toClientMessage = (record, currentUserId, options = {}) => {
 const loadSenderDirectory = async (records = []) => {
 	const senderIds = Array.from(
 		new Set(
-			records.map((record) => record.sender_id).filter((value) => typeof value === "string"),
+			records
+				.map((record) => record.sender_id)
+				.filter((value) => typeof value === "string"),
 		),
 	);
 
@@ -157,9 +166,10 @@ const createStoredMessage = async ({
 	return UserEncryptedChat.create({
 		sender_id: senderId,
 		receiver_id: receiverId || null,
-		room_id: typeof roomId === "string" && /^[0-9a-f-]{36}$/i.test(roomId)
-			? roomId
-			: null,
+		room_id:
+			typeof roomId === "string" && /^[0-9a-f-]{36}$/i.test(roomId)
+				? roomId
+				: null,
 		encrypted_payload: encrypted.encryptedPayload,
 		iv: encrypted.iv,
 		attachment_url: attachmentUrl || null,
@@ -239,7 +249,8 @@ exports.listPersonalConversations = async (req, res) => {
 					blockedByViewer: blockedByViewer.has(counterpartId),
 					blockedByOther: blockedByOther.has(counterpartId),
 					isBlocked:
-						blockedByViewer.has(counterpartId) || blockedByOther.has(counterpartId),
+						blockedByViewer.has(counterpartId) ||
+						blockedByOther.has(counterpartId),
 				};
 				const latestMessage = toClientMessage(record, riderId, {
 					roomId: toDirectRoomId(riderId, counterpartId),
@@ -348,7 +359,8 @@ exports.getPersonalConversation = async (req, res) => {
 				toClientMessage(record, riderId, {
 					roomId,
 					senderName: senderDirectory.get(record.sender_id)?.name || null,
-					senderUsername: senderDirectory.get(record.sender_id)?.username || null,
+					senderUsername:
+						senderDirectory.get(record.sender_id)?.username || null,
 				}),
 			)
 			.filter(Boolean);
@@ -388,7 +400,8 @@ exports.getRoomMessages = async (req, res) => {
 			.map((entry) =>
 				toClientMessage(entry, riderId, {
 					senderName: senderDirectory.get(entry.sender_id)?.name || null,
-					senderUsername: senderDirectory.get(entry.sender_id)?.username || null,
+					senderUsername:
+						senderDirectory.get(entry.sender_id)?.username || null,
 				}),
 			)
 			.filter(Boolean);
@@ -556,7 +569,12 @@ exports.blockPersonalUser = async (req, res) => {
 		const otherRiderId = req.params.riderId;
 
 		if (!otherRiderId || otherRiderId === viewerId) {
-			return formatError(res, 400, "Valid rider is required", "CHAT_BLOCK_BAD_RIDER");
+			return formatError(
+				res,
+				400,
+				"Valid rider is required",
+				"CHAT_BLOCK_BAD_RIDER",
+			);
 		}
 
 		const rider = await RiderAccount.findByPk(otherRiderId, {
@@ -728,5 +746,299 @@ exports.sendRoomMessage = async (req, res) => {
 		}
 
 		return formatError(res, 500, "Failed to send message", "CHAT_SEND_ERR");
+	}
+};
+
+exports.listGroupChatInvitations = async (req, res) => {
+	try {
+		const riderId = req.user.id;
+
+		const invitations = await GroupChatInvitation.findAll({
+			where: {
+				invited_rider_id: riderId,
+				status: "PENDING",
+			},
+			include: [
+				{
+					model: Community,
+					attributes: ["id", "name", "creator_id"],
+				},
+				{
+					model: RiderAccount,
+					as: "inviter",
+					attributes: ["id", "name", "username", "profile_image_url"],
+				},
+			],
+			order: [["created_at", "DESC"]],
+		});
+
+		return res.status(200).json({
+			success: true,
+			data: {
+				invitations: invitations.map((inv) => ({
+					id: inv.id,
+					communityId: inv.community_id,
+					communityName: inv.Community?.name || "Group Chat",
+					inviterId: inv.inviter_id,
+					inviterName: inv.inviter?.name || "Rider",
+					inviterUsername: inv.inviter?.username || null,
+					inviterAvatar: inv.inviter?.profile_image_url || null,
+					status: inv.status,
+					createdAt: inv.created_at,
+				})),
+			},
+		});
+	} catch (error) {
+		console.error("Failed to list group chat invitations:", error);
+		return formatError(
+			res,
+			500,
+			"Failed to load group chat invitations",
+			"CHAT_INVITATIONS_LIST_ERR",
+		);
+	}
+};
+
+exports.acceptGroupChatInvitation = async (req, res) => {
+	try {
+		const riderId = req.user.id;
+		const invitationId = req.params.invitationId;
+
+		const invitation = await GroupChatInvitation.findByPk(invitationId, {
+			attributes: ["id", "community_id", "invited_rider_id", "status"],
+		});
+
+		if (!invitation) {
+			return formatError(
+				res,
+				404,
+				"Invitation not found",
+				"CHAT_INVITATION_NOT_FOUND",
+			);
+		}
+
+		if (invitation.invited_rider_id !== riderId) {
+			return formatError(
+				res,
+				403,
+				"You cannot accept this invitation",
+				"CHAT_INVITATION_FORBIDDEN",
+			);
+		}
+
+		if (invitation.status !== "PENDING") {
+			return formatError(
+				res,
+				400,
+				`Invitation is already ${invitation.status.toLowerCase()}`,
+				"CHAT_INVITATION_ALREADY_PROCESSED",
+			);
+		}
+
+		// Update invitation status
+		invitation.status = "ACCEPTED";
+		await invitation.save();
+
+		// Add user to community members
+		await CommunityMember.findOrCreate({
+			where: {
+				community_id: invitation.community_id,
+				rider_id: riderId,
+			},
+			defaults: {
+				role: "MEMBER",
+			},
+		});
+
+		return res.status(200).json({
+			success: true,
+			data: {
+				invitationId: invitation.id,
+				communityId: invitation.community_id,
+				status: "ACCEPTED",
+			},
+		});
+	} catch (error) {
+		console.error("Failed to accept group chat invitation:", error);
+		return formatError(
+			res,
+			500,
+			"Failed to accept invitation",
+			"CHAT_INVITATION_ACCEPT_ERR",
+		);
+	}
+};
+
+exports.declineGroupChatInvitation = async (req, res) => {
+	try {
+		const riderId = req.user.id;
+		const invitationId = req.params.invitationId;
+
+		const invitation = await GroupChatInvitation.findByPk(invitationId, {
+			attributes: ["id", "community_id", "invited_rider_id", "status"],
+		});
+
+		if (!invitation) {
+			return formatError(
+				res,
+				404,
+				"Invitation not found",
+				"CHAT_INVITATION_NOT_FOUND",
+			);
+		}
+
+		if (invitation.invited_rider_id !== riderId) {
+			return formatError(
+				res,
+				403,
+				"You cannot decline this invitation",
+				"CHAT_INVITATION_FORBIDDEN",
+			);
+		}
+
+		if (invitation.status !== "PENDING") {
+			return formatError(
+				res,
+				400,
+				`Invitation is already ${invitation.status.toLowerCase()}`,
+				"CHAT_INVITATION_ALREADY_PROCESSED",
+			);
+		}
+
+		// Update invitation status
+		invitation.status = "DECLINED";
+		await invitation.save();
+
+		return res.status(200).json({
+			success: true,
+			data: {
+				invitationId: invitation.id,
+				communityId: invitation.community_id,
+				status: "DECLINED",
+			},
+		});
+	} catch (error) {
+		console.error("Failed to decline group chat invitation:", error);
+		return formatError(
+			res,
+			500,
+			"Failed to decline invitation",
+			"CHAT_INVITATION_DECLINE_ERR",
+		);
+	}
+};
+
+exports.inviteUserToGroupChat = async (req, res) => {
+	try {
+		const inviterId = req.user.id;
+		const communityId = req.params.communityId;
+		const { invitedRiderIds } = req.body;
+
+		// Verify community exists and user is authorized (community creator or member)
+		const community = await Community.findByPk(communityId, {
+			attributes: ["id", "creator_id"],
+		});
+
+		if (!community) {
+			return formatError(
+				res,
+				404,
+				"Community not found",
+				"COMMUNITY_NOT_FOUND",
+			);
+		}
+
+		// Currently only community creator can invite (can be relaxed later to members)
+		if (community.creator_id !== inviterId) {
+			return formatError(
+				res,
+				403,
+				"Only the community creator can invite members",
+				"COMMUNITY_INVITE_FORBIDDEN",
+			);
+		}
+
+		if (!Array.isArray(invitedRiderIds) || invitedRiderIds.length === 0) {
+			return formatError(
+				res,
+				400,
+				"invitedRiderIds must be a non-empty array",
+				"CHAT_INVITATION_INVALID",
+			);
+		}
+
+		// Verify all invited riders exist
+		const riders = await RiderAccount.findAll({
+			where: { id: { [Op.in]: invitedRiderIds } },
+			attributes: ["id"],
+		});
+
+		if (riders.length !== invitedRiderIds.length) {
+			return formatError(
+				res,
+				400,
+				"One or more invited riders do not exist",
+				"CHAT_INVITATION_INVALID_RIDERS",
+			);
+		}
+
+		// Create invitations for each rider (skip if already exists)
+		const invitations = [];
+		for (const riderId of invitedRiderIds) {
+			if (riderId === inviterId) {
+				continue; // Don't invite self
+			}
+
+			const [invitation] = await GroupChatInvitation.findOrCreate({
+				where: {
+					community_id: communityId,
+					invited_rider_id: riderId,
+				},
+				defaults: {
+					inviter_id: inviterId,
+					status: "PENDING",
+				},
+			});
+
+			invitations.push(invitation);
+		}
+
+		// Notify invited riders
+		const inviter = await RiderAccount.findByPk(inviterId, {
+			attributes: ["name", "username"],
+		});
+		const inviterName = inviter?.username
+			? `@${inviter.username}`
+			: inviter?.name || "A rider";
+
+		await createNotifications({
+			recipientIds: invitedRiderIds.filter((id) => id !== inviterId),
+			actorId: inviterId,
+			type: "GROUP_CHAT_INVITED",
+			title: `${inviterName} invited you to group chat`,
+			body: community.name,
+			entityType: "group_chat",
+			entityId: communityId,
+			metadata: {
+				communityId,
+				inviterId,
+			},
+		});
+
+		return res.status(201).json({
+			success: true,
+			data: {
+				communityId,
+				invitedCount: invitations.length,
+			},
+		});
+	} catch (error) {
+		console.error("Failed to invite users to group chat:", error);
+		return formatError(
+			res,
+			500,
+			"Failed to send invitations",
+			"CHAT_INVITATION_SEND_ERR",
+		);
 	}
 };

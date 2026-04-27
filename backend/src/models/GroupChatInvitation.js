@@ -1,8 +1,8 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
-const Ride = sequelize.define(
-	"Ride",
+const GroupChatInvitation = sequelize.define(
+	"GroupChatInvitation",
 	{
 		id: {
 			type: DataTypes.UUID,
@@ -13,25 +13,27 @@ const Ride = sequelize.define(
 			type: DataTypes.UUID,
 			allowNull: false,
 		},
-		creator_id: {
+		inviter_id: {
+			type: DataTypes.UUID,
+			allowNull: false,
+		},
+		invited_rider_id: {
 			type: DataTypes.UUID,
 			allowNull: false,
 		},
 		status: {
 			type: DataTypes.STRING(20),
 			allowNull: false,
-			defaultValue: "PLANNING",
-		},
-		route_polygon: {
-			type: DataTypes.JSONB,
-			allowNull: true,
+			defaultValue: "PENDING",
+			// Values: PENDING, ACCEPTED, DECLINED
 		},
 	},
 	{
-		tableName: "ride",
+		tableName: "group_chat_invitation",
 		underscored: true,
 		timestamps: true,
+		updatedAt: false,
 	},
 );
 
-module.exports = Ride;
+module.exports = GroupChatInvitation;
