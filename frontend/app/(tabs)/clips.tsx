@@ -46,7 +46,7 @@ function compactNumber(value: number): string {
 	return String(value);
 }
 
-function ClipFeedCard({
+const ClipFeedCard = React.memo(function ClipFeedCard({
 	shouldRenderVideo,
 	shouldPlay,
 	clipHeight,
@@ -191,6 +191,10 @@ function ClipFeedCard({
 					justifyContent: "center",
 					backgroundColor: withAlpha(colors.black, 0.34),
 					zIndex: 2,
+					shadowColor: colors.primary,
+					shadowOpacity: 0.42,
+					shadowRadius: 20,
+					shadowOffset: { width: 0, height: 8 },
 				},
 				centerIcon: {
 					width: 34,
@@ -202,7 +206,8 @@ function ClipFeedCard({
 
 	const effectiveShouldPlay = shouldPlay && !pausedByUser;
 	const liked = Boolean(item.likedByMe);
-	const likeIcon = require("../../assets/icons/fist-bump-white.png");
+	const defaultLikeIcon = require("../../assets/icons/fist-bump-white.png");
+	const activeLikeIcon = require("../../assets/icons/fist-bump-color.png");
 	const bumpPulseStyle = useAnimatedStyle(() => ({
 		opacity: bumpPulse.value,
 		transform: [{ scale: 0.72 + bumpPulse.value * 0.56 }],
@@ -219,7 +224,7 @@ function ClipFeedCard({
 	}, [bumpPulse]);
 
 	React.useEffect(() => {
-		if (effectiveShouldPlay) {
+		if (shouldPlay) {
 			return;
 		}
 
@@ -228,7 +233,7 @@ function ClipFeedCard({
 			clearTimeout(singleTapTimeoutRef.current);
 			singleTapTimeoutRef.current = null;
 		}
-	}, [effectiveShouldPlay]);
+	}, [shouldPlay]);
 
 	React.useEffect(() => {
 		return () => {
@@ -239,7 +244,7 @@ function ClipFeedCard({
 	}, []);
 
 	const handleSurfaceTap = React.useCallback(() => {
-		if (!effectiveShouldPlay) {
+		if (!shouldPlay) {
 			return;
 		}
 
@@ -262,7 +267,7 @@ function ClipFeedCard({
 			setPausedByUser((current) => !current);
 			singleTapTimeoutRef.current = null;
 		}, 280);
-	}, [effectiveShouldPlay, item.id, liked, onBump, runBumpPulse]);
+	}, [item.id, liked, onBump, runBumpPulse, shouldPlay]);
 
 	return (
 		<View style={styles.clipContainer}>
@@ -294,8 +299,8 @@ function ClipFeedCard({
 			{showBumpPulse ? (
 				<Animated.View style={[styles.centerFeedback, bumpPulseStyle]}>
 					<Image
-						source={likeIcon}
-						style={[styles.centerIcon, { tintColor: colors.primary }]}
+						source={activeLikeIcon}
+						style={styles.centerIcon}
 					/>
 				</Animated.View>
 			) : null}
@@ -326,10 +331,12 @@ function ClipFeedCard({
 						style={styles.actionIconWrap}
 					>
 						<Image
-							source={likeIcon}
+							source={liked ? activeLikeIcon : defaultLikeIcon}
 							style={[
 								styles.likeIconImage,
-								{ tintColor: liked ? colors.primary : colors.textInverse },
+								{
+									tintColor: liked ? undefined : colors.textInverse,
+								},
 							]}
 						/>
 					</Pressable>
@@ -378,7 +385,19 @@ function ClipFeedCard({
 			</View>
 		</View>
 	);
-}
+},
+(previous, next) =>
+	previous.item === next.item &&
+	previous.shouldRenderVideo === next.shouldRenderVideo &&
+	previous.shouldPlay === next.shouldPlay &&
+	previous.clipHeight === next.clipHeight &&
+	previous.width === next.width &&
+	previous.onBump === next.onBump &&
+	previous.onOpenComments === next.onOpenComments &&
+	previous.onOpenShare === next.onOpenShare &&
+	previous.onToggleLike === next.onToggleLike &&
+	previous.router === next.router
+);
 
 export default function ClipsScreen() {
 	const { colors, metrics, typography } = useTheme();

@@ -40,9 +40,51 @@ interface CreatePostPayload {
 	hashtags?: string[];
 }
 
+type FeedResponse = { posts: FeedPostPayload[] };
+
+const FEED_CACHE_TTL_MS = 30_000;
+
+let feedCache: { data: FeedResponse; fetchedAt: number } | null = null;
+let feedInFlight: Promise<FeedResponse> | null = null;
+
 class FeedService {
+	peekFeedCache() {
+		return feedCache?.data ?? null;
+	}
+
+	clearFeedCache() {
+		feedCache = null;
+		feedInFlight = null;
+	}
+
+	async preloadFeed() {
+		try {
+			await this.getFeed();
+		} catch {
+			// Best-effort warmup.
+		}
+	}
+
 	async getFeed(_page: number = 1, _limit: number = 20) {
-		return apiRequest<{ posts: FeedPostPayload[] }>("/feed");
+		const now = Date.now();
+		if (feedCache && now - feedCache.fetchedAt < FEED_CACHE_TTL_MS) {
+			return feedCache.data;
+		}
+
+		if (feedInFlight) {
+			return feedInFlight;
+		}
+
+		feedInFlight = apiRequest<FeedResponse>("/feed")
+			.then((data) => {
+				feedCache = { data, fetchedAt: Date.now() };
+				return data;
+			})
+			.finally(() => {
+				feedInFlight = null;
+			});
+
+		return feedInFlight;
 	}
 
 	async createPost(payload: CreatePostPayload) {

@@ -18,7 +18,6 @@ import Animated, {
 	withTiming,
 } from "react-native-reanimated"
 import { useTheme } from "../../hooks/useTheme"
-import { StreamingVideo } from "../common"
 import { TrendingClip } from "../../types/explore"
 
 const { width: SCREEN_W } = Dimensions.get("window")
@@ -65,30 +64,6 @@ function MasonryTile({
 	const imageOpacity = useSharedValue(0)
 	const [loading, setLoading] = React.useState(true)
 	const isVideo = item.clip.type === "clip" || item.clip.mediaType === "video"
-	const [previewPlaying, setPreviewPlaying] = React.useState(false)
-
-	React.useEffect(() => {
-		if (isVideo) {
-			setLoading(false)
-			imageOpacity.value = 1
-		}
-	}, [imageOpacity, isVideo, item.clip.id])
-
-	React.useEffect(() => {
-		if (!isVideo || item.index > 5) {
-			setPreviewPlaying(false)
-			return
-		}
-
-		setPreviewPlaying(true)
-		const timer = setTimeout(() => {
-			setPreviewPlaying(false)
-		}, 2600)
-
-		return () => {
-			clearTimeout(timer)
-		}
-	}, [isVideo, item.index, item.clip.id])
 
 	const pressStyle = useAnimatedStyle(() => ({
 		transform: [{ scale: scale.value }],
@@ -120,30 +95,25 @@ function MasonryTile({
 				pressStyle,
 			]}
 		>
-			{isVideo ? (
-				<Animated.View style={[{ width: "100%", height: "100%" }, imageStyle]}>
-					<StreamingVideo
-						contentFit="cover"
-						muted
-						shouldPlay={previewPlaying}
-						style={{ width: "100%", height: "100%" }}
-						uri={item.clip.thumbnail}
-					/>
-				</Animated.View>
-			) : (
-				<AnimatedImage
-					source={{ uri: item.clip.thumbnail }}
-					style={[{ width: "100%", height: "100%" }, imageStyle]}
-					resizeMode="cover"
-					onLoad={() => {
-						setLoading(false)
-						imageOpacity.value = withTiming(1, {
-							duration: 220,
-							easing: Easing.out(Easing.quad),
-						})
-					}}
-				/>
-			)}
+			<AnimatedImage
+				source={{ uri: item.clip.thumbnail }}
+				style={[{ width: "100%", height: "100%" }, imageStyle]}
+				resizeMode="cover"
+				onError={() => {
+					setLoading(false)
+					imageOpacity.value = withTiming(1, {
+						duration: 120,
+						easing: Easing.out(Easing.quad),
+					})
+				}}
+				onLoad={() => {
+					setLoading(false)
+					imageOpacity.value = withTiming(1, {
+						duration: 220,
+						easing: Easing.out(Easing.quad),
+					})
+				}}
+			/>
 			{loading && (
 				<View
 					style={{

@@ -32,9 +32,51 @@ interface CreateClipPayload {
 	hashtags?: string[];
 }
 
+type ClipsResponse = { clips: ClipPayload[] };
+
+const CLIPS_CACHE_TTL_MS = 30_000;
+
+let clipsCache: { data: ClipsResponse; fetchedAt: number } | null = null;
+let clipsInFlight: Promise<ClipsResponse> | null = null;
+
 class ClipService {
+	peekClipsCache() {
+		return clipsCache?.data ?? null;
+	}
+
+	clearClipsCache() {
+		clipsCache = null;
+		clipsInFlight = null;
+	}
+
+	async preloadClips() {
+		try {
+			await this.getClips();
+		} catch {
+			// Best-effort warmup.
+		}
+	}
+
 	async getClips() {
-		return apiRequest<{ clips: ClipPayload[] }>("/clips");
+		const now = Date.now();
+		if (clipsCache && now - clipsCache.fetchedAt < CLIPS_CACHE_TTL_MS) {
+			return clipsCache.data;
+		}
+
+		if (clipsInFlight) {
+			return clipsInFlight;
+		}
+
+		clipsInFlight = apiRequest<ClipsResponse>("/clips")
+			.then((data) => {
+				clipsCache = { data, fetchedAt: Date.now() };
+				return data;
+			})
+			.finally(() => {
+				clipsInFlight = null;
+			});
+
+		return clipsInFlight;
 	}
 
 	async getClipById(clipId: string) {

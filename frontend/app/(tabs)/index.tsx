@@ -158,8 +158,11 @@ export default function HomeScreen() {
 					ListFooterComponent={<EndOfFeed />}
 					contentContainerStyle={styles.feedContent}
 					data={posts}
+					initialNumToRender={4}
 					keyExtractor={(item) => item.id}
+					maxToRenderPerBatch={5}
 					onScroll={onScroll}
+					removeClippedSubviews
 					scrollEventThrottle={16}
 					refreshControl={
 						<RefreshControl
@@ -172,6 +175,7 @@ export default function HomeScreen() {
 					}
 					renderItem={renderPost}
 					showsVerticalScrollIndicator={false}
+					windowSize={7}
 				/>
 				<CommentsSheet
 					contentId={selectedPostId}

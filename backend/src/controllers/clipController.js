@@ -1,3 +1,4 @@
+const { Op, fn, col } = require("sequelize");
 const { formatError } = require("../utils/errorFormatter");
 const {
 	mediaUploadError,
@@ -6,16 +7,7 @@ const {
 const { canCreateContentOrRide } = require("../utils/profileAccess");
 const { Clip, ClipComment, ClipLike, RiderAccount } = require("../models");
 
-const toClipPayload = async (clip, viewerId) => {
-	const [likesCount, commentsCount, likedRecord] = await Promise.all([
-		ClipLike.count({ where: { clip_id: clip.id } }),
-		ClipComment.count({ where: { clip_id: clip.id } }),
-		ClipLike.findOne({
-			where: { clip_id: clip.id, rider_id: viewerId },
-			attributes: ["id"],
-		}),
-	]);
-
+const toClipPayload = (clip, stats = {}) => {
 	return {
 		id: clip.id,
 		videoUrl: clip.video_url,
@@ -29,10 +21,10 @@ const toClipPayload = async (clip, viewerId) => {
 			username: clip.RiderAccount?.username,
 			profileImageUrl: clip.RiderAccount?.profile_image_url,
 		},
-		likesCount,
-		commentsCount,
+		likesCount: Number(stats.likesCount ?? 0),
+		commentsCount: Number(stats.commentsCount ?? 0),
 		sharesCount: 0,
-		likedByMe: Boolean(likedRecord),
+		likedByMe: Boolean(stats.likedByMe),
 	};
 };
 
@@ -79,8 +71,47 @@ exports.listClips = async (req, res) => {
 			limit: 100,
 		});
 
-		const payloadClips = await Promise.all(
-			clips.map((clip) => toClipPayload(clip, req.user.id)),
+		const clipIds = clips.map((clip) => clip.id);
+		const [likeCounts, commentCounts, likedRows] = await Promise.all([
+			clipIds.length === 0
+				? []
+				: ClipLike.findAll({
+						attributes: ["clip_id", [fn("COUNT", col("id")), "count"]],
+						where: { clip_id: { [Op.in]: clipIds } },
+						group: ["clip_id"],
+				  }),
+			clipIds.length === 0
+				? []
+				: ClipComment.findAll({
+						attributes: ["clip_id", [fn("COUNT", col("id")), "count"]],
+						where: { clip_id: { [Op.in]: clipIds } },
+						group: ["clip_id"],
+				  }),
+			clipIds.length === 0
+				? []
+				: ClipLike.findAll({
+						attributes: ["clip_id"],
+						where: {
+							clip_id: { [Op.in]: clipIds },
+							rider_id: req.user.id,
+						},
+				  }),
+		]);
+
+		const likeCountByClipId = new Map(
+			likeCounts.map((row) => [row.clip_id, Number(row.get("count") ?? 0)]),
+		);
+		const commentCountByClipId = new Map(
+			commentCounts.map((row) => [row.clip_id, Number(row.get("count") ?? 0)]),
+		);
+		const likedClipIds = new Set(likedRows.map((row) => row.clip_id));
+
+		const payloadClips = clips.map((clip) =>
+			toClipPayload(clip, {
+				likesCount: likeCountByClipId.get(clip.id) ?? 0,
+				commentsCount: commentCountByClipId.get(clip.id) ?? 0,
+				likedByMe: likedClipIds.has(clip.id),
+			}),
 		);
 
 		return res.status(200).json({
@@ -115,6 +146,7 @@ exports.createClip = async (req, res) => {
 			mimeTypeKey: "mediaMimeType",
 			folder: `feed/${req.user.id}/videos`,
 			fallbackMimeType: "video/mp4",
+			videoCompressionProfile: "clip-fast",
 		});
 
 		const videoUrl = uploadedMedia?.url || req.body.videoUrl || null;
@@ -168,7 +200,19 @@ exports.getClipById = async (req, res) => {
 		return formatError(res, 404, "Clip not found", "CLIP_NOT_FOUND");
 	}
 
-	const payloadClip = await toClipPayload(clip, req.user.id);
+	const [likesCount, commentsCount, likedRecord] = await Promise.all([
+		ClipLike.count({ where: { clip_id: clip.id } }),
+		ClipComment.count({ where: { clip_id: clip.id } }),
+		ClipLike.findOne({
+			where: { clip_id: clip.id, rider_id: req.user.id },
+			attributes: ["id"],
+		}),
+	]);
+	const payloadClip = toClipPayload(clip, {
+		likesCount,
+		commentsCount,
+		likedByMe: Boolean(likedRecord),
+	});
 	return res.status(200).json({ success: true, data: { clip: payloadClip } });
 };
 
@@ -212,7 +256,16 @@ exports.updateClip = async (req, res) => {
 		success: true,
 		data: {
 			message: "Clip updated",
-			clip: await toClipPayload(clip, req.user.id),
+			clip: toClipPayload(clip, {
+				likesCount: await ClipLike.count({ where: { clip_id: clip.id } }),
+				commentsCount: await ClipComment.count({ where: { clip_id: clip.id } }),
+				likedByMe: Boolean(
+					await ClipLike.findOne({
+						where: { clip_id: clip.id, rider_id: req.user.id },
+						attributes: ["id"],
+					}),
+				),
+			}),
 		},
 	});
 };

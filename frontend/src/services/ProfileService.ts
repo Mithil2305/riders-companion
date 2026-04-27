@@ -39,6 +39,16 @@ type BikePayload = {
 	isPrimary: boolean;
 };
 
+const SEARCH_CACHE_TTL_MS = 15_000;
+
+type SearchResponse = { users: PublicProfilePayload[] };
+
+const riderSearchCache = new Map<
+	string,
+	{ data: SearchResponse; fetchedAt: number }
+>();
+const riderSearchInFlight = new Map<string, Promise<SearchResponse>>();
+
 class ProfileService {
 	async getMyProfile() {
 		return apiRequest<{ profile: ProfilePayload; bikes: BikePayload[] }>(
@@ -53,9 +63,38 @@ class ProfileService {
 	}
 
 	async searchRiders(query: string) {
-		return apiRequest<{ users: PublicProfilePayload[] }>(
+		const normalizedQuery = query.trim().toLowerCase();
+		if (!normalizedQuery) {
+			return { users: [] };
+		}
+
+		const now = Date.now();
+		const cached = riderSearchCache.get(normalizedQuery);
+		if (cached && now - cached.fetchedAt < SEARCH_CACHE_TTL_MS) {
+			return cached.data;
+		}
+
+		const existingRequest = riderSearchInFlight.get(normalizedQuery);
+		if (existingRequest) {
+			return existingRequest;
+		}
+
+		const request = apiRequest<SearchResponse>(
 			`/profile/search?q=${encodeURIComponent(query)}`,
-		);
+		)
+			.then((data) => {
+				riderSearchCache.set(normalizedQuery, {
+					data,
+					fetchedAt: Date.now(),
+				});
+				return data;
+			})
+			.finally(() => {
+				riderSearchInFlight.delete(normalizedQuery);
+			});
+
+		riderSearchInFlight.set(normalizedQuery, request);
+		return request;
 	}
 
 	async updateMyProfile(payload: {
