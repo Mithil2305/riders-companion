@@ -41,7 +41,9 @@ const toRideItem = (
 		status: string;
 		joinedCount: number;
 		invitedCount: number;
+		organizerId?: string | null;
 		details: {
+			rideType?: "solo" | "group";
 			source?: string;
 			destination?: string;
 			startDate?: string;
@@ -60,6 +62,7 @@ const toRideItem = (
 	tags: toTagChips(ride.details),
 	joinedText: `${ride.joinedCount} joined • ${ride.invitedCount} invited`,
 	pricePerDay: `₹${ride.details.budget || 0}`,
+	rideType: ride.details.rideType,
 	status:
 		mode === "myRides"
 			? ride.status === "COMPLETED"
@@ -73,6 +76,7 @@ const toRideItem = (
 				: ride.status
 			: undefined,
 	isOrganizer: ride.isOrganizer,
+	organizerId: ride.organizerId ?? null,
 });
 
 export function useCommunityData() {
