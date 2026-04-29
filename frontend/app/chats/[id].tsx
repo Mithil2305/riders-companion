@@ -41,7 +41,7 @@ export default function ChatRoomScreen() {
 				return;
 			}
 
-			router.push("/community");
+      router.push(`/group-chat/${invite.rideId}`);
 		},
 		[respondToRideInvite, router],
 	);
