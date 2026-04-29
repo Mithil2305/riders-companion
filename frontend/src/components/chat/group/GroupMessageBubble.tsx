@@ -118,6 +118,15 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 	}
 
 	if (item.kind === "outgoing") {
+		const statusIcon =
+			item.status === "failed"
+				? "alert-circle"
+				: item.status === "sending"
+					? "time"
+					: "checkmark-done";
+		const statusColor =
+			item.status === "failed" ? colors.error : colors.primary;
+
 		return (
 			<View style={styles.outgoingWrap}>
 				<View style={styles.outgoingBubble}>
@@ -125,7 +134,7 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 				</View>
 				<View style={styles.outgoingMeta}>
 					<Text style={styles.time}>{item.time}</Text>
-					<Ionicons color={colors.primary} name="checkmark-done" size={15} />
+					<Ionicons color={statusColor} name={statusIcon} size={15} />
 				</View>
 			</View>
 		);

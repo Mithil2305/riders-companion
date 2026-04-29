@@ -168,6 +168,7 @@ module.exports = (server) => {
 		rideRooms: new Map(),
 		chatRooms: new Map(),
 		latestRideLocations: new Map(),
+		ridePresence: new Map(),
 	};
 
 	websocketHub.setSendToRiderHandler((riderId, type, payload) => {

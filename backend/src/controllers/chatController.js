@@ -11,6 +11,7 @@ const {
 	GroupChatInvitation,
 	Community,
 	CommunityMember,
+	Ride,
 } = require("../models");
 const chatCryptoService = require("../services/chatCryptoService");
 const { createNotifications } = require("../services/notificationService");
@@ -778,6 +779,7 @@ exports.listGroupChatInvitations = async (req, res) => {
 				invitations: invitations.map((inv) => ({
 					id: inv.id,
 					communityId: inv.community_id,
+					rideId: inv.ride_id || null,
 					communityName: inv.Community?.name || "Group Chat",
 					inviterId: inv.inviter_id,
 					inviterName: inv.inviter?.name || "Rider",
@@ -855,6 +857,7 @@ exports.acceptGroupChatInvitation = async (req, res) => {
 			data: {
 				invitationId: invitation.id,
 				communityId: invitation.community_id,
+				rideId: invitation.ride_id || null,
 				status: "ACCEPTED",
 			},
 		});
@@ -914,6 +917,7 @@ exports.declineGroupChatInvitation = async (req, res) => {
 			data: {
 				invitationId: invitation.id,
 				communityId: invitation.community_id,
+				rideId: invitation.ride_id || null,
 				status: "DECLINED",
 			},
 		});
@@ -932,7 +936,7 @@ exports.inviteUserToGroupChat = async (req, res) => {
 	try {
 		const inviterId = req.user.id;
 		const communityId = req.params.communityId;
-		const { invitedRiderIds } = req.body;
+		const { invitedRiderIds, rideId } = req.body;
 
 		// Verify community exists and user is authorized (community creator or member)
 		const community = await Community.findByPk(communityId, {
@@ -967,6 +971,20 @@ exports.inviteUserToGroupChat = async (req, res) => {
 			);
 		}
 
+		if (rideId) {
+			const ride = await Ride.findByPk(rideId, {
+				attributes: ["id", "community_id"],
+			});
+			if (!ride || ride.community_id !== communityId) {
+				return formatError(
+					res,
+					400,
+					"rideId is invalid for this community",
+					"CHAT_INVITATION_INVALID_RIDE",
+				);
+			}
+		}
+
 		// Verify all invited riders exist
 		const riders = await RiderAccount.findAll({
 			where: { id: { [Op.in]: invitedRiderIds } },
@@ -992,10 +1010,12 @@ exports.inviteUserToGroupChat = async (req, res) => {
 			const [invitation] = await GroupChatInvitation.findOrCreate({
 				where: {
 					community_id: communityId,
+					ride_id: rideId || null,
 					invited_rider_id: riderId,
 				},
 				defaults: {
 					inviter_id: inviterId,
+					ride_id: rideId || null,
 					status: "PENDING",
 				},
 			});
@@ -1021,6 +1041,7 @@ exports.inviteUserToGroupChat = async (req, res) => {
 			entityId: communityId,
 			metadata: {
 				communityId,
+				rideId: rideId || null,
 				inviterId,
 			},
 		});

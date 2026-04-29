@@ -22,8 +22,10 @@ router.post(
 router.get("/:rideId", requireAuth, rideController.getRideById);
 router.post("/:rideId/join", requireAuth, rideController.joinRide);
 router.post("/:rideId/leave", requireAuth, rideController.leaveRide);
+router.post("/:rideId/invite", requireAuth, rideController.inviteRiders);
 router.post("/:rideId/start", requireAuth, rideController.startRide);
 router.post("/:rideId/end", requireAuth, rideController.endRide);
+router.get("/:rideId/snapshot", requireAuth, rideController.getRideSnapshot);
 router.post("/:rideId/location", requireAuth, rideController.updateLocation);
 router.get("/:rideId/locations", requireAuth, rideController.getRideLocations);
 router.patch(
