@@ -19,6 +19,7 @@ const Community = require("./Community");
 const CommunityMember = require("./CommunityMember");
 const RideParticipant = require("./RideParticipant");
 const GroupChatInvitation = require("./GroupChatInvitation");
+const RideLocationPoint = require("./RideLocationPoint");
 
 RiderAccount.hasMany(UserBike, { foreignKey: "rider_id" });
 UserBike.belongsTo(RiderAccount, { foreignKey: "rider_id" });
@@ -86,6 +87,21 @@ RideParticipant.belongsTo(Ride, { foreignKey: "ride_id" });
 
 RiderAccount.hasMany(RideParticipant, { foreignKey: "rider_id" });
 RideParticipant.belongsTo(RiderAccount, { foreignKey: "rider_id" });
+
+Ride.hasMany(RideLocationPoint, {
+	foreignKey: "ride_id",
+	as: "locationPoints",
+});
+RideLocationPoint.belongsTo(Ride, { foreignKey: "ride_id" });
+
+RiderAccount.hasMany(RideLocationPoint, {
+	foreignKey: "rider_id",
+	as: "rideLocationPoints",
+});
+RideLocationPoint.belongsTo(RiderAccount, {
+	foreignKey: "rider_id",
+	as: "rider",
+});
 
 RiderAccount.hasMany(Notification, {
 	foreignKey: "rider_id",
@@ -162,4 +178,5 @@ module.exports = {
 	CommunityMember,
 	RideParticipant,
 	GroupChatInvitation,
+	RideLocationPoint,
 };

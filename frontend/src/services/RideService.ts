@@ -115,13 +115,46 @@ type RideCreateResponse = {
 
 type RideLocationsResponse = {
 	locations: {
+		rideId: string;
 		riderId: string;
 		name: string;
+		username?: string | null;
 		latitude: number;
 		longitude: number;
+		deviceSpeedKmh?: number | null;
+		speed: number | null;
+		heading: number | null;
+		accuracy: number | null;
+		altitude: number | null;
+		timestamp?: string;
 		updatedAt: string;
 	}[];
 	refreshIntervalMinutes: number;
+};
+
+type RideSnapshotResponse = {
+	snapshot: {
+		rideId: string;
+		rideStatus: string;
+		leaderRiderId: string | null;
+		route: {
+			source: string | null;
+			destination: string | null;
+			sourceCoordinates: { latitude: number; longitude: number } | null;
+			destinationCoordinates: { latitude: number; longitude: number } | null;
+			routePolyline: Array<{ latitude: number; longitude: number }>;
+		};
+		participants: Array<{
+			riderId: string;
+			name: string;
+			username?: string | null;
+			participantStatus: string;
+			isLeader: boolean;
+			isOnline?: boolean;
+		}>;
+		locations: RideLocationsResponse["locations"];
+		snapshotAt: string;
+	};
 };
 
 class RideService {
@@ -201,6 +234,20 @@ class RideService {
 
 	async getRideById(rideId: string) {
 		return apiRequest<RideByIdResponse>(`/rides/${rideId}`);
+	}
+
+	async getRideSnapshot(rideId: string) {
+		return apiRequest<RideSnapshotResponse>(`/rides/${rideId}/snapshot`);
+	}
+
+	async inviteRiders(rideId: string, invitedRiderIds: string[]) {
+		return apiRequest<{ rideId: string; invitedCount: number }>(
+			`/rides/${rideId}/invite`,
+			{
+				method: "POST",
+				body: { invitedRiderIds },
+			},
+		);
 	}
 
 	async updateLocation(rideId: string, latitude: number, longitude: number) {

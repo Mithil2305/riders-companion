@@ -13,6 +13,10 @@ const GroupChatInvitation = sequelize.define(
 			type: DataTypes.UUID,
 			allowNull: false,
 		},
+		ride_id: {
+			type: DataTypes.UUID,
+			allowNull: true,
+		},
 		inviter_id: {
 			type: DataTypes.UUID,
 			allowNull: false,
@@ -33,6 +37,11 @@ const GroupChatInvitation = sequelize.define(
 		underscored: true,
 		timestamps: true,
 		updatedAt: false,
+		indexes: [
+			{
+				fields: ["community_id", "ride_id", "invited_rider_id"],
+			},
+		],
 	},
 );
 

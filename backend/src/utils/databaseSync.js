@@ -29,11 +29,37 @@ async function ensureRideCreatorColumn(sequelize) {
 	`);
 }
 
+async function ensureGroupInvitationRideColumn(sequelize) {
+	await sequelize.query(`
+		ALTER TABLE group_chat_invitation
+		ADD COLUMN IF NOT EXISTS ride_id UUID;
+	`);
+
+	await sequelize.query(`
+		CREATE INDEX IF NOT EXISTS idx_group_chat_invitation_community_ride_rider
+		ON group_chat_invitation (community_id, ride_id, invited_rider_id);
+	`);
+}
+
+async function ensureRideLocationIndexes(sequelize) {
+	await sequelize.query(`
+		CREATE INDEX IF NOT EXISTS idx_ride_location_point_ride_rider_created
+		ON ride_location_point (ride_id, rider_id, created_at);
+	`);
+
+	await sequelize.query(`
+		CREATE INDEX IF NOT EXISTS idx_ride_location_point_ride_latest
+		ON ride_location_point (ride_id, is_latest);
+	`);
+}
+
 async function syncDatabaseSchema(sequelize) {
 	const alter = shouldAlterSchema();
 
 	await ensureRideCreatorColumn(sequelize);
+	await ensureGroupInvitationRideColumn(sequelize);
 	await sequelize.sync({ alter });
+	await ensureRideLocationIndexes(sequelize);
 
 	return { alter };
 }

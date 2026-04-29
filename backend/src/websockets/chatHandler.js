@@ -44,6 +44,15 @@ const joinRoom = ({ ws, payload, state, sendToSocket, sendError }) => {
 		return true;
 	}
 
+	if (ws.chatRooms.has(roomId)) {
+		sendToSocket(ws, "CHAT_ROOM_JOINED", {
+			roomId,
+			riderId: ws.rider.id,
+			rejoined: false,
+		});
+		return true;
+	}
+
 	const roomSet = ensureRoomSet(state.chatRooms, roomId);
 	roomSet.add(ws);
 	ws.chatRooms.add(roomId);
@@ -51,6 +60,7 @@ const joinRoom = ({ ws, payload, state, sendToSocket, sendError }) => {
 	sendToSocket(ws, "CHAT_ROOM_JOINED", {
 		roomId,
 		riderId: ws.rider.id,
+		rejoined: true,
 	});
 
 	broadcastToRoom({
@@ -79,6 +89,11 @@ const leaveRoom = ({ ws, payload, state, sendToSocket, sendError }) => {
 	}
 
 	const roomSet = state.chatRooms.get(roomId);
+	if (!ws.chatRooms.has(roomId)) {
+		sendError(ws, "CHAT_ROOM_REQUIRED", "Join room before leaving", { roomId });
+		return true;
+	}
+
 	if (roomSet) {
 		roomSet.delete(ws);
 		if (roomSet.size === 0) {
@@ -154,6 +169,10 @@ const sendMessage = async ({ ws, payload, state, sendToSocket, sendError }) => {
 		typeof payload?.receiverId === "string" ? payload.receiverId : null;
 	const attachmentUrl =
 		typeof payload?.attachmentUrl === "string" ? payload.attachmentUrl : null;
+	const clientMessageId =
+		typeof payload?.clientMessageId === "string"
+			? payload.clientMessageId
+			: null;
 
 	if (!roomId || typeof roomId !== "string") {
 		sendError(ws, "CHAT_SEND_BAD_PAYLOAD", "roomId is required");
@@ -213,6 +232,7 @@ const sendMessage = async ({ ws, payload, state, sendToSocket, sendError }) => {
 	const messagePayload = {
 		id: saved.id,
 		roomId,
+		clientMessageId,
 		senderId: ws.rider.id,
 		senderName: ws.rider.name,
 		encryptedPayload: saved.encrypted_payload,
@@ -249,6 +269,7 @@ const sendMessage = async ({ ws, payload, state, sendToSocket, sendError }) => {
 	sendToSocket(ws, "CHAT_MESSAGE_ACK", {
 		roomId,
 		messageId: saved.id,
+		clientMessageId,
 		createdAt: saved.created_at,
 	});
 

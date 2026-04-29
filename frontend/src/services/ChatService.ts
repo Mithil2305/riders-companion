@@ -172,13 +172,17 @@ class ChatService {
 		});
 	}
 
-	async inviteUsersToGroupChat(communityId: string, invitedRiderIds: string[]) {
+	async inviteUsersToGroupChat(
+		communityId: string,
+		invitedRiderIds: string[],
+		rideId?: string,
+	) {
 		return apiRequest<{
 			communityId: string;
 			invitedCount: number;
 		}>(`/chat/communities/${communityId}/invite`, {
 			method: "POST",
-			body: { invitedRiderIds },
+			body: { invitedRiderIds, rideId },
 		});
 	}
 }
