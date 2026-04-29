@@ -17,6 +17,7 @@ interface RideCardProps {
 	onPrimaryAction?: (id: string) => void;
 	onEdit?: (item: RideItem) => void;
 	onDelete?: (id: string) => void;
+	canManageRide?: boolean;
 }
 
 function formatDateHumanReadable(dateStr: string): string {
@@ -24,13 +25,17 @@ function formatDateHumanReadable(dateStr: string): string {
 		const d = new Date(dateStr);
 		if (isNaN(d.getTime())) return dateStr;
 		const options: Intl.DateTimeFormatOptions = {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
 		};
-		return d.toLocaleDateString("en-US", options).replace(',', '').replace(' PM', ' PM').replace(' AM', ' AM');
+		return d
+			.toLocaleDateString("en-US", options)
+			.replace(",", "")
+			.replace(" PM", " PM")
+			.replace(" AM", " AM");
 	} catch {
 		return dateStr;
 	}
@@ -42,18 +47,20 @@ export function RideCard({
 	onPrimaryAction,
 	onEdit,
 	onDelete,
+	canManageRide = false,
 }: RideCardProps) {
 	const { colors, metrics, typography } = useTheme();
 	const isMyRide = mode === "myRides";
 	const isCompleted = isMyRide && item.status === "completed";
 	const isActionDisabled = isCompleted;
-	const [showMenu, setShowMenu] = React.useState(false);
 
 	// Parse route into source and destination if formatted as "A -> B"
-	const routeParts = item.route.split("->").map(r => r.trim());
+	const routeParts = item.route.split("->").map((r) => r.trim());
 	const source = routeParts[0];
 	const destination = routeParts.length > 1 ? routeParts[1] : null;
-	const dateFormatted = item.startsAt.includes("T") ? formatDateHumanReadable(item.startsAt) : item.startsAt;
+	const dateFormatted = item.startsAt.includes("T")
+		? formatDateHumanReadable(item.startsAt)
+		: item.startsAt;
 
 	const styles = React.useMemo(
 		() =>
@@ -70,7 +77,7 @@ export function RideCard({
 					shadowRadius: 10,
 					elevation: 2,
 					opacity: isCompleted ? 0.75 : 1,
-					position: 'relative',
+					position: "relative",
 				},
 				topRow: {
 					flexDirection: "row",
@@ -83,8 +90,8 @@ export function RideCard({
 					gap: 4,
 				},
 				routeNodeRow: {
-					flexDirection: 'row',
-					alignItems: 'center',
+					flexDirection: "row",
+					alignItems: "center",
 				},
 				dotStart: {
 					width: 8,
@@ -127,8 +134,8 @@ export function RideCard({
 					letterSpacing: 0.8,
 				},
 				dateRow: {
-					flexDirection: 'row',
-					alignItems: 'center',
+					flexDirection: "row",
+					alignItems: "center",
 					marginBottom: metrics.md,
 				},
 				dateIcon: {
@@ -179,44 +186,39 @@ export function RideCard({
 					padding: 4,
 					marginLeft: metrics.sm,
 				},
-				menuBackdrop: {
-					...StyleSheet.absoluteFillObject,
-					zIndex: 10,
-				},
-				menuCard: {
-					position: "absolute",
-					top: 4,
-					right: 8,
-					zIndex: 11,
-					backgroundColor: colors.card,
-					borderRadius: 12,
-					borderWidth: 1,
-					borderColor: colors.border,
-					paddingVertical: metrics.sm,
-					minWidth: 160,
-					shadowColor: colors.shadow,
-					shadowOffset: { width: 0, height: 4 },
-					shadowOpacity: 0.12,
-					shadowRadius: 12,
-					elevation: 6,
-				},
-				menuItem: {
+				creatorActions: {
 					flexDirection: "row",
 					alignItems: "center",
+					gap: metrics.xs,
+				},
+				creatorActionBtn: {
+					height: 34,
+					borderRadius: 17,
 					paddingHorizontal: metrics.md,
-					paddingVertical: metrics.sm,
-					gap: metrics.sm,
+					borderWidth: 1,
+					alignItems: "center",
+					justifyContent: "center",
 				},
-				menuItemText: {
+				creatorEditBtn: {
+					borderColor: colors.borderDark,
+					backgroundColor: colors.surface,
+				},
+				creatorDeleteBtn: {
+					borderColor: colors.error || "#EF4444",
+					backgroundColor: colors.surface,
+				},
+				creatorActionLabel: {
+					fontSize: typography.sizes.xs,
+					fontWeight: "700",
+				},
+				creatorEditLabel: {
 					color: colors.textPrimary,
-					fontSize: typography.sizes.sm,
-					fontWeight: "600",
 				},
-				menuItemDanger: {
+				creatorDeleteLabel: {
 					color: colors.error || "#EF4444",
 				},
 				endedBadge: {
-					position: 'absolute',
+					position: "absolute",
 					top: metrics.md,
 					right: metrics.md,
 					borderRadius: metrics.radius.full,
@@ -244,52 +246,6 @@ export function RideCard({
 
 	return (
 		<View style={styles.card}>
-			{showMenu ? (
-				<>
-					<Pressable
-						style={styles.menuBackdrop}
-						onPress={() => setShowMenu(false)}
-					/>
-					<View style={styles.menuCard}>
-						<Pressable
-							style={styles.menuItem}
-							onPress={() => {
-								setShowMenu(false);
-								onEdit?.(item);
-							}}
-						>
-							<Ionicons
-								name="create-outline"
-								size={18}
-								color={colors.textPrimary}
-							/>
-							<Text style={styles.menuItemText}>Edit</Text>
-						</Pressable>
-						<Pressable
-							style={styles.menuItem}
-							onPress={() => {
-								setShowMenu(false);
-								onDelete?.(item.id);
-							}}
-						>
-							<Ionicons
-								name="trash-outline"
-								size={18}
-								color={colors.error || "#EF4444"}
-							/>
-							<Text
-								style={[
-									styles.menuItemText,
-									styles.menuItemDanger,
-								]}
-							>
-								Delete
-							</Text>
-						</Pressable>
-					</View>
-				</>
-			) : null}
-
 			{isCompleted && (
 				<View style={styles.endedBadge}>
 					<Text style={styles.statusEnded}>ENDED</Text>
@@ -320,25 +276,40 @@ export function RideCard({
 							<Text style={styles.perDay}>PER DAY</Text>
 						</View>
 					)}
-					{item.isOrganizer && mode == "myRides" && (
-						<TouchableOpacity
-							hitSlop={8}
-							onPress={() => setShowMenu(true)}
-							style={styles.menuBtn}
-							disabled={item.status == "completed"}
-						>
-							<Ionicons
-								name="ellipsis-vertical"
-								size={20}
-								color={colors.textSecondary}
-							/>
-						</TouchableOpacity>
-					)}
+					{canManageRide && !isCompleted ? (
+						<View style={styles.creatorActions}>
+							<Pressable
+								onPress={() => onEdit?.(item)}
+								style={[styles.creatorActionBtn, styles.creatorEditBtn]}
+							>
+								<Text
+									style={[styles.creatorActionLabel, styles.creatorEditLabel]}
+								>
+									Edit
+								</Text>
+							</Pressable>
+							<Pressable
+								onPress={() => onDelete?.(item.id)}
+								style={[styles.creatorActionBtn, styles.creatorDeleteBtn]}
+							>
+								<Text
+									style={[styles.creatorActionLabel, styles.creatorDeleteLabel]}
+								>
+									Delete
+								</Text>
+							</Pressable>
+						</View>
+					) : null}
 				</View>
 			</View>
 
 			<View style={styles.dateRow}>
-				<Ionicons name="calendar-outline" size={16} color={colors.textSecondary} style={styles.dateIcon} />
+				<Ionicons
+					name="calendar-outline"
+					size={16}
+					color={colors.textSecondary}
+					style={styles.dateIcon}
+				/>
 				<Text style={styles.dateText}>{dateFormatted}</Text>
 			</View>
 
