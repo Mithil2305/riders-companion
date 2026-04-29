@@ -5,19 +5,86 @@ const {
 	Ride,
 	RideParticipant,
 	RiderAccount,
+	RideLocationPoint,
 } = require("../models");
 const { formatError } = require("../utils/errorFormatter");
 const { canCreateContentOrRide } = require("../utils/profileAccess");
+const {
+	haversineDistanceMeters,
+	calculateSpeedKmh,
+} = require("../services/telemetryService");
+const { createNotifications } = require("../services/notificationService");
+const websocketHub = require("../websockets/hub");
 
-const liveLocationsByRide = new Map();
+const MAX_REASONABLE_SPEED_KMH = 220;
+
+const isFiniteNumber = (value) =>
+	typeof value === "number" && Number.isFinite(value);
+
+const clampSpeed = (value) => {
+	if (!isFiniteNumber(value) || value < 0) {
+		return null;
+	}
+
+	return Math.min(value, MAX_REASONABLE_SPEED_KMH);
+};
+
+const normalizeRouteMeta = (details) => {
+	const base = details && typeof details === "object" ? details : {};
+
+	const sourceCoordinates =
+		base.sourceCoordinates &&
+		isFiniteNumber(base.sourceCoordinates.latitude) &&
+		isFiniteNumber(base.sourceCoordinates.longitude)
+			? {
+					latitude: base.sourceCoordinates.latitude,
+					longitude: base.sourceCoordinates.longitude,
+				}
+			: null;
+
+	const destinationCoordinates =
+		base.destinationCoordinates &&
+		isFiniteNumber(base.destinationCoordinates.latitude) &&
+		isFiniteNumber(base.destinationCoordinates.longitude)
+			? {
+					latitude: base.destinationCoordinates.latitude,
+					longitude: base.destinationCoordinates.longitude,
+				}
+			: null;
+
+	const routePolyline = Array.isArray(base.routePolyline)
+		? base.routePolyline.filter(
+				(point) =>
+					point &&
+					isFiniteNumber(point.latitude) &&
+					isFiniteNumber(point.longitude),
+			)
+		: [];
+
+	return {
+		source:
+			typeof base.source === "string" && base.source.trim().length > 0
+				? base.source
+				: null,
+		destination:
+			typeof base.destination === "string" && base.destination.trim().length > 0
+				? base.destination
+				: null,
+		sourceCoordinates,
+		destinationCoordinates,
+		routePolyline,
+	};
+};
 
 const toRidePayload = (ride, participants = [], options = {}) => {
 	const organizerId = options.organizerId || ride.creator_id || null;
+	const details = ride.route_polygon || {};
 	return {
 		id: ride.id,
 		communityId: ride.community_id,
 		status: ride.status,
-		details: ride.route_polygon || {},
+		details,
+		route: normalizeRouteMeta(details),
 		participants,
 		organizerId,
 		isOrganizer:
@@ -65,6 +132,96 @@ const getOrCreateCommunityId = async (user, communityId) => {
 	});
 
 	return created.id;
+};
+
+const getLatestRideLocations = async (rideId) => {
+	const latestPoints = await RideLocationPoint.findAll({
+		where: { ride_id: rideId, is_latest: true },
+		attributes: [
+			"rider_id",
+			"latitude",
+			"longitude",
+			"device_speed_kmh",
+			"normalized_speed_kmh",
+			"heading",
+			"accuracy",
+			"altitude",
+			"source_timestamp",
+			"created_at",
+		],
+	});
+
+	if (latestPoints.length === 0) {
+		return [];
+	}
+
+	const riderIds = latestPoints.map((entry) => entry.rider_id);
+	const riders = await RiderAccount.findAll({
+		where: { id: { [Op.in]: riderIds } },
+		attributes: ["id", "name", "username"],
+	});
+
+	const riderById = new Map(riders.map((rider) => [rider.id, rider]));
+
+	return latestPoints.map((point) => {
+		const rider = riderById.get(point.rider_id);
+		const updatedAt = point.source_timestamp || point.created_at;
+		return {
+			rideId,
+			riderId: point.rider_id,
+			name: rider?.name || "Rider",
+			username: rider?.username || null,
+			latitude: point.latitude,
+			longitude: point.longitude,
+			deviceSpeedKmh: point.device_speed_kmh,
+			speed: point.normalized_speed_kmh,
+			heading: point.heading,
+			accuracy: point.accuracy,
+			altitude: point.altitude,
+			timestamp: updatedAt,
+			updatedAt,
+		};
+	});
+};
+
+const buildRideSnapshot = async (ride) => {
+	const participants = await RideParticipant.findAll({
+		where: {
+			ride_id: ride.id,
+			status: { [Op.notIn]: ["DECLINED"] },
+		},
+		attributes: ["rider_id", "status"],
+	});
+
+	const riderIds = participants.map((entry) => entry.rider_id);
+	const riderProfiles = riderIds.length
+		? await RiderAccount.findAll({
+				where: { id: { [Op.in]: riderIds } },
+				attributes: ["id", "name", "username", "profile_image_url", "bio"],
+			})
+		: [];
+
+	const profileById = new Map(
+		riderProfiles.map((profile) => [profile.id, profile]),
+	);
+	const leaderId = await getOrganizerIdByCommunity(ride.community_id);
+	const locations = await getLatestRideLocations(ride.id);
+
+	return {
+		rideId: ride.id,
+		rideStatus: ride.status,
+		leaderRiderId: leaderId,
+		route: normalizeRouteMeta(ride.route_polygon || {}),
+		participants: participants.map((entry) => ({
+			riderId: entry.rider_id,
+			name: profileById.get(entry.rider_id)?.name || "Rider",
+			username: profileById.get(entry.rider_id)?.username || null,
+			participantStatus: entry.status,
+			isLeader: leaderId === entry.rider_id,
+		})),
+		locations,
+		snapshotAt: new Date().toISOString(),
+	};
 };
 
 exports.listFriends = async (req, res) => {
@@ -431,12 +588,24 @@ exports.joinRide = async (req, res) => {
 		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
 	}
 
+	if (String(ride.status).toUpperCase() === "COMPLETED") {
+		return formatError(
+			res,
+			400,
+			"Ride has already ended",
+			"RIDE_ALREADY_COMPLETED",
+		);
+	}
+
 	const [participant, created] = await RideParticipant.findOrCreate({
 		where: { ride_id: ride.id, rider_id: req.user.id },
 		defaults: { status: "CONFIRMED" },
 	});
 
-	if (!created && participant.status !== "CONFIRMED") {
+	if (
+		!created &&
+		["INVITED", "PENDING", "DECLINED"].includes(participant.status)
+	) {
 		participant.status = "CONFIRMED";
 		await participant.save();
 	}
@@ -574,6 +743,24 @@ exports.endRide = async (req, res) => {
 		},
 	);
 
+	const participants = await RideParticipant.findAll({
+		where: { ride_id: ride.id },
+		attributes: ["rider_id"],
+	});
+
+	const participantIds = participants
+		.map((entry) => entry.rider_id)
+		.filter((value) => typeof value === "string" && value.length > 0);
+
+	for (const riderId of participantIds) {
+		websocketHub.sendToRider(riderId, "RIDE_ENDED", {
+			rideId: ride.id,
+			endedBy: req.user.id,
+			rideStatus: "COMPLETED",
+			endedAt: new Date().toISOString(),
+		});
+	}
+
 	return res.status(200).json({
 		success: true,
 		data: { rideId: req.params.rideId, status: "COMPLETED" },
@@ -614,7 +801,8 @@ exports.updateParticipantStatus = async (req, res) => {
 };
 
 exports.updateLocation = async (req, res) => {
-	const { latitude, longitude } = req.body;
+	const { latitude, longitude, speed, heading, accuracy, altitude, timestamp } =
+		req.body;
 
 	if (typeof latitude !== "number" || typeof longitude !== "number") {
 		return formatError(
@@ -625,29 +813,163 @@ exports.updateLocation = async (req, res) => {
 		);
 	}
 
-	if (!liveLocationsByRide.has(req.params.rideId)) {
-		liveLocationsByRide.set(req.params.rideId, new Map());
-	}
-
-	liveLocationsByRide.get(req.params.rideId).set(req.user.id, {
-		riderId: req.user.id,
-		name: req.user.name,
-		latitude,
-		longitude,
-		updatedAt: new Date().toISOString(),
+	const ride = await Ride.findByPk(req.params.rideId, {
+		attributes: ["id", "status"],
 	});
 
-	return res.status(200).json({ success: true, data: { updated: true } });
-};
+	if (!ride) {
+		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
+	}
 
-exports.getRideLocations = async (req, res) => {
-	const rideLocations = liveLocationsByRide.get(req.params.rideId);
+	if (String(ride.status).toUpperCase() === "COMPLETED") {
+		return formatError(
+			res,
+			400,
+			"Ride has already ended",
+			"RIDE_ALREADY_COMPLETED",
+		);
+	}
+
+	const participant = await RideParticipant.findOne({
+		where: {
+			ride_id: ride.id,
+			rider_id: req.user.id,
+			status: { [Op.notIn]: ["DECLINED"] },
+		},
+		attributes: ["status"],
+	});
+
+	if (!participant) {
+		return formatError(
+			res,
+			403,
+			"You are not part of this ride",
+			"RIDE_ACCESS_DENIED",
+		);
+	}
+
+	const sourceTimestamp = (() => {
+		const parsed = new Date(
+			typeof timestamp === "string" ? timestamp : Date.now(),
+		);
+		if (Number.isNaN(parsed.getTime())) {
+			return new Date();
+		}
+		return parsed;
+	})();
+
+	const previousPoint = await RideLocationPoint.findOne({
+		where: {
+			ride_id: ride.id,
+			rider_id: req.user.id,
+			is_latest: true,
+		},
+		attributes: ["latitude", "longitude", "source_timestamp"],
+		order: [["created_at", "DESC"]],
+	});
+
+	const deviceSpeedKmh = clampSpeed(speed);
+	let computedSpeedKmh = null;
+
+	if (previousPoint) {
+		const distanceMeters = haversineDistanceMeters(
+			{
+				latitude: previousPoint.latitude,
+				longitude: previousPoint.longitude,
+				timestamp: previousPoint.source_timestamp,
+			},
+			{
+				latitude,
+				longitude,
+				timestamp: sourceTimestamp.toISOString(),
+			},
+		);
+
+		const durationSeconds =
+			(sourceTimestamp.getTime() -
+				new Date(previousPoint.source_timestamp).getTime()) /
+			1000;
+
+		computedSpeedKmh = clampSpeed(
+			calculateSpeedKmh({ distanceMeters, durationSeconds }),
+		);
+	}
+
+	const normalizedSpeed =
+		deviceSpeedKmh != null ? deviceSpeedKmh : computedSpeedKmh;
+
+	await RideLocationPoint.update(
+		{ is_latest: false },
+		{
+			where: {
+				ride_id: ride.id,
+				rider_id: req.user.id,
+				is_latest: true,
+			},
+		},
+	);
+
+	await RideLocationPoint.create({
+		ride_id: ride.id,
+		rider_id: req.user.id,
+		latitude,
+		longitude,
+		device_speed_kmh: deviceSpeedKmh,
+		normalized_speed_kmh: normalizedSpeed,
+		heading: isFiniteNumber(heading) ? heading : null,
+		accuracy: isFiniteNumber(accuracy) ? accuracy : null,
+		altitude: isFiniteNumber(altitude) ? altitude : null,
+		source_timestamp: sourceTimestamp,
+		is_latest: true,
+	});
 
 	return res.status(200).json({
 		success: true,
 		data: {
-			locations: rideLocations ? Array.from(rideLocations.values()) : [],
-			refreshIntervalMinutes: 15,
+			updated: true,
+			rideId: ride.id,
+			riderId: req.user.id,
+			speed: normalizedSpeed,
+			deviceSpeedKmh,
+			timestamp: sourceTimestamp.toISOString(),
+		},
+	});
+};
+
+exports.getRideLocations = async (req, res) => {
+	const ride = await Ride.findByPk(req.params.rideId, {
+		attributes: ["id"],
+	});
+
+	if (!ride) {
+		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
+	}
+
+	const participant = await RideParticipant.findOne({
+		where: {
+			ride_id: ride.id,
+			rider_id: req.user.id,
+			status: { [Op.notIn]: ["DECLINED"] },
+		},
+		attributes: ["rider_id"],
+	});
+
+	if (!participant) {
+		return formatError(
+			res,
+			403,
+			"You are not part of this ride",
+			"RIDE_ACCESS_DENIED",
+		);
+	}
+
+	const locations = await getLatestRideLocations(ride.id);
+
+	return res.status(200).json({
+		success: true,
+		data: {
+			locations,
+			refreshIntervalMinutes: 0,
 		},
 	});
 };
@@ -656,6 +978,157 @@ exports.getRideReports = async (req, res) => {
 	return res
 		.status(200)
 		.json({ success: true, data: { rideId: req.params.rideId, reports: [] } });
+};
+
+exports.getRideSnapshot = async (req, res) => {
+	const ride = await Ride.findByPk(req.params.rideId);
+
+	if (!ride) {
+		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
+	}
+
+	const participant = await RideParticipant.findOne({
+		where: {
+			ride_id: ride.id,
+			rider_id: req.user.id,
+			status: { [Op.notIn]: ["DECLINED"] },
+		},
+		attributes: ["rider_id"],
+	});
+
+	if (!participant) {
+		return formatError(
+			res,
+			403,
+			"You are not part of this ride",
+			"RIDE_ACCESS_DENIED",
+		);
+	}
+
+	const snapshot = await buildRideSnapshot(ride);
+
+	return res.status(200).json({
+		success: true,
+		data: {
+			snapshot,
+		},
+	});
+};
+
+exports.inviteRiders = async (req, res) => {
+	const ride = await Ride.findByPk(req.params.rideId, {
+		attributes: ["id", "community_id", "creator_id", "status"],
+	});
+
+	if (!ride) {
+		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
+	}
+
+	const organizerId = await getOrganizerIdByCommunity(ride.community_id);
+	if (!organizerId || organizerId !== req.user.id) {
+		return formatError(
+			res,
+			403,
+			"Only the ride organizer can invite riders",
+			"RIDE_INVITE_FORBIDDEN",
+		);
+	}
+
+	if (String(ride.status).toUpperCase() === "COMPLETED") {
+		return formatError(
+			res,
+			400,
+			"Cannot invite riders to an ended ride",
+			"RIDE_ALREADY_COMPLETED",
+		);
+	}
+
+	const invitedRiderIds = Array.isArray(req.body.invitedRiderIds)
+		? Array.from(
+				new Set(
+					req.body.invitedRiderIds.filter(
+						(value) => typeof value === "string" && value.length > 0,
+					),
+				),
+			)
+		: [];
+
+	if (invitedRiderIds.length === 0) {
+		return formatError(
+			res,
+			400,
+			"invitedRiderIds must be a non-empty array",
+			"RIDE_INVITE_BAD_PAYLOAD",
+		);
+	}
+
+	const existingParticipants = await RideParticipant.findAll({
+		where: {
+			ride_id: ride.id,
+			rider_id: { [Op.in]: invitedRiderIds },
+		},
+		attributes: ["rider_id", "status"],
+	});
+
+	const existingById = new Map(
+		existingParticipants.map((entry) => [entry.rider_id, entry]),
+	);
+
+	const createdInvites = [];
+	for (const riderId of invitedRiderIds) {
+		if (riderId === req.user.id) {
+			continue;
+		}
+
+		const existing = existingById.get(riderId);
+		if (existing) {
+			if (existing.status === "DECLINED") {
+				existing.status = "INVITED";
+				await existing.save();
+				createdInvites.push(riderId);
+			}
+			continue;
+		}
+
+		await RideParticipant.create({
+			ride_id: ride.id,
+			rider_id: riderId,
+			status: "INVITED",
+		});
+		createdInvites.push(riderId);
+	}
+
+	if (createdInvites.length > 0) {
+		const organizer = await RiderAccount.findByPk(req.user.id, {
+			attributes: ["name", "username"],
+		});
+
+		const organizerName = organizer?.username
+			? `@${organizer.username}`
+			: organizer?.name || "A rider";
+
+		await createNotifications({
+			recipientIds: createdInvites,
+			actorId: req.user.id,
+			type: "RIDE_INVITED",
+			title: `${organizerName} invited you to a ride`,
+			body: "Open the ride room to accept or decline.",
+			entityType: "ride",
+			entityId: ride.id,
+			metadata: {
+				rideId: ride.id,
+				communityId: ride.community_id,
+			},
+		});
+	}
+
+	return res.status(201).json({
+		success: true,
+		data: {
+			rideId: ride.id,
+			invitedCount: createdInvites.length,
+		},
+	});
 };
 
 exports.updateRide = async (req, res) => {

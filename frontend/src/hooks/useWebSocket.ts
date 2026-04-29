@@ -57,6 +57,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 	const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [connectedUrl, setConnectedUrl] = useState<string | null>(null);
+	const [connectionState, setConnectionState] = useState<
+		"idle" | "connecting" | "connected" | "reconnecting" | "disconnected"
+	>(autoConnect ? "connecting" : "idle");
+	const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
 	const wsRef = useRef<WebSocket | null>(null);
 	const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -81,6 +85,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 		}
 
 		setIsConnected(false);
+		setConnectionState("disconnected");
 	}, [clearReconnectTimer]);
 
 	const connect = useCallback(async () => {
@@ -96,12 +101,14 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 		isConnectingRef.current = true;
 		manualCloseRef.current = false;
 		clearReconnectTimer();
+		setConnectionState(reconnectAttempt > 0 ? "reconnecting" : "connecting");
 
 		try {
 			const user = auth?.currentUser;
 			if (!user) {
 				setError("Login required before opening websocket connection.");
 				setIsConnected(false);
+				setConnectionState("disconnected");
 				isConnectingRef.current = false;
 				return false;
 			}
@@ -116,6 +123,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 				setConnectedUrl(wsUrl);
 				setError(null);
 				setIsConnected(true);
+				setReconnectAttempt(0);
+				setConnectionState("connected");
 			};
 
 			ws.onmessage = (event) => {
@@ -131,13 +140,17 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 				isConnectingRef.current = false;
 				setError("WebSocket error occurred.");
 				setIsConnected(false);
+				setConnectionState("disconnected");
 			};
 
 			ws.onclose = () => {
 				isConnectingRef.current = false;
 				setIsConnected(false);
+				setConnectionState("disconnected");
 
 				if (!manualCloseRef.current && reconnectOnClose && autoConnect) {
+					setReconnectAttempt((prev) => prev + 1);
+					setConnectionState("reconnecting");
 					reconnectTimerRef.current = setTimeout(() => {
 						void connect();
 					}, reconnectDelayMs);
@@ -149,6 +162,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 			isConnectingRef.current = false;
 			setIsConnected(false);
 			setError("Failed to connect to websocket server.");
+			setConnectionState("disconnected");
 			return false;
 		}
 	}, [
@@ -156,6 +170,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 		clearReconnectTimer,
 		reconnectDelayMs,
 		reconnectOnClose,
+		reconnectAttempt,
 		url,
 	]);
 
@@ -190,6 +205,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
 	return {
 		isConnected,
+		connectionState,
+		reconnectAttempt,
 		lastMessage,
 		error,
 		connectedUrl,
