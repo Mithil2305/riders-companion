@@ -6,7 +6,20 @@ export type MessageSender = 'me' | 'other';
 export type MessageDelivery = 'sent' | 'delivered' | 'read' | 'failed';
 export type RideInviteStatus = 'pending' | 'joined' | 'rejected';
 
-export interface RideInvitePayload {
+export interface RideInviteRouteInfo {
+  rideTitle?: string;
+  source?: string;
+  destination?: string;
+  startDate?: string;
+  endDate?: string;
+  days?: number;
+  budget?: number;
+  ridePace?: 'calm' | 'balanced' | 'fast';
+  roadPreference?: 'scenic' | 'highway' | 'mixed';
+  meetupNotes?: string;
+}
+
+export interface RideInvitePayload extends RideInviteRouteInfo {
   type: 'ride-invite';
   inviteId: string;
   rideId: string;
