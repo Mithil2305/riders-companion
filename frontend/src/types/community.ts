@@ -44,6 +44,8 @@ export interface RideItem {
 	status?: RideStatusType;
 	statusLabel?: string;
 	isOrganizer?: boolean;
+	organizerId?: string | null;
+	rideType?: "solo" | "group";
 }
 
 export interface CommunityData {

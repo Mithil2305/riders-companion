@@ -38,7 +38,6 @@ type RideDetailsScreenProps = {
 	showBackButton?: boolean;
 	showTypeBadge?: boolean;
 	actionPlacement?: "sticky" | "inline";
-	showSafetySection?: boolean;
 };
 
 const resolveRideType = (
@@ -64,15 +63,11 @@ const formatDateLabel = (value: Date | null) => {
 	});
 };
 
-const titleCase = (value: string) =>
-	value.charAt(0).toUpperCase() + value.slice(1);
-
 export function RideDetailsScreen({
 	forcedRideType,
 	showBackButton = true,
 	showTypeBadge = true,
 	actionPlacement = "sticky",
-	showSafetySection = true,
 }: RideDetailsScreenProps) {
 	const router = useRouter();
 	const params = useLocalSearchParams<{
@@ -242,7 +237,9 @@ export function RideDetailsScreen({
 				setEmergencyContactName(details.emergencyContactName ?? "");
 				setEmergencyContactPhone(details.emergencyContactPhone ?? "");
 				setRideNotes(details.rideNotes ?? "");
-				setPrivacy(details.privacy === "solo" ? "mixed" : details.privacy ?? "mixed");
+				setPrivacy(
+					details.privacy === "solo" ? "mixed" : (details.privacy ?? "mixed"),
+				);
 				setIncludesFood(Boolean(details.includesFood));
 				setIncludesFuel(Boolean(details.includesFuel));
 				setBikeProvided(Boolean(details.bikeProvided));
@@ -379,7 +376,11 @@ export function RideDetailsScreen({
 	);
 
 	const startRideNowOrLater = React.useCallback(
-		async (rideId: string, startIso: string, rideAction: "created" | "updated") => {
+		async (
+			rideId: string,
+			startIso: string,
+			rideAction: "created" | "updated",
+		) => {
 			const startAt = new Date(startIso).getTime();
 			if (Number.isNaN(startAt)) {
 				await RideService.startRide(rideId);
@@ -396,7 +397,9 @@ export function RideDetailsScreen({
 			if (delay <= 0) {
 				await RideService.startRide(rideId);
 				setMessage(
-					rideAction === "updated" ? "Ride updated and started." : "Ride started.",
+					rideAction === "updated"
+						? "Ride updated and started."
+						: "Ride started.",
 				);
 				redirectToLiveScreen(rideId, rideAction);
 				return;
@@ -951,115 +954,11 @@ export function RideDetailsScreen({
 					) : null}
 
 					{selectedType === "group" ? (
-						<>
-							<View style={styles.card}>
-								<Text style={styles.sectionTitle}>Ride preferences</Text>
-								<View style={styles.twoColumnRow}>
-									<View style={styles.column}>
-										<Text style={styles.columnTitle}>Ride pace</Text>
-										<View style={styles.optionWrap}>
-											{(["calm", "balanced", "fast"] as RidePace[]).map((value) =>
-												renderOptionChip(
-													`pace-${value}`,
-													titleCase(value),
-													ridePace === value,
-													() => setRidePace(value),
-												),
-											)}
-										</View>
-									</View>
-									<View style={styles.column}>
-										<Text style={styles.columnTitle}>Road preference</Text>
-										<View style={styles.optionWrap}>
-											{(["scenic", "highway", "mixed"] as RoadPreference[]).map(
-												(value) =>
-													renderOptionChip(
-														`road-${value}`,
-														titleCase(value),
-														roadPreference === value,
-														() => setRoadPreference(value),
-													),
-											)}
-										</View>
-									</View>
-								</View>
-							</View>
-
-							<View style={styles.card}>
-								<Text style={styles.sectionTitle}>Logistics</Text>
-								<View style={styles.switchRow}>
-									<Text style={styles.switchLabel}>Food included</Text>
-									<Switch onValueChange={setIncludesFood} value={includesFood} />
-								</View>
-								<View style={styles.switchRow}>
-									<Text style={styles.switchLabel}>Fuel included</Text>
-									<Switch onValueChange={setIncludesFuel} value={includesFuel} />
-								</View>
-								<View style={styles.switchRow}>
-									<Text style={styles.switchLabel}>Bike provided</Text>
-									<Switch onValueChange={setBikeProvided} value={bikeProvided} />
-								</View>
-								<View style={styles.switchRowLast}>
-									<Text style={styles.switchLabel}>Stay arranged</Text>
-									<Switch onValueChange={setStayArranged} value={stayArranged} />
-								</View>
-								{stayArranged ? (
-									<TextInput
-										multiline
-										onChangeText={setStayDetails}
-										placeholder="Stay details (hotel, check-in, room sharing, etc.)"
-										placeholderTextColor={palette.textSecondary}
-										style={[styles.input, styles.textArea]}
-										value={stayDetails}
-									/>
-								) : null}
-							</View>
-
-							{showSafetySection ? (
-								<View style={styles.card}>
-									<Text style={styles.sectionTitle}>Safety and communication</Text>
-									<TextInput
-										onChangeText={setEmergencyContactName}
-										placeholder="Emergency contact name"
-										placeholderTextColor={palette.textSecondary}
-										style={styles.input}
-										value={emergencyContactName}
-									/>
-									<TextInput
-										keyboardType="phone-pad"
-										onChangeText={setEmergencyContactPhone}
-										placeholder="Emergency contact phone"
-										placeholderTextColor={palette.textSecondary}
-										style={styles.input}
-										value={emergencyContactPhone}
-									/>
-									<TextInput
-										multiline
-										onChangeText={setMeetupNotes}
-										placeholder="Meetup notes (helmet checks, exact landmark, fuel stop before departure)"
-										placeholderTextColor={palette.textSecondary}
-										style={[styles.input, styles.textArea]}
-										value={meetupNotes}
-									/>
-									<TextInput
-										multiline
-										onChangeText={setRideNotes}
-										placeholder="Extra ride notes (weather backup route, regroup points, leader instructions)"
-										placeholderTextColor={palette.textSecondary}
-										style={[styles.input, styles.textArea]}
-										value={rideNotes}
-									/>
-								</View>
-							) : null}
-						</>
-					) : null}
-
-					{selectedType === "group" &&
-					(privacy === "friends" || privacy === "mixed") ? (
 						<View style={styles.card}>
 							<Text style={styles.sectionTitle}>Invite friends</Text>
 							<Text style={styles.helperText}>
-								Tap riders to include in the invite popup before final create.
+								Select riders below, then send the invite from here or during
+								create.
 							</Text>
 							{loadingFriends ? (
 								<ActivityIndicator color={palette.activeBorder} size="small" />
@@ -1081,6 +980,17 @@ export function RideDetailsScreen({
 									</Pressable>
 								);
 							})}
+							<Pressable
+								disabled={selectedFriendIds.length === 0}
+								onPress={() => setShowInvitePopup(true)}
+								style={[
+									styles.inviteNowButton,
+									selectedFriendIds.length === 0 &&
+										styles.inviteNowButtonDisabled,
+								]}
+							>
+								<Text style={styles.inviteNowButtonText}>Invite friends</Text>
+							</Pressable>
 						</View>
 					) : null}
 
@@ -1148,313 +1058,330 @@ const createStyles = (palette: {
 	buttonText: string;
 	overlay: string;
 	shadow: string;
-}) => StyleSheet.create({
-	container: {
-		flex: 1,
-		backgroundColor: palette.bg,
-	},
-	screen: {
-		flex: 1,
-	},
-	scroll: {
-		flex: 1,
-	},
-	scrollContent: {
-		paddingHorizontal: 20,
-		paddingTop: 20,
-		paddingBottom: 140,
-		gap: 24,
-	},
-	headerBlock: {
-		paddingTop: 4,
-	},
-	headerRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-	},
-	headerLeft: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 10,
-	},
-	headerTitle: {
-		fontSize: 30,
-		fontWeight: "700",
-		color: palette.textPrimary,
-	},
-	groupPill: {
-		paddingHorizontal: 12,
-		paddingVertical: 6,
-		borderRadius: 999,
-		backgroundColor: palette.activeBg,
-		borderWidth: 1,
-		borderColor: palette.activeBorder,
-	},
-	groupPillText: {
-		fontSize: 12,
-		fontWeight: "700",
-		color: palette.activeBorder,
-	},
-	subtitle: {
-		marginTop: 4,
-		fontSize: 13,
-		color: palette.textSecondary,
-		lineHeight: 18,
-	},
-	card: {
-		backgroundColor: palette.card,
-		borderWidth: 1,
-		borderColor: palette.border,
-		borderRadius: 16,
-		padding: 16,
-		shadowColor: palette.shadow,
-		shadowOpacity: 0.03,
-		shadowOffset: { width: 0, height: 6 },
-		shadowRadius: 10,
-		elevation: 1,
-		gap: 12,
-	},
-	sectionTitle: {
-		fontSize: 18,
-		fontWeight: "700",
-		color: palette.textPrimary,
-		marginBottom: 4,
-	},
-	input: {
-		height: 48,
-		borderWidth: 1,
-		borderColor: palette.border,
-		borderRadius: 12,
-		paddingHorizontal: 12,
-		backgroundColor: palette.card,
-		justifyContent: "center",
-		fontSize: 14,
-		color: palette.textPrimary,
-	},
-	inputText: {
-		fontSize: 14,
-		color: palette.textPrimary,
-	},
-	inputPlaceholder: {
-		color: palette.textSecondary,
-	},
-	textArea: {
-		minHeight: 100,
-		height: 100,
-		paddingTop: 12,
-		textAlignVertical: "top",
-	},
-	rowTwoInputs: {
-		flexDirection: "row",
-		alignItems: "flex-start",
-		gap: 12,
-	},
-	flexInput: {
-		flex: 1,
-	},
-	helperText: {
-		flex: 1,
-		fontSize: 12,
-		lineHeight: 17,
-		color: palette.textSecondary,
-		paddingTop: 8,
-	},
-	optionWrap: {
-		flexDirection: "row",
-		flexWrap: "wrap",
-		gap: 8,
-	},
-	optionChip: {
-		paddingVertical: 8,
-		paddingHorizontal: 16,
-		borderRadius: 20,
-		borderWidth: 1,
-		borderColor: palette.border,
-		backgroundColor: palette.card,
-		alignItems: "center",
-		justifyContent: "center",
-	},
-	optionChipSelected: {
-		backgroundColor: palette.activeBg,
-		borderColor: palette.activeBorder,
-	},
-	optionChipText: {
-		fontSize: 13,
-		fontWeight: "600",
-		color: palette.textSecondary,
-	},
-	optionChipTextSelected: {
-		color: palette.activeText,
-	},
-	twoColumnRow: {
-		flexDirection: "row",
-		gap: 12,
-		alignItems: "flex-start",
-	},
-	column: {
-		flex: 1,
-		gap: 10,
-	},
-	columnTitle: {
-		fontSize: 15,
-		fontWeight: "700",
-		color: palette.textPrimary,
-	},
-	switchRow: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		paddingVertical: 12,
-		borderBottomWidth: 1,
-		borderBottomColor: palette.border,
-	},
-	switchRowLast: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		paddingVertical: 12,
-	},
-	switchLabel: {
-		fontSize: 14,
-		color: palette.textPrimary,
-		fontWeight: "500",
-	},
-	friendItem: {
-		paddingVertical: 12,
-		paddingHorizontal: 12,
-		borderRadius: 12,
-		borderWidth: 1,
-		borderColor: palette.border,
-		backgroundColor: palette.card,
-		gap: 2,
-	},
-	friendItemSelected: {
-		backgroundColor: palette.activeBg,
-		borderColor: palette.activeBorder,
-	},
-	friendName: {
-		fontSize: 14,
-		fontWeight: "600",
-		color: palette.textPrimary,
-	},
-	friendHandle: {
-		fontSize: 12,
-		color: palette.textSecondary,
-	},
-	message: {
-		fontSize: 13,
-		fontWeight: "600",
-		lineHeight: 20,
-		color: palette.activeBorder,
-	},
-	inlineActionWrap: {
-		paddingTop: 4,
-		paddingBottom: 8,
-	},
-	suggestionWrap: {
-		borderWidth: 1,
-		borderColor: palette.border,
-		borderRadius: 12,
-		overflow: "hidden",
-	},
-	suggestionItem: {
-		paddingVertical: 10,
-		paddingHorizontal: 12,
-		backgroundColor: palette.card,
-		borderBottomWidth: 1,
-		borderBottomColor: palette.border,
-	},
-	suggestionText: {
-		fontSize: 13,
-		color: palette.textPrimary,
-	},
-	footer: {
-		position: "absolute",
-		left: 0,
-		right: 0,
-		bottom: 0,
-		paddingHorizontal: 20,
-		paddingTop: 12,
-		paddingBottom: 14,
-		backgroundColor: palette.card,
-		borderTopWidth: 1,
-		borderTopColor: palette.border,
-		shadowColor: palette.shadow,
-		shadowOpacity: 0.06,
-		shadowOffset: { width: 0, height: -2 },
-		shadowRadius: 8,
-		elevation: 6,
-	},
-	createButton: {
-		height: 56,
-		borderRadius: 12,
-		backgroundColor: palette.button,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	createButtonText: {
-		fontSize: 17,
-		fontWeight: "700",
-		color: palette.buttonText,
-	},
-	modalOverlay: {
-		flex: 1,
-		backgroundColor: palette.overlay,
-		justifyContent: "center",
-		paddingHorizontal: 20,
-	},
-	modalCard: {
-		backgroundColor: palette.card,
-		borderWidth: 1,
-		borderColor: palette.border,
-		borderRadius: 16,
-		padding: 16,
-		gap: 12,
-	},
-	modalTitle: {
-		fontSize: 18,
-		fontWeight: "700",
-		color: palette.textPrimary,
-	},
-	modalText: {
-		fontSize: 14,
-		lineHeight: 20,
-		color: palette.textSecondary,
-	},
-	modalActions: {
-		flexDirection: "row",
-		gap: 10,
-	},
-	modalAction: {
-		flex: 1,
-		height: 44,
-		borderRadius: 12,
-		borderWidth: 1,
-		borderColor: palette.border,
-		justifyContent: "center",
-		alignItems: "center",
-		backgroundColor: palette.card,
-	},
-	modalActionPrimary: {
-		borderColor: palette.activeBorder,
-		backgroundColor: palette.activeBg,
-	},
-	modalActionText: {
-		fontSize: 14,
-		fontWeight: "600",
-		color: palette.textPrimary,
-	},
-	modalActionTextPrimary: {
-		color: palette.activeText,
-	},
-	modalSecondaryAction: {
-		height: 44,
-		borderRadius: 12,
-		borderWidth: 1,
-		borderColor: palette.border,
-		justifyContent: "center",
-		alignItems: "center",
-		backgroundColor: palette.card,
-	},
-});
+}) =>
+	StyleSheet.create({
+		container: {
+			flex: 1,
+			backgroundColor: palette.bg,
+		},
+		screen: {
+			flex: 1,
+		},
+		scroll: {
+			flex: 1,
+		},
+		scrollContent: {
+			paddingHorizontal: 20,
+			paddingTop: 20,
+			paddingBottom: 140,
+			gap: 24,
+		},
+		headerBlock: {
+			paddingTop: 4,
+		},
+		headerRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+		},
+		headerLeft: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: 10,
+		},
+		headerTitle: {
+			fontSize: 30,
+			fontWeight: "700",
+			color: palette.textPrimary,
+		},
+		groupPill: {
+			paddingHorizontal: 12,
+			paddingVertical: 6,
+			borderRadius: 999,
+			backgroundColor: palette.activeBg,
+			borderWidth: 1,
+			borderColor: palette.activeBorder,
+		},
+		groupPillText: {
+			fontSize: 12,
+			fontWeight: "700",
+			color: palette.activeBorder,
+		},
+		subtitle: {
+			marginTop: 4,
+			fontSize: 13,
+			color: palette.textSecondary,
+			lineHeight: 18,
+		},
+		card: {
+			backgroundColor: palette.card,
+			borderWidth: 1,
+			borderColor: palette.border,
+			borderRadius: 16,
+			padding: 16,
+			shadowColor: palette.shadow,
+			shadowOpacity: 0.03,
+			shadowOffset: { width: 0, height: 6 },
+			shadowRadius: 10,
+			elevation: 1,
+			gap: 12,
+		},
+		sectionTitle: {
+			fontSize: 18,
+			fontWeight: "700",
+			color: palette.textPrimary,
+			marginBottom: 4,
+		},
+		input: {
+			height: 48,
+			borderWidth: 1,
+			borderColor: palette.border,
+			borderRadius: 12,
+			paddingHorizontal: 12,
+			backgroundColor: palette.card,
+			justifyContent: "center",
+			fontSize: 14,
+			color: palette.textPrimary,
+		},
+		inputText: {
+			fontSize: 14,
+			color: palette.textPrimary,
+		},
+		inputPlaceholder: {
+			color: palette.textSecondary,
+		},
+		textArea: {
+			minHeight: 100,
+			height: 100,
+			paddingTop: 12,
+			textAlignVertical: "top",
+		},
+		rowTwoInputs: {
+			flexDirection: "row",
+			alignItems: "flex-start",
+			gap: 12,
+		},
+		flexInput: {
+			flex: 1,
+		},
+		helperText: {
+			flex: 1,
+			fontSize: 12,
+			lineHeight: 17,
+			color: palette.textSecondary,
+			paddingTop: 8,
+		},
+		inviteNowButton: {
+			height: 48,
+			borderRadius: 14,
+			marginTop: 12,
+			alignItems: "center",
+			justifyContent: "center",
+			backgroundColor: palette.button,
+		},
+		inviteNowButtonDisabled: {
+			opacity: 0.45,
+		},
+		inviteNowButtonText: {
+			fontSize: 14,
+			fontWeight: "700",
+			color: palette.buttonText,
+		},
+		optionWrap: {
+			flexDirection: "row",
+			flexWrap: "wrap",
+			gap: 8,
+		},
+		optionChip: {
+			paddingVertical: 8,
+			paddingHorizontal: 16,
+			borderRadius: 20,
+			borderWidth: 1,
+			borderColor: palette.border,
+			backgroundColor: palette.card,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		optionChipSelected: {
+			backgroundColor: palette.activeBg,
+			borderColor: palette.activeBorder,
+		},
+		optionChipText: {
+			fontSize: 13,
+			fontWeight: "600",
+			color: palette.textSecondary,
+		},
+		optionChipTextSelected: {
+			color: palette.activeText,
+		},
+		twoColumnRow: {
+			flexDirection: "row",
+			gap: 12,
+			alignItems: "flex-start",
+		},
+		column: {
+			flex: 1,
+			gap: 10,
+		},
+		columnTitle: {
+			fontSize: 15,
+			fontWeight: "700",
+			color: palette.textPrimary,
+		},
+		switchRow: {
+			flexDirection: "row",
+			justifyContent: "space-between",
+			alignItems: "center",
+			paddingVertical: 12,
+			borderBottomWidth: 1,
+			borderBottomColor: palette.border,
+		},
+		switchRowLast: {
+			flexDirection: "row",
+			justifyContent: "space-between",
+			alignItems: "center",
+			paddingVertical: 12,
+		},
+		switchLabel: {
+			fontSize: 14,
+			color: palette.textPrimary,
+			fontWeight: "500",
+		},
+		friendItem: {
+			paddingVertical: 12,
+			paddingHorizontal: 12,
+			borderRadius: 12,
+			borderWidth: 1,
+			borderColor: palette.border,
+			backgroundColor: palette.card,
+			gap: 2,
+		},
+		friendItemSelected: {
+			backgroundColor: palette.activeBg,
+			borderColor: palette.activeBorder,
+		},
+		friendName: {
+			fontSize: 14,
+			fontWeight: "600",
+			color: palette.textPrimary,
+		},
+		friendHandle: {
+			fontSize: 12,
+			color: palette.textSecondary,
+		},
+		message: {
+			fontSize: 13,
+			fontWeight: "600",
+			lineHeight: 20,
+			color: palette.activeBorder,
+		},
+		inlineActionWrap: {
+			paddingTop: 4,
+			paddingBottom: 8,
+		},
+		suggestionWrap: {
+			borderWidth: 1,
+			borderColor: palette.border,
+			borderRadius: 12,
+			overflow: "hidden",
+		},
+		suggestionItem: {
+			paddingVertical: 10,
+			paddingHorizontal: 12,
+			backgroundColor: palette.card,
+			borderBottomWidth: 1,
+			borderBottomColor: palette.border,
+		},
+		suggestionText: {
+			fontSize: 13,
+			color: palette.textPrimary,
+		},
+		footer: {
+			position: "absolute",
+			left: 0,
+			right: 0,
+			bottom: 0,
+			paddingHorizontal: 20,
+			paddingTop: 12,
+			paddingBottom: 14,
+			backgroundColor: palette.card,
+			borderTopWidth: 1,
+			borderTopColor: palette.border,
+			shadowColor: palette.shadow,
+			shadowOpacity: 0.06,
+			shadowOffset: { width: 0, height: -2 },
+			shadowRadius: 8,
+			elevation: 6,
+		},
+		createButton: {
+			height: 56,
+			borderRadius: 12,
+			backgroundColor: palette.button,
+			justifyContent: "center",
+			alignItems: "center",
+		},
+		createButtonText: {
+			fontSize: 17,
+			fontWeight: "700",
+			color: palette.buttonText,
+		},
+		modalOverlay: {
+			flex: 1,
+			backgroundColor: palette.overlay,
+			justifyContent: "center",
+			paddingHorizontal: 20,
+		},
+		modalCard: {
+			backgroundColor: palette.card,
+			borderWidth: 1,
+			borderColor: palette.border,
+			borderRadius: 16,
+			padding: 16,
+			gap: 12,
+		},
+		modalTitle: {
+			fontSize: 18,
+			fontWeight: "700",
+			color: palette.textPrimary,
+		},
+		modalText: {
+			fontSize: 14,
+			lineHeight: 20,
+			color: palette.textSecondary,
+		},
+		modalActions: {
+			flexDirection: "row",
+			gap: 10,
+		},
+		modalAction: {
+			flex: 1,
+			height: 44,
+			borderRadius: 12,
+			borderWidth: 1,
+			borderColor: palette.border,
+			justifyContent: "center",
+			alignItems: "center",
+			backgroundColor: palette.card,
+		},
+		modalActionPrimary: {
+			borderColor: palette.activeBorder,
+			backgroundColor: palette.activeBg,
+		},
+		modalActionText: {
+			fontSize: 14,
+			fontWeight: "600",
+			color: palette.textPrimary,
+		},
+		modalActionTextPrimary: {
+			color: palette.activeText,
+		},
+		modalSecondaryAction: {
+			height: 44,
+			borderRadius: 12,
+			borderWidth: 1,
+			borderColor: palette.border,
+			justifyContent: "center",
+			alignItems: "center",
+			backgroundColor: palette.card,
+		},
+	});
