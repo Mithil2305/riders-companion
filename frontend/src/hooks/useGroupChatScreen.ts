@@ -1,26 +1,24 @@
-import { useEffect, useRef, useState } from "react";
-import useWebSocket from "./useWebSocket";
-import useLocation from "./useLocation";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useWebSocket } from "./useWebSocket";
+import { useLocation } from "./useLocation";
+import { useAuth } from "../contexts/AuthContext";
 import RideService from "../services/RideService";
 import ChatService from "../services/ChatService";
-import { v4 as uuidv4 } from "uuid";
+import TrackerService from "../services/TrackerService";
+import ProfileService from "../services/ProfileService";
 import {
 	RiderLocation,
 	RideSnapshot,
-	GroupSocketEnvelope,
+	GroupChatItem,
+	GroupRideMember,
+	InviteFriendItem,
+	InviteActionState,
+	RideRouteMeta,
 } from "../types/groupChat";
-import { useAuth } from "../contexts/AuthContext";
-import { useLocation } from "./useLocation";
-import { useWebSocket } from "./useWebSocket";
-import ChatService from "../services/ChatService";
-import RideService from "../services/RideService";
-import TrackerService from "../services/TrackerService";
-import ProfileService from "../services/ProfileService";
 import {
 	createRideInvitePayload,
 	serializeRideInviteMessage,
 } from "../utils/rideInviteMessage";
-import type { RideInviteRouteInfo } from "../types/chat";
 
 const AVATAR_MAP: Record<string, string> = {
 	SARAH: "https://randomuser.me/api/portraits/women/65.jpg",
@@ -28,47 +26,10 @@ const AVATAR_MAP: Record<string, string> = {
 	CAMERON: "https://i.pravatar.cc/120?img=33",
 };
 
-const LOCATION_REFRESH_MINUTES = 15;
+const LOCATION_SEND_MIN_INTERVAL_MS = 2200;
+const LOCATION_SEND_MIN_DISTANCE_METERS = 4;
 
-const SAMPLE_RIDER_LOCATIONS: RiderLocation[] = [
-	{
-		riderId: "sample-r1",
-		name: "Gandhipuram",
-		latitude: 11.0183,
-		longitude: 76.9671,
-		updatedAt: new Date().toISOString(),
-	},
-	{
-		riderId: "sample-r2",
-		name: "Perur",
-		latitude: 10.9756,
-		longitude: 76.9128,
-		updatedAt: new Date().toISOString(),
-	},
-	{
-		riderId: "sample-r3",
-		name: "Race Course",
-		latitude: 11.0017,
-		longitude: 76.9619,
-		updatedAt: new Date().toISOString(),
-	},
-	{
-		riderId: "sample-r4",
-		name: "RS Puram",
-		latitude: 11.0096,
-		longitude: 76.9496,
-		updatedAt: new Date().toISOString(),
-	},
-	{
-		riderId: "sample-r5",
-		name: "Kuniyamuthur",
-		latitude: 10.9681,
-		longitude: 76.9551,
-		updatedAt: new Date().toISOString(),
-	},
-];
-
-const avatarForName = (name: string) => {
+const avatarForName = (name: string): string => {
 	const mapped = AVATAR_MAP[name.toUpperCase()];
 	if (mapped) {
 		return mapped;
@@ -77,6 +38,36 @@ const avatarForName = (name: string) => {
 	return `https://ui-avatars.com/api/?name=${encodeURIComponent(
 		name,
 	)}&background=0D8ABC&color=fff`;
+};
+
+const toClockTime = (isoDate: string): string => {
+	const date = new Date(isoDate);
+	if (Number.isNaN(date.getTime())) {
+		return "";
+	}
+
+	const hour = `${date.getHours()}`.padStart(2, "0");
+	const minute = `${date.getMinutes()}`.padStart(2, "0");
+	return `${hour}:${minute}`;
+};
+
+const haversineMeters = (
+	from: { latitude: number; longitude: number },
+	to: { latitude: number; longitude: number },
+): number => {
+	const toRad = (value: number) => (value * Math.PI) / 180;
+	const earthRadius = 6371000;
+
+	const dLat = toRad(to.latitude - from.latitude);
+	const dLon = toRad(to.longitude - from.longitude);
+	const a =
+		Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+		Math.cos(toRad(from.latitude)) *
+			Math.cos(toRad(to.latitude)) *
+			Math.sin(dLon / 2) *
+			Math.sin(dLon / 2);
+	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+	return earthRadius * c;
 };
 
 const normalizeToInviteFriendItem = (
@@ -118,27 +109,142 @@ const normalizeToInviteFriendItem = (
 	return { id, name, username: rawUsername || undefined, avatar };
 };
 
-const toClockTime = (isoDate: string) => {
-	const date = new Date(isoDate);
-	if (Number.isNaN(date.getTime())) {
-		return "";
+const normalizeRiderLocation = (
+	value: unknown,
+	fallbackRideId: string,
+): RiderLocation | null => {
+	if (!value || typeof value !== "object") {
+		return null;
 	}
 
-	const hour = `${date.getHours()}`.padStart(2, "0");
-	const minute = `${date.getMinutes()}`.padStart(2, "0");
-	return `${hour}:${minute}`;
+	const record = value as Record<string, unknown>;
+	if (
+		typeof record.riderId !== "string" ||
+		typeof record.latitude !== "number" ||
+		typeof record.longitude !== "number"
+	) {
+		return null;
+	}
+
+	const timestamp =
+		typeof record.timestamp === "string"
+			? record.timestamp
+			: typeof record.updatedAt === "string"
+				? record.updatedAt
+				: new Date().toISOString();
+
+	const rideId =
+		typeof record.rideId === "string" && record.rideId.length > 0
+			? record.rideId
+			: fallbackRideId;
+
+	return {
+		rideId,
+		riderId: record.riderId,
+		name:
+			typeof record.name === "string" && record.name.trim().length > 0
+				? record.name
+				: "Rider",
+		username: typeof record.username === "string" ? record.username : null,
+		latitude: record.latitude,
+		longitude: record.longitude,
+		deviceSpeedKmh:
+			typeof record.deviceSpeedKmh === "number" ? record.deviceSpeedKmh : null,
+		speed: typeof record.speed === "number" ? record.speed : null,
+		averageSpeedKmh:
+			typeof record.averageSpeedKmh === "number"
+				? record.averageSpeedKmh
+				: null,
+		heading: typeof record.heading === "number" ? record.heading : null,
+		accuracy: typeof record.accuracy === "number" ? record.accuracy : null,
+		altitude: typeof record.altitude === "number" ? record.altitude : null,
+		timestamp,
+		updatedAt:
+			typeof record.updatedAt === "string" ? record.updatedAt : timestamp,
+		isLeader: Boolean(record.isLeader),
+		isOnline:
+			typeof record.isOnline === "boolean" ? record.isOnline : undefined,
+		rideStatus:
+			typeof record.rideStatus === "string" ? record.rideStatus : undefined,
+		participantStatus:
+			typeof record.participantStatus === "string"
+				? record.participantStatus
+				: undefined,
+	};
 };
 
-const ENDED_ROOM_IDS = new Set(["3"]);
+const normalizeRoute = (value: unknown): RideRouteMeta => {
+	const fallback: RideRouteMeta = {
+		source: null,
+		destination: null,
+		sourceCoordinates: null,
+		destinationCoordinates: null,
+		routePolyline: [],
+	};
+
+	if (!value || typeof value !== "object") {
+		return fallback;
+	}
+
+	const route = value as Record<string, unknown>;
+	const sourceCoordinates =
+		route.sourceCoordinates &&
+		typeof route.sourceCoordinates === "object" &&
+		typeof (route.sourceCoordinates as Record<string, unknown>).latitude ===
+			"number" &&
+		typeof (route.sourceCoordinates as Record<string, unknown>).longitude ===
+			"number"
+			? {
+					latitude: (route.sourceCoordinates as Record<string, unknown>)
+						.latitude as number,
+					longitude: (route.sourceCoordinates as Record<string, unknown>)
+						.longitude as number,
+				}
+			: null;
+
+	const destinationCoordinates =
+		route.destinationCoordinates &&
+		typeof route.destinationCoordinates === "object" &&
+		typeof (route.destinationCoordinates as Record<string, unknown>)
+			.latitude === "number" &&
+		typeof (route.destinationCoordinates as Record<string, unknown>)
+			.longitude === "number"
+			? {
+					latitude: (route.destinationCoordinates as Record<string, unknown>)
+						.latitude as number,
+					longitude: (route.destinationCoordinates as Record<string, unknown>)
+						.longitude as number,
+				}
+			: null;
+
+	const routePolyline = Array.isArray(route.routePolyline)
+		? route.routePolyline.filter(
+				(point): point is { latitude: number; longitude: number } =>
+					typeof point === "object" &&
+					point !== null &&
+					typeof (point as Record<string, unknown>).latitude === "number" &&
+					typeof (point as Record<string, unknown>).longitude === "number",
+			)
+		: [];
+
+	return {
+		source: typeof route.source === "string" ? route.source : null,
+		destination:
+			typeof route.destination === "string" ? route.destination : null,
+		sourceCoordinates,
+		destinationCoordinates,
+		routePolyline,
+	};
+};
 
 const mapApiMessageToGroupItem = (
-	entry: any,
+	entry: Record<string, unknown>,
 	currentUserId?: string,
 ): GroupChatItem | null => {
 	const text =
-		typeof entry?.message === "string" && entry.message.trim().length > 0
+		typeof entry.message === "string" && entry.message.trim().length > 0
 			? entry.message
-			: typeof entry?.encryptedPayload === "string" &&
+			: typeof entry.encryptedPayload === "string" &&
 				  entry.encryptedPayload.trim().length > 0
 				? entry.encryptedPayload
 				: null;
@@ -147,13 +253,13 @@ const mapApiMessageToGroupItem = (
 		return null;
 	}
 
-	const senderId = typeof entry?.senderId === "string" ? entry.senderId : null;
+	const senderId = typeof entry.senderId === "string" ? entry.senderId : null;
 	const senderName =
-		typeof entry?.senderName === "string" && entry.senderName.trim().length > 0
+		typeof entry.senderName === "string" && entry.senderName.trim().length > 0
 			? entry.senderName
 			: "Rider";
 	const createdAt =
-		typeof entry?.createdAt === "string"
+		typeof entry.createdAt === "string"
 			? entry.createdAt
 			: new Date().toISOString();
 
@@ -163,31 +269,21 @@ const mapApiMessageToGroupItem = (
 			kind: "outgoing",
 			message: text,
 			time: toClockTime(createdAt),
+			createdAt,
+			status: "sent",
 		};
 	}
 
 	return {
 		id: String(entry.id ?? `in-${Date.now()}-${Math.random()}`),
 		kind: "incoming",
+		senderId: senderId ?? undefined,
 		senderName: senderName.toUpperCase(),
 		message: text,
 		avatar: avatarForName(senderName),
 		time: toClockTime(createdAt),
+		createdAt,
 	};
-};
-
-const upsertRiderLocation = (
-	prev: RiderLocation[],
-	nextEntry: RiderLocation,
-): RiderLocation[] => {
-	const idx = prev.findIndex((item) => item.riderId === nextEntry.riderId);
-	if (idx === -1) {
-		return [...prev, nextEntry];
-	}
-
-	const updated = [...prev];
-	updated[idx] = nextEntry;
-	return updated;
 };
 
 export function useGroupChatScreen(
@@ -196,7 +292,14 @@ export function useGroupChatScreen(
 	initialRoomName?: string,
 ) {
 	const { user } = useAuth();
-	const { location, startWatching, getCurrentLocation } = useLocation({
+	const {
+		location,
+		startWatching,
+		stopWatching,
+		getCurrentLocation,
+		hasPermission,
+		error: locationError,
+	} = useLocation({
 		autoRequest: false,
 	});
 
@@ -204,73 +307,133 @@ export function useGroupChatScreen(
 		isConnected,
 		lastMessage,
 		sendMessage: sendWsMessage,
+		connectionState,
 	} = useWebSocket();
 
-	const [menuVisible, setMenuVisible] = React.useState(false);
-	const [inviteVisible, setInviteVisible] = React.useState(false);
-	const [isRideEnded, setIsRideEnded] = React.useState(
-		initialStatus === "ended" || ENDED_ROOM_IDS.has(roomId),
+	const [menuVisible, setMenuVisible] = useState(false);
+	const [inviteVisible, setInviteVisible] = useState(false);
+	const [isRideEnded, setIsRideEnded] = useState(initialStatus === "ended");
+	const [locationEnabled, setLocationEnabled] = useState(
+		initialStatus !== "ended",
 	);
-	const [locationEnabled, setLocationEnabled] = React.useState(
-		!(initialStatus === "ended" || ENDED_ROOM_IDS.has(roomId)),
-	);
-	const [inviteLoading, setInviteLoading] = React.useState(false);
-	const [inviteStateByFriendId, setInviteStateByFriendId] = React.useState<
+	const [inviteLoading, setInviteLoading] = useState(false);
+	const [inviteStateByFriendId, setInviteStateByFriendId] = useState<
 		Record<string, InviteActionState>
 	>({});
-	const [inviteCandidates, setInviteCandidates] = React.useState<
-		InviteFriendItem[]
-	>([]);
-	const [inviteSearchQuery, setInviteSearchQuery] = React.useState("");
-	const [inviteSearchResults, setInviteSearchResults] = React.useState<
-		InviteFriendItem[]
-	>([]);
-	const [isInviteSearching, setIsInviteSearching] = React.useState(false);
-	const [isAdmin, setIsAdmin] = React.useState(false);
-	const [draft, setDraft] = React.useState("");
-	const [messages, setMessages] = React.useState<GroupChatItem[]>([]);
-	const [riderLocations, setRiderLocations] = React.useState<RiderLocation[]>(
+	const [inviteCandidates, setInviteCandidates] = useState<InviteFriendItem[]>(
 		[],
 	);
-	const [locationsLastUpdatedAt, setLocationsLastUpdatedAt] = React.useState<
+	const [inviteSearchQuery, setInviteSearchQuery] = useState("");
+	const [inviteSearchResults, setInviteSearchResults] = useState<
+		InviteFriendItem[]
+	>([]);
+	const [isInviteSearching, setIsInviteSearching] = useState(false);
+	const [isAdmin, setIsAdmin] = useState(false);
+	const [draft, setDraft] = useState("");
+	const [messages, setMessages] = useState<GroupChatItem[]>([]);
+	const [riderLocations, setRiderLocations] = useState<RiderLocation[]>([]);
+	const [locationsLastUpdatedAt, setLocationsLastUpdatedAt] = useState<
 		string | null
 	>(null);
-	const [locationsRefreshMinutes, setLocationsRefreshMinutes] = React.useState(
-		LOCATION_REFRESH_MINUTES,
-	);
-	const [roomTitle, setRoomTitle] = React.useState(
+	const [roomTitle, setRoomTitle] = useState(
 		initialRoomName && initialRoomName.trim().length > 0
 			? initialRoomName
 			: `Ride Room ${roomId}`,
 	);
-	const [roomSubtitle, setRoomSubtitle] = React.useState("0 online • 0 riders");
-	const [rideSourceLabel, setRideSourceLabel] =
-		React.useState("Current location");
+	const [roomSubtitle, setRoomSubtitle] = useState("Connecting...");
+	const [rideSourceLabel, setRideSourceLabel] = useState("Current location");
 	const [rideDestinationLabel, setRideDestinationLabel] =
-		React.useState("Destination");
-	const [rideInviteDetails, setRideInviteDetails] =
-		React.useState<RideInviteRouteInfo | null>(null);
-	const [rideStatus, setRideStatus] = React.useState<string>("PENDING");
-	const [rideMembers, setRideMembers] = React.useState<GroupRideMember[]>([]);
+		useState("Destination");
+	const [rideRoute, setRideRoute] = useState<RideRouteMeta>(() =>
+		normalizeRoute(undefined),
+	);
+	const [rideStatus, setRideStatus] = useState<string>("PENDING");
+	const [rideMembers, setRideMembers] = useState<GroupRideMember[]>([]);
 	const [organizerProfile, setOrganizerProfile] =
-		React.useState<GroupRideMember | null>(null);
+		useState<GroupRideMember | null>(null);
+	const [mapLoading, setMapLoading] = useState(true);
+	const [mapError, setMapError] = useState<string | null>(null);
+	const [typingRiders, setTypingRiders] = useState<string[]>([]);
 
-	const typingStateRef = React.useRef(false);
+	const knownMessageIdsRef = useRef<Set<string>>(new Set());
+	const typingStateRef = useRef(false);
+	const lastLocationSentAtRef = useRef(0);
+	const lastSentCoordRef = useRef<{
+		latitude: number;
+		longitude: number;
+	} | null>(null);
+	const previousConnectionRef = useRef(false);
 
-	const closeMenu = React.useCallback(() => setMenuVisible(false), []);
-	const openMenu = React.useCallback(() => setMenuVisible(true), []);
-	const openInvite = React.useCallback(() => setInviteVisible(true), []);
-	const closeInvite = React.useCallback(() => setInviteVisible(false), []);
+	const closeMenu = useCallback(() => setMenuVisible(false), []);
+	const openMenu = useCallback(() => setMenuVisible(true), []);
+	const openInvite = useCallback(() => setInviteVisible(true), []);
+	const closeInvite = useCallback(() => setInviteVisible(false), []);
 
-	React.useEffect(() => {
-		const ended = initialStatus === "ended" || ENDED_ROOM_IDS.has(roomId);
-		setIsRideEnded(ended);
-		if (ended) {
-			setLocationEnabled(false);
+	const applySnapshot = useCallback(
+		(snapshot: RideSnapshot) => {
+			setRideStatus(String(snapshot.rideStatus || "PENDING").toUpperCase());
+			setRideRoute(normalizeRoute(snapshot.route));
+			setRideSourceLabel(snapshot.route.source || "Current location");
+			setRideDestinationLabel(snapshot.route.destination || "Destination");
+
+			const locations = snapshot.locations
+				.map((entry: any) => normalizeRiderLocation(entry, roomId))
+				.filter(
+					(entry): entry is RiderLocation => entry !== null,
+				) as RiderLocation[];
+			setRideMembers((prev) => {
+				const map = new Map<string, GroupRideMember>();
+				prev.forEach((member) => map.set(member.id, member));
+
+				snapshot.participants.forEach((participant) => {
+					const existing = map.get(participant.riderId);
+					const location = locations.find(
+						(l) => l.riderId === participant.riderId,
+					);
+
+					map.set(participant.riderId, {
+						id: participant.riderId,
+						name: participant.name,
+						username: participant.username,
+						avatar: avatarForName(participant.name),
+						bio: "",
+						status: participant.participantStatus || "active",
+						isOrganizer: participant.isLeader ?? false,
+						isFollowing: existing?.isFollowing ?? false,
+						isOnline: location?.isOnline ?? true,
+						distanceFromLeaderMeters:
+							location && lastSentCoordRef.current
+								? haversineMeters(lastSentCoordRef.current, location)
+								: null,
+					});
+				});
+
+				return [...map.values()];
+			});
+
+			setMapError(null);
+			setMapLoading(false);
+		},
+		[roomId],
+	);
+
+	const requestSnapshot = useCallback(async () => {
+		setMapLoading(true);
+		setMapError(null);
+
+		try {
+			const response = await RideService.getRideSnapshot(roomId);
+			if (response.snapshot) {
+				applySnapshot(response.snapshot);
+			}
+		} catch {
+			setMapError("Unable to load ride snapshot. Pull to retry or reconnect.");
+			setMapLoading(false);
 		}
-	}, [initialStatus, roomId]);
+	}, [applySnapshot, roomId]);
 
-	React.useEffect(() => {
+	// Initialize room data
+	useEffect(() => {
 		let isMounted = true;
 		const sanitizedInitialRoomName =
 			typeof initialRoomName === "string" && initialRoomName.trim().length > 0
@@ -278,70 +441,103 @@ export function useGroupChatScreen(
 				: null;
 
 		setMessages([]);
-		setRiderLocations(SAMPLE_RIDER_LOCATIONS);
+		setRiderLocations([]);
 		setLocationsLastUpdatedAt(null);
 		setRideMembers([]);
 		setOrganizerProfile(null);
-		setRideSourceLabel("Current location");
-		setRideDestinationLabel("Destination");
-		setRideInviteDetails(null);
 		setInviteStateByFriendId({});
 		setRoomTitle(sanitizedInitialRoomName ?? `Ride Room ${roomId}`);
+		knownMessageIdsRef.current.clear();
 
-		ChatService.getRoomMessages(roomId)
+		void ChatService.getRoomMessages(roomId)
 			.then((response) => {
-				if (!isMounted) {
-					return;
-				}
+				if (!isMounted) return;
 
 				const mapped = (response.messages || [])
-					.map((entry) => mapApiMessageToGroupItem(entry, user?.id))
+					.map((entry) =>
+						mapApiMessageToGroupItem(
+							entry as Record<string, unknown>,
+							user?.id,
+						),
+					)
 					.filter(Boolean) as GroupChatItem[];
 
 				setMessages(mapped);
 			})
 			.catch(() => {
-				if (!isMounted) {
-					return;
-				}
-
+				if (!isMounted) return;
 				setMessages([]);
 			});
 
-		ChatService.getRooms()
+		void RideService.getRideById(roomId)
 			.then((response) => {
-				if (!isMounted) {
-					return;
-				}
+				if (!isMounted) return;
 
-				const room = (response.communities || []).find(
-					(entry) => String(entry.id) === roomId,
-				);
+				setIsAdmin(Boolean(response.ride?.isOrganizer));
 
 				if (
-					room &&
-					typeof room.name === "string" &&
-					room.name.trim().length > 0
+					typeof response.ride?.communityName === "string" &&
+					response.ride.communityName.trim().length > 0
 				) {
-					setRoomTitle(room.name);
-					setRoomSubtitle(`Room #${roomId}`);
-					return;
+					setRoomTitle(response.ride.communityName);
 				}
 
-				setRoomTitle(sanitizedInitialRoomName ?? `Ride Room ${roomId}`);
-				setRoomSubtitle("Live rider updates");
+				setRideSourceLabel(
+					typeof response.ride?.details?.source === "string" &&
+						response.ride.details.source.trim().length > 0
+						? response.ride.details.source
+						: "Current location",
+				);
+				setRideDestinationLabel(
+					typeof response.ride?.details?.destination === "string" &&
+						response.ride.details.destination.trim().length > 0
+						? response.ride.details.destination
+						: "Destination",
+				);
+
+				const members = Array.isArray(response.ride?.riderProfiles)
+					? response.ride.riderProfiles.map((member: any) => ({
+							id: member.id,
+							name: member.name,
+							username: member.username,
+							avatar: member.avatar || avatarForName(member.name),
+							bio: member.bio || "",
+							status: member.status || "active",
+							isOrganizer: Boolean(member.isOrganizer),
+							isFollowing: false,
+						}))
+					: [];
+				setRideMembers(members);
+
+				if (response.ride?.organizerProfile) {
+					setOrganizerProfile({
+						id: response.ride.organizerProfile.id,
+						name: response.ride.organizerProfile.name,
+						username: response.ride.organizerProfile.username,
+						avatar:
+							response.ride.organizerProfile.avatar ||
+							avatarForName(response.ride.organizerProfile.name),
+						bio: response.ride.organizerProfile.bio || "",
+						status: "active",
+						isOrganizer: true,
+						isFollowing: false,
+					});
+				}
+
+				const status = String(response.ride?.status || "").toUpperCase();
+				setRideStatus(status);
+				if (status === "COMPLETED") {
+					setIsRideEnded(true);
+					setLocationEnabled(false);
+				}
 			})
 			.catch(() => {
-				if (!isMounted) {
-					return;
-				}
-
-				setRoomTitle(sanitizedInitialRoomName ?? `Ride Room ${roomId}`);
-				setRoomSubtitle("0 online • 0 riders");
+				if (!isMounted) return;
+				setIsAdmin(false);
 			});
 
 		setInviteLoading(true);
-		Promise.all([
+		void Promise.all([
 			ChatService.getPersonalConversations(),
 			user?.id
 				? TrackerService.getFollowers(user.id).catch(() => ({ followers: [] }))
@@ -351,12 +547,10 @@ export function useGroupChatScreen(
 				: Promise.resolve({ following: [] }),
 		])
 			.then(([conversationsResponse, followersResponse, followingResponse]) => {
-				if (!isMounted) {
-					return;
-				}
+				if (!isMounted) return;
 
 				const chatCandidates = (conversationsResponse.conversations || []).map(
-					(conversation) => {
+					(conversation: any) => {
 						const name =
 							typeof conversation.meta?.name === "string" &&
 							conversation.meta.name.trim().length > 0
@@ -370,7 +564,7 @@ export function useGroupChatScreen(
 							id: conversation.id,
 							name,
 							username: conversation.meta?.username ?? undefined,
-							avatar: conversation.meta?.avatar ?? null,
+							avatar: conversation.meta?.avatar ?? avatarForName(name),
 						} as InviteFriendItem;
 					},
 				);
@@ -397,10 +591,7 @@ export function useGroupChatScreen(
 				setInviteCandidates([...mergedMap.values()]);
 			})
 			.catch(() => {
-				if (!isMounted) {
-					return;
-				}
-
+				if (!isMounted) return;
 				setInviteCandidates([]);
 			})
 			.finally(() => {
@@ -409,172 +600,73 @@ export function useGroupChatScreen(
 				}
 			});
 
-		RideService.getRideById(roomId)
-			.then((response) => {
-				if (!isMounted) {
-					return;
-				}
-
-				setIsAdmin(Boolean(response.ride?.isOrganizer));
-				if (
-					typeof response.ride?.communityName === "string" &&
-					response.ride.communityName.trim().length > 0
-				) {
-					setRoomTitle(response.ride.communityName);
-				}
-
-				setRideSourceLabel(
-					typeof response.ride?.details?.source === "string" &&
-						response.ride.details.source.trim().length > 0
-						? response.ride.details.source
-						: "Current location",
-				);
-				setRideDestinationLabel(
-					typeof response.ride?.details?.destination === "string" &&
-						response.ride.details.destination.trim().length > 0
-						? response.ride.details.destination
-						: "Destination",
-				);
-
-				setRideInviteDetails({
-					rideTitle:
-						typeof response.ride?.details?.rideTitle === "string" &&
-						response.ride.details.rideTitle.trim().length > 0
-							? response.ride.details.rideTitle
-							: (response.ride?.communityName ?? undefined),
-					source:
-						typeof response.ride?.details?.source === "string"
-							? response.ride.details.source
-							: undefined,
-					destination:
-						typeof response.ride?.details?.destination === "string"
-							? response.ride.details.destination
-							: undefined,
-					startDate: response.ride?.details?.startDate ?? undefined,
-					endDate: response.ride?.details?.endDate ?? undefined,
-					days: response.ride?.details?.days,
-					budget: response.ride?.details?.budget,
-					ridePace: response.ride?.details?.ridePace,
-					roadPreference: response.ride?.details?.roadPreference,
-					meetupNotes:
-						typeof response.ride?.details?.meetupNotes === "string"
-							? response.ride.details.meetupNotes
-							: undefined,
-				});
-
-				const members = Array.isArray(response.ride?.riderProfiles)
-					? response.ride.riderProfiles.map((member) => ({
-							id: member.id,
-							name: member.name,
-							username: member.username,
-							avatar: member.avatar,
-							bio: member.bio,
-							status: member.status,
-							isOrganizer: Boolean(member.isOrganizer),
-							isFollowing: false,
-						}))
-					: [];
-				setRideMembers(members);
-
-				if (response.ride?.organizerProfile) {
-					setOrganizerProfile({
-						id: response.ride.organizerProfile.id,
-						name: response.ride.organizerProfile.name,
-						username: response.ride.organizerProfile.username,
-						avatar: response.ride.organizerProfile.avatar,
-						bio: response.ride.organizerProfile.bio,
-						isOrganizer: true,
-						isFollowing: false,
-					});
-				}
-
-				const status = String(response.ride?.status || "").toUpperCase();
-				setRideStatus(status);
-				if (status === "COMPLETED") {
-					setIsRideEnded(true);
-					setLocationEnabled(false);
-				}
-			})
-			.catch(() => {
-				if (!isMounted) {
-					return;
-				}
-
-				setIsAdmin(false);
-			});
+		void requestSnapshot();
 
 		return () => {
-			mounted = false;
+			isMounted = false;
 		};
-	}, [rideId]);
+	}, [initialRoomName, roomId, requestSnapshot, user?.id]);
 
+	// Update room subtitle based on connection and riders
 	useEffect(() => {
-		if (!ws || !rideId) return;
+		const onlineRiders = riderLocations.filter(
+			(entry) => entry.isOnline !== false,
+		).length;
+		const totalRiders =
+			rideMembers.length > 0 ? rideMembers.length : riderLocations.length;
 
-		const onMessage = (env: GroupSocketEnvelope) => {
-			if (env.type === "RIDE_SNAPSHOT" && env.rideId === rideId) {
-				setSnapshot(env.payload as RideSnapshot);
-			}
-			if (env.type === "LOCATION_UPDATE" && env.rideId === rideId) {
-				const loc = env.payload as RiderLocation;
-				setSnapshot((prev) => {
-					if (!prev) return prev;
-					const participants = prev.participants.map((p) =>
-						p.riderId === loc.riderId ? { ...p, latest: loc } : p,
-					);
-					return { ...prev, participants };
-				});
-			}
-			if (env.type === "CHAT_MESSAGE_ACK" && env.rideId === rideId) {
-				const { clientMessageId, serverMessage } = env.payload as any;
-				pendingMessages.current[clientMessageId]?.resolve(serverMessage);
-				delete pendingMessages.current[clientMessageId];
-			}
-		};
-
-		ws.subscribe(onMessage);
-		ws.joinRoom(groupId);
-
-		return () => {
-			ws.leaveRoom(groupId);
-			ws.unsubscribe(onMessage);
-		};
-	}, [ws, rideId, groupId]);
-
-	React.useEffect(() => {
-		if (
-			!isConnected ||
-			!locationEnabled ||
-			roomId.length === 0 ||
-			isRideEnded
-		) {
+		if (connectionState === "reconnecting") {
+			setRoomSubtitle("Reconnecting...");
 			return;
 		}
 
-		let watcher: { remove: () => void } | null = null;
-		void getCurrentLocation();
+		if (typingRiders.length > 0) {
+			const names = typingRiders.slice(0, 2).join(", ");
+			const suffix =
+				typingRiders.length > 2 ? ` +${typingRiders.length - 2} more` : "";
+			setRoomSubtitle(`${names}${suffix} is typing...`);
+			return;
+		}
 
-		startWatching()
-			.then((subscription) => {
-				watcher = subscription;
-			})
-			.catch(() => {
-				// Keep chat functional if location permission is denied.
-			});
+		setRoomSubtitle(`${onlineRiders} online • ${totalRiders} riders`);
+	}, [connectionState, rideMembers.length, riderLocations, typingRiders]);
+
+	// Join room via WebSocket
+	useEffect(() => {
+		if (!isConnected || roomId.length === 0) return;
+
+		sendWsMessage("CHAT_JOIN_ROOM", { roomId });
+		sendWsMessage("RIDE_JOIN", { rideId: roomId });
+		sendWsMessage("RIDE_SNAPSHOT", { rideId: roomId });
 
 		return () => {
-			watcher?.remove();
+			sendWsMessage("CHAT_LEAVE_ROOM", { roomId });
+		};
+	}, [isConnected, roomId, sendWsMessage]);
+
+	// Location watching
+	useEffect(() => {
+		if (!isConnected || !locationEnabled || isRideEnded) return;
+
+		void getCurrentLocation();
+		void startWatching().catch(() => {
+			// Keep chat functional if location permission is denied.
+		});
+
+		return () => {
+			void stopWatching();
 		};
 	}, [
 		getCurrentLocation,
 		isConnected,
 		isRideEnded,
 		locationEnabled,
-		roomId,
 		startWatching,
+		stopWatching,
 	]);
 
-	React.useEffect(() => {
+	// Send location updates
+	useEffect(() => {
 		if (
 			!locationEnabled ||
 			!location ||
@@ -585,12 +677,36 @@ export function useGroupChatScreen(
 			return;
 		}
 
-		sendWsMessage("LOCATION_UPDATE", {
+		const now = Date.now();
+		const lastSentCoord = lastSentCoordRef.current;
+		const movedMeters =
+			lastSentCoord && location
+				? haversineMeters(lastSentCoord, location)
+				: LOCATION_SEND_MIN_DISTANCE_METERS + 1;
+		const elapsed = now - lastLocationSentAtRef.current;
+
+		if (
+			elapsed < LOCATION_SEND_MIN_INTERVAL_MS &&
+			movedMeters < LOCATION_SEND_MIN_DISTANCE_METERS
+		) {
+			return;
+		}
+
+		const sent = sendWsMessage("LOCATION_UPDATE", {
 			rideId: roomId,
 			latitude: location.latitude,
 			longitude: location.longitude,
 			accuracy: location.accuracy,
+			timestamp: location.timestamp,
 		});
+
+		if (sent) {
+			lastLocationSentAtRef.current = now;
+			lastSentCoordRef.current = {
+				latitude: location.latitude,
+				longitude: location.longitude,
+			};
+		}
 	}, [
 		isConnected,
 		isRideEnded,
@@ -600,44 +716,51 @@ export function useGroupChatScreen(
 		sendWsMessage,
 	]);
 
-	React.useEffect(() => {
-		if (!lastMessage || typeof lastMessage.type !== "string") {
-			return;
-		}
+	// Handle WebSocket messages
+	useEffect(() => {
+		if (!lastMessage || typeof lastMessage.type !== "string") return;
 
+		const payload = (lastMessage.payload || {}) as Record<string, unknown>;
+
+		// Handle ride snapshot
 		if (
 			lastMessage.type === "RIDE_JOINED" ||
 			lastMessage.type === "RIDE_SNAPSHOT"
 		) {
-			const payload = (lastMessage.payload || {}) as Record<string, any>;
-			if (payload.rideId !== roomId) {
-				return;
-			}
+			if (payload.rideId !== roomId) return;
 
-			if (Array.isArray(payload.locations)) {
-				setRiderLocations(
-					payload.locations.filter(
-						(entry: any) =>
-							typeof entry?.riderId === "string" &&
-							typeof entry?.latitude === "number" &&
-							typeof entry?.longitude === "number",
-					),
-				);
-				setLocationsLastUpdatedAt(new Date().toISOString());
+			if (payload.snapshot) {
+				applySnapshot(payload.snapshot as RideSnapshot);
 			}
-
 			return;
 		}
 
-		if (lastMessage.type === "CHAT_MESSAGE") {
-			const payload = (lastMessage.payload || {}) as Record<string, any>;
-			if (payload.roomId !== roomId) {
-				return;
-			}
+		// Handle ACK for sent messages
+		if (lastMessage.type === "CHAT_MESSAGE_ACK") {
+			setMessages((prev) =>
+				prev.map((msg) => {
+					if (
+						msg.kind === "outgoing" &&
+						msg.clientMessageId === payload.clientMessageId
+					) {
+						return { ...msg, status: "sent" as const };
+					}
+					return msg;
+				}),
+			);
+			return;
+		}
 
-			if (payload.senderId && payload.senderId === user?.id) {
-				return;
-			}
+		// Handle incoming chat messages
+		if (lastMessage.type === "CHAT_MESSAGE") {
+			if (payload.roomId !== roomId) return;
+
+			const senderId = payload.senderId as string | undefined;
+			if (senderId && senderId === user?.id) return;
+
+			const messageId = String(payload.id ?? `in-${Date.now()}`);
+			if (knownMessageIdsRef.current.has(messageId)) return;
+			knownMessageIdsRef.current.add(messageId);
 
 			const senderName =
 				typeof payload.senderName === "string" &&
@@ -647,71 +770,104 @@ export function useGroupChatScreen(
 
 			const text =
 				typeof payload.message === "string" && payload.message.trim().length > 0
-					? payload.message
+					? (payload.message as string)
 					: typeof payload.encryptedPayload === "string" &&
 						  payload.encryptedPayload.trim().length > 0
-						? payload.encryptedPayload
+						? (payload.encryptedPayload as string)
 						: "[encrypted]";
 
 			setMessages((prev) => [
 				...prev,
 				{
-					id: String(payload.id ?? `in-${Date.now()}`),
+					id: messageId,
 					kind: "incoming",
+					senderId,
 					senderName,
 					message: text,
-					avatar: AVATAR_MAP[senderName] ?? "https://i.pravatar.cc/120?img=32",
-					time:
+					avatar: avatarForName(senderName),
+					time: toClockTime(
 						typeof payload.createdAt === "string"
-							? toClockTime(payload.createdAt)
-							: toClockTime(new Date().toISOString()),
+							? (payload.createdAt as string)
+							: new Date().toISOString(),
+					),
+					createdAt:
+						typeof payload.createdAt === "string"
+							? (payload.createdAt as string)
+							: new Date().toISOString(),
 				},
 			]);
-
 			return;
 		}
 
+		// Handle typing indicators
+		if (lastMessage.type === "CHAT_TYPING") {
+			const riderId = payload.riderId as string | undefined;
+			const isTyping = payload.isTyping === true;
+
+			if (!riderId) return;
+
+			setTypingRiders((prev) => {
+				if (isTyping) {
+					return prev.includes(riderId) ? prev : [...prev, riderId];
+				}
+				return prev.filter((id) => id !== riderId);
+			});
+			return;
+		}
+
+		// Handle location updates
 		if (lastMessage.type === "LOCATION_UPDATE") {
-			const payload = (lastMessage.payload || {}) as Record<string, any>;
-			if (payload.rideId !== roomId) {
-				return;
-			}
+			if (payload.rideId !== roomId) return;
 
-			if (
-				typeof payload.riderId === "string" &&
-				typeof payload.latitude === "number" &&
-				typeof payload.longitude === "number"
-			) {
-				setRiderLocations((prev) =>
-					upsertRiderLocation(prev, {
-						riderId: payload.riderId,
-						name:
-							typeof payload.name === "string" && payload.name.trim().length > 0
-								? payload.name
-								: "Rider",
-						latitude: payload.latitude,
-						longitude: payload.longitude,
-						updatedAt:
-							typeof payload.updatedAt === "string"
-								? payload.updatedAt
-								: new Date().toISOString(),
-					}),
-				);
-				setLocationsLastUpdatedAt(new Date().toISOString());
-			}
+			const loc = normalizeRiderLocation(payload, roomId);
+			if (!loc) return;
 
+			setRiderLocations((prev) => {
+				const idx = prev.findIndex((item) => item.riderId === loc.riderId);
+				if (idx === -1) {
+					return [...prev, loc];
+				}
+				const updated = [...prev];
+				updated[idx] = loc;
+				return updated;
+			});
+			setLocationsLastUpdatedAt(new Date().toISOString());
 			return;
 		}
 
+		// Handle ride participant left
+		if (lastMessage.type === "RIDE_PARTICIPANT_LEFT") {
+			if (payload.rideId !== roomId) return;
+
+			const leftRiderId = payload.riderId as string | undefined;
+			if (!leftRiderId) return;
+
+			setRideMembers((prev) =>
+				prev.filter((member) => member.id !== leftRiderId),
+			);
+			setRiderLocations((prev) =>
+				prev.filter((loc) => loc.riderId !== leftRiderId),
+			);
+
+			setMessages((prev) => [
+				...prev,
+				{
+					id: `system-${Date.now()}`,
+					kind: "system",
+					text: `${leftRiderId} left the ride`,
+					eventType: "RIDE_LEFT" as const,
+				},
+			]);
+			return;
+		}
+
+		// Handle SOS alerts
 		if (lastMessage.type === "SOS_ALERT") {
-			const payload = (lastMessage.payload || {}) as Record<string, any>;
-			if (payload.rideId !== roomId) {
-				return;
-			}
+			if (payload.rideId !== roomId) return;
 
 			const riderName =
 				typeof payload.name === "string" && payload.name.trim().length > 0
-					? payload.name.toUpperCase()
+					? (payload.name as string).toUpperCase()
 					: "A RIDER";
 
 			setMessages((prev) => [
@@ -720,28 +876,46 @@ export function useGroupChatScreen(
 					id: `sos-${Date.now()}`,
 					kind: "system",
 					text: `${riderName} TRIGGERED SOS`,
+					eventType: "SOS_ALERT" as const,
 				},
 			]);
+			return;
 		}
 
+		// Handle ride ended
 		if (lastMessage.type === "RIDE_ENDED") {
-			const payload = (lastMessage.payload || {}) as Record<string, any>;
-			if (payload.rideId !== roomId) {
-				return;
-			}
+			if (payload.rideId !== roomId) return;
 
 			setIsRideEnded(true);
 			setLocationEnabled(false);
 			setDraft("");
 			typingStateRef.current = false;
-		}
-	}, [lastMessage, roomId, user?.id]);
 
-	const setDraftWithTyping = React.useCallback(
+			setMessages((prev) => [
+				...prev,
+				{
+					id: `system-${Date.now()}`,
+					kind: "system",
+					text: "Ride has ended",
+					eventType: "RIDE_ENDED" as const,
+				},
+			]);
+		}
+	}, [applySnapshot, lastMessage, roomId, user?.id]);
+
+	// Handle connection changes
+	useEffect(() => {
+		if (!previousConnectionRef.current && isConnected) {
+			void requestSnapshot();
+			sendWsMessage("CHAT_JOIN_ROOM", { roomId });
+		}
+
+		previousConnectionRef.current = isConnected;
+	}, [isConnected, requestSnapshot, roomId, sendWsMessage]);
+
+	const setDraftWithTyping = useCallback(
 		(value: string) => {
-			if (isRideEnded) {
-				return;
-			}
+			if (isRideEnded) return;
 
 			setDraft(value);
 
@@ -757,36 +931,36 @@ export function useGroupChatScreen(
 		[isRideEnded, roomId, sendWsMessage],
 	);
 
-	const sendMessage = React.useCallback(() => {
-		if (isRideEnded) {
-			return;
-		}
+	const sendMessage = useCallback(() => {
+		if (isRideEnded) return;
 
 		const trimmed = draft.trim();
-		if (!trimmed) {
-			return;
-		}
+		if (!trimmed) return;
 
-		const now = new Date();
-		const hour = `${now.getHours()}`.padStart(2, "0");
-		const minute = `${now.getMinutes()}`.padStart(2, "0");
+		const now = new Date().toISOString();
+		const clientMessageId = `client-${Date.now()}-${Math.random()
+			.toString(16)
+			.slice(2)}`;
 
-		setMessages((prev) => [
-			...prev,
-			{
-				id: `out-${Date.now()}`,
-				kind: "outgoing",
-				message: trimmed,
-				time: `${hour}:${minute}`,
-			},
-		]);
+		const optimisticMessage: GroupChatItem = {
+			id: clientMessageId,
+			clientMessageId,
+			kind: "outgoing",
+			message: trimmed,
+			time: toClockTime(now),
+			createdAt: now,
+			status: "sending",
+		};
 
-		if (isConnected) {
-			sendWsMessage("CHAT_SEND_MESSAGE", {
-				roomId,
-				message: trimmed,
-			});
-		} else {
+		setMessages((prev) => [...prev, optimisticMessage]);
+
+		const sent = sendWsMessage("CHAT_SEND_MESSAGE", {
+			roomId,
+			message: trimmed,
+			clientMessageId,
+		});
+
+		if (!sent) {
 			void ChatService.sendMessage(roomId, trimmed).catch(() => {
 				// Keep optimistic message if send retry fails.
 			});
@@ -799,13 +973,10 @@ export function useGroupChatScreen(
 		});
 
 		setDraft("");
-	}, [draft, isConnected, isRideEnded, roomId, sendWsMessage]);
+	}, [draft, isRideEnded, roomId, sendWsMessage]);
 
-	const endRide = React.useCallback(() => {
-		if (!isAdmin || isRideEnded) {
-			setMenuVisible(false);
-			return;
-		}
+	const endRide = useCallback(() => {
+		if (!isAdmin || isRideEnded) return;
 
 		void RideService.endRide(roomId)
 			.then(() => {
@@ -820,7 +991,7 @@ export function useGroupChatScreen(
 			});
 	}, [isAdmin, isRideEnded, roomId]);
 
-	const inviteFromMenu = React.useCallback(() => {
+	const inviteFromMenu = useCallback(() => {
 		if (isRideEnded) {
 			closeMenu();
 			return;
@@ -830,7 +1001,7 @@ export function useGroupChatScreen(
 		openInvite();
 	}, [closeMenu, isRideEnded, openInvite]);
 
-	const searchInviteCandidates = React.useCallback(
+	const searchInviteCandidates = useCallback(
 		async (query: string) => {
 			const trimmed = query.trim();
 			setInviteSearchQuery(trimmed);
@@ -857,11 +1028,9 @@ export function useGroupChatScreen(
 		[user?.id],
 	);
 
-	const sendRideInvite = React.useCallback(
+	const sendRideInvite = useCallback(
 		async (friend: InviteFriendItem) => {
-			if (isRideEnded || !friend.id || !user?.id) {
-				return;
-			}
+			if (isRideEnded || !friend.id || !user?.id) return;
 
 			setInviteStateByFriendId((prev) => ({
 				...prev,
@@ -873,7 +1042,6 @@ export function useGroupChatScreen(
 				roomName: roomTitle,
 				inviterId: user.id,
 				inviterName: user.name || user.username || "Rider",
-				...(rideInviteDetails ?? {}),
 			});
 
 			try {
@@ -893,25 +1061,102 @@ export function useGroupChatScreen(
 				}));
 			}
 		},
-		[
-			isRideEnded,
-			rideInviteDetails,
-			roomId,
-			roomTitle,
-			user?.id,
-			user?.name,
-			user?.username,
-		],
+		[isRideEnded, roomId, roomTitle, user?.id, user?.name, user?.username],
 	);
 
-	const inviteRiders = (riderIds: string[]) =>
-		RideService.inviteRiders(rideId, riderIds);
+	const leaderLocation = React.useMemo(() => {
+		if (!organizerProfile) return null;
+		return (
+			riderLocations.find((entry) => entry.riderId === organizerProfile.id) ||
+			null
+		);
+	}, [organizerProfile, riderLocations]);
+
+	// Update ride members with distance calculations
+	useEffect(() => {
+		if (!leaderLocation) return;
+
+		setRideMembers((prev) =>
+			prev.map((member) => {
+				if (member.id === leaderLocation.riderId) {
+					return { ...member, distanceFromLeaderMeters: 0 };
+				}
+
+				const memberLocation = riderLocations.find(
+					(loc) => loc.riderId === member.id,
+				);
+				if (!memberLocation) return member;
+
+				const distance = haversineMeters(leaderLocation, memberLocation);
+				return { ...member, distanceFromLeaderMeters: distance };
+			}),
+		);
+	}, [leaderLocation, riderLocations]);
+
+	const inviteFriends = React.useMemo(() => {
+		const existingMemberIds = new Set(rideMembers.map((member) => member.id));
+		return inviteCandidates.filter(
+			(friend) => !existingMemberIds.has(friend.id),
+		);
+	}, [inviteCandidates, rideMembers]);
 
 	return {
-		snapshot,
+		// UI state
+		menuVisible,
+		inviteVisible,
+		locationEnabled,
+		isRideEnded,
+		isAdmin,
+		draft,
+
+		// Messages
+		messages,
+
+		// Locations
+		riderLocations,
+		locationsLastUpdatedAt,
+
+		// Ride info
+		roomTitle,
+		roomSubtitle,
+		rideSourceLabel,
+		rideDestinationLabel,
+		rideRoute,
+		rideStatus,
+		rideMembers,
+		organizerProfile,
+		leaderLocation,
+
+		// Map state
+		mapLoading,
+		mapError,
+
+		// Location permissions
+		hasPermission,
+		locationError,
+
+		// Connection state
+		isConnected,
+		connectionState,
+
+		// Handlers
+		setDraft: setDraftWithTyping,
+		setLocationEnabled,
+		openMenu,
+		closeMenu,
+		openInvite,
+		closeInvite,
+		inviteFromMenu,
+		inviteFriends,
+		inviteLoading,
+		inviteStateByFriendId,
+		inviteSearchQuery,
+		inviteSearchResults,
+		isInviteSearching,
+		searchInviteCandidates,
+		sendRideInvite,
+		endRide,
 		sendMessage,
-		inviteRiders,
-		startWatching,
-		stopWatching,
+		retrySnapshot: requestSnapshot,
 	};
 }
