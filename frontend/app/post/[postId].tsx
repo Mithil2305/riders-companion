@@ -2,7 +2,6 @@ import React from "react";
 import {
 	ActivityIndicator,
 	Alert,
-	Image,
 	Pressable,
 	ScrollView,
 	StyleSheet,
@@ -12,10 +11,14 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { VideoView, useVideoPlayer } from "expo-video";
+import { useSharedValue } from "react-native-reanimated";
 import FeedService, { FeedPostPayload } from "../../src/services/FeedService";
 import ProfileService from "../../src/services/ProfileService";
 import { useTheme } from "../../src/hooks/useTheme";
+import { FeedPost } from "../../src/components/feed/FeedPost";
+import { CommentsSheet } from "../../src/components/comments";
+import { ShareSheet } from "../../src/components/share";
+import type { FeedPostItem } from "../../src/types/feed";
 
 const FALLBACK_AVATAR =
 	"https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80";
@@ -57,199 +60,24 @@ function isSameAuthor(candidate: FeedPostPayload, selected: FeedPostPayload) {
 	return false;
 }
 
-function PostVideo({ uri }: { uri: string }) {
-	const player = useVideoPlayer(uri, (instance) => {
-		instance.loop = true;
-		instance.play();
-	});
-
-	return (
-		<VideoView
-			contentFit="cover"
-			nativeControls
-			player={player}
-			style={{ width: "100%", height: "100%" }}
-		/>
-	);
-}
-
-function PostCard({
-	item,
-	isSelected,
-	showOwnerActions,
-	deleting,
-	onPressEdit,
-	onPressDelete,
-	onOpenProfile,
-}: {
-	item: FeedPostPayload;
-	isSelected: boolean;
-	showOwnerActions: boolean;
-	deleting: boolean;
-	onPressEdit: () => void;
-	onPressDelete: () => void;
-	onOpenProfile: () => void;
-}) {
-	const { colors, metrics, typography } = useTheme();
-
-	const styles = React.useMemo(
-		() =>
-			StyleSheet.create({
-				card: {
-					backgroundColor: colors.card,
-				},
-				selectedLabel: {
-					paddingHorizontal: metrics.md,
-					paddingTop: metrics.md,
-					color: colors.primary,
-					fontSize: typography.sizes.xs,
-					fontWeight: "700",
-					textTransform: "uppercase",
-					letterSpacing: 0.4,
-				},
-				postHeader: {
-					flexDirection: "row",
-					alignItems: "center",
-					gap: metrics.sm,
-					paddingHorizontal: metrics.md,
-					paddingTop: isSelected ? metrics.xs : metrics.md,
-					paddingBottom: metrics.sm,
-				},
-				avatar: {
-					width: 34,
-					height: 34,
-					borderRadius: metrics.radius.full,
-					backgroundColor: colors.surface,
-				},
-				username: {
-					color: colors.textPrimary,
-					fontSize: typography.sizes.base,
-					fontWeight: "700",
-				},
-				time: {
-					color: colors.textTertiary,
-					fontSize: typography.sizes.xs,
-				},
-				mediaWrap: {
-					width: "100%",
-					height: metrics.screenWidth * 0.9,
-					backgroundColor: colors.surface,
-					overflow: "hidden",
-				},
-				media: {
-					width: "100%",
-					height: "100%",
-				},
-				editIcon: {
-					position: "absolute",
-					top: metrics.sm,
-					right: metrics.sm,
-					width: 34,
-					height: 34,
-					borderRadius: 17,
-					backgroundColor: colors.overlay,
-					alignItems: "center",
-					justifyContent: "center",
-				},
-				metaWrap: {
-					paddingHorizontal: metrics.md,
-					paddingVertical: metrics.md,
-					gap: metrics.xs,
-				},
-				likes: {
-					color: colors.textPrimary,
-					fontSize: typography.sizes.sm,
-					fontWeight: "700",
-				},
-				caption: {
-					color: colors.textSecondary,
-					fontSize: typography.sizes.sm,
-					lineHeight: typography.sizes.sm * typography.lineHeights.normal,
-				},
-				captionUser: {
-					color: colors.textPrimary,
-					fontWeight: "700",
-				},
-				comments: {
-					color: colors.textTertiary,
-					fontSize: typography.sizes.sm,
-				},
-				deleteButton: {
-					marginTop: metrics.sm,
-					height: 44,
-					borderRadius: metrics.radius.md,
-					backgroundColor: colors.primary,
-					alignItems: "center",
-					justifyContent: "center",
-				},
-				deleteButtonText: {
-					color: colors.textInverse,
-					fontSize: typography.sizes.base,
-					fontWeight: "700",
-				},
-			}),
-		[colors, isSelected, metrics, typography],
-	);
-
-	const authorLabel = item.rider?.username
-		? `@${item.rider.username}`
-		: (item.rider?.name ?? "rider");
-
-	return (
-		<View style={styles.card}>
-			{isSelected ? <Text style={styles.selectedLabel}>Selected post</Text> : null}
-
-			<View style={styles.postHeader}>
-				<Pressable disabled={!item.rider?.id} onPress={onOpenProfile}>
-					<Image
-						source={{ uri: item.rider?.profileImageUrl ?? FALLBACK_AVATAR }}
-						style={styles.avatar}
-					/>
-				</Pressable>
-				<Pressable disabled={!item.rider?.id} onPress={onOpenProfile}>
-					<Text style={styles.username}>{authorLabel}</Text>
-					<Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
-				</Pressable>
-			</View>
-
-			<View style={styles.mediaWrap}>
-				{item.mediaType === "VIDEO" ? (
-					<PostVideo uri={item.mediaUrl || ""} />
-				) : (
-					<Image source={{ uri: item.mediaUrl || "" }} style={styles.media} />
-				)}
-
-				{showOwnerActions ? (
-					<Pressable onPress={onPressEdit} style={styles.editIcon}>
-						<Ionicons color={colors.textInverse} name="create-outline" size={18} />
-					</Pressable>
-				) : null}
-			</View>
-
-			<View style={styles.metaWrap}>
-				<Text style={styles.likes}>{Number(item.likesCount ?? 0)} bumps</Text>
-				<Text style={styles.caption}>
-					<Text style={styles.captionUser}>{authorLabel} </Text>
-					{item.caption ?? ""}
-				</Text>
-				<Text style={styles.comments}>
-					View all {Number(item.commentsCount ?? 0)} comments
-				</Text>
-
-				{showOwnerActions ? (
-					<Pressable
-						disabled={deleting}
-						onPress={onPressDelete}
-						style={styles.deleteButton}
-					>
-						<Text style={styles.deleteButtonText}>
-							{deleting ? "Deleting..." : "Delete Post Permanently"}
-						</Text>
-					</Pressable>
-				) : null}
-			</View>
-		</View>
-	);
+function toFeedPostItem(post: FeedPostPayload): FeedPostItem {
+	return {
+		id: post.id,
+		riderId: post.rider?.id,
+		user: post.rider?.username ? `@${post.rider.username}` : post.rider?.name ?? "rider",
+		avatar: post.rider?.profileImageUrl ?? FALLBACK_AVATAR,
+		image: post.mediaUrl ?? "",
+		mediaType: post.mediaType,
+		aspectRatio:
+			post.width && post.height && post.width > 0 && post.height > 0
+				? post.width / post.height
+				: undefined,
+		caption: post.caption ?? "",
+		likes: post.likesCount ?? 0,
+		comments: post.commentsCount ?? 0,
+		time: formatRelativeTime(post.createdAt),
+		likedByMe: post.likedByMe,
+	};
 }
 
 export default function PostDetailsPage() {
@@ -262,6 +90,14 @@ export default function PostDetailsPage() {
 	const [deleting, setDeleting] = React.useState(false);
 	const [posts, setPosts] = React.useState<FeedPostPayload[]>([]);
 	const [myRiderId, setMyRiderId] = React.useState<string | null>(null);
+	const [likedPostIds, setLikedPostIds] = React.useState<Record<string, boolean>>({});
+	const [likeCounts, setLikeCounts] = React.useState<Record<string, number>>({});
+	const [commentCounts, setCommentCounts] = React.useState<Record<string, number>>({});
+	const [isCommentSheetVisible, setIsCommentSheetVisible] = React.useState(false);
+	const [isShareSheetVisible, setIsShareSheetVisible] = React.useState(false);
+	const [selectedActionPostId, setSelectedActionPostId] = React.useState<string | null>(null);
+
+	const scrollY = useSharedValue(0);
 
 	const selectedPost = posts[0] ?? null;
 	const relatedPosts = posts.slice(1);
@@ -295,8 +131,21 @@ export default function PostDetailsPage() {
 					(candidate) => Boolean(candidate.mediaUrl) && isSameAuthor(candidate, primaryPost),
 				);
 
-				setPosts([primaryPost, ...sameAuthorPosts]);
+				const allPosts = [primaryPost, ...sameAuthorPosts];
+				setPosts(allPosts);
 				setMyRiderId(profileData.profile.id);
+
+				const initialLikes: Record<string, boolean> = {};
+				const initialCounts: Record<string, number> = {};
+				const initialComments: Record<string, number> = {};
+				for (const p of allPosts) {
+					initialLikes[p.id] = p.likedByMe ?? false;
+					initialCounts[p.id] = p.likesCount ?? 0;
+					initialComments[p.id] = p.commentsCount ?? 0;
+				}
+				setLikedPostIds(initialLikes);
+				setLikeCounts(initialCounts);
+				setCommentCounts(initialComments);
 			} catch (error) {
 				if (!mounted) {
 					return;
@@ -320,11 +169,50 @@ export default function PostDetailsPage() {
 		};
 	}, [postId, router]);
 
+	const handleToggleLike = React.useCallback(
+		async (targetPostId: string) => {
+			const currentlyLiked = likedPostIds[targetPostId] ?? false;
+			const currentCount = likeCounts[targetPostId] ?? 0;
+			setLikedPostIds((prev) => ({ ...prev, [targetPostId]: !currentlyLiked }));
+			setLikeCounts((prev) => ({
+				...prev,
+				[targetPostId]: currentlyLiked ? Math.max(0, currentCount - 1) : currentCount + 1,
+			}));
+			try {
+				if (currentlyLiked) {
+					await FeedService.unlikePost(targetPostId);
+				} else {
+					await FeedService.likePost(targetPostId);
+				}
+			} catch {
+				setLikedPostIds((prev) => ({ ...prev, [targetPostId]: currentlyLiked }));
+				setLikeCounts((prev) => ({ ...prev, [targetPostId]: currentCount }));
+			}
+		},
+		[likedPostIds, likeCounts],
+	);
+
+	const openCommentSheet = React.useCallback((targetPostId: string) => {
+		setSelectedActionPostId(targetPostId);
+		setIsCommentSheetVisible(true);
+	}, []);
+
+	const openShareSheet = React.useCallback((targetPostId: string) => {
+		setSelectedActionPostId(targetPostId);
+		setIsShareSheetVisible(true);
+	}, []);
+
+	const handleCommentsCountChange = React.useCallback(
+		(targetPostId: string, newCount: number) => {
+			setCommentCounts((prev) => ({ ...prev, [targetPostId]: newCount }));
+		},
+		[],
+	);
+
 	const onPressEdit = React.useCallback(() => {
 		if (!selectedPost) {
 			return;
 		}
-
 		router.push({
 			pathname: "/create",
 			params: {
@@ -340,7 +228,6 @@ export default function PostDetailsPage() {
 		if (!selectedPost) {
 			return;
 		}
-
 		Alert.alert("Delete post", "Delete this post permanently?", [
 			{ text: "Cancel", style: "cancel" },
 			{
@@ -420,16 +307,37 @@ export default function PostDetailsPage() {
 				notFoundText: {
 					color: colors.textSecondary,
 				},
+				ownerActions: {
+					flexDirection: "row",
+					gap: metrics.sm,
+					paddingHorizontal: metrics.md,
+					paddingVertical: metrics.md,
+				},
+				ownerBtn: {
+					flex: 1,
+					minHeight: 44,
+					borderRadius: metrics.radius.md,
+					alignItems: "center",
+					justifyContent: "center",
+				},
+				editBtn: {
+					backgroundColor: colors.primary,
+				},
+				deleteBtn: {
+					backgroundColor: colors.danger ?? colors.warning,
+				},
+				ownerBtnText: {
+					color: colors.textInverse,
+					fontSize: typography.sizes.base,
+					fontWeight: "700",
+				},
 			}),
 		[colors, metrics, typography],
 	);
 
 	if (loading) {
 		return (
-			<SafeAreaView
-				edges={["left", "right", "top", "bottom"]}
-				style={styles.container}
-			>
+			<SafeAreaView edges={["left", "right", "top", "bottom"]} style={styles.container}>
 				<View style={styles.header}>
 					<Pressable onPress={() => router.back()}>
 						<Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
@@ -446,10 +354,7 @@ export default function PostDetailsPage() {
 
 	if (!selectedPost || !selectedPost.mediaUrl) {
 		return (
-			<SafeAreaView
-				edges={["left", "right", "top", "bottom"]}
-				style={styles.container}
-			>
+			<SafeAreaView edges={["left", "right", "top", "bottom"]} style={styles.container}>
 				<View style={styles.header}>
 					<Pressable onPress={() => router.back()}>
 						<Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
@@ -464,11 +369,16 @@ export default function PostDetailsPage() {
 		);
 	}
 
+	const selectedFeedItem = toFeedPostItem(selectedPost);
+	const selectedFeedItemWithCounts: FeedPostItem = {
+		...selectedFeedItem,
+		likes: likeCounts[selectedPost.id] ?? selectedPost.likesCount ?? 0,
+		comments: commentCounts[selectedPost.id] ?? selectedPost.commentsCount ?? 0,
+		likedByMe: likedPostIds[selectedPost.id] ?? selectedPost.likedByMe ?? false,
+	};
+
 	return (
-		<SafeAreaView
-			edges={["left", "right", "top", "bottom"]}
-			style={styles.container}
-		>
+		<SafeAreaView edges={["left", "right", "top", "bottom"]} style={styles.container}>
 			<View style={styles.header}>
 				<Pressable onPress={() => router.back()}>
 					<Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
@@ -477,21 +387,34 @@ export default function PostDetailsPage() {
 				<View style={styles.spacer} />
 			</View>
 
-			<ScrollView
-				contentContainerStyle={styles.scrollContent}
-				showsVerticalScrollIndicator={false}
-			>
-				<PostCard
-					deleting={deleting}
-					isSelected
-					item={selectedPost}
-					onOpenProfile={() =>
-						selectedPost.rider?.id && router.push(`/rider/${selectedPost.rider.id}`)
-					}
-					onPressDelete={onPressDelete}
-					onPressEdit={onPressEdit}
-					showOwnerActions={isOwner}
+			<ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+				<FeedPost
+					index={0}
+					item={selectedFeedItemWithCounts}
+					liked={selectedFeedItemWithCounts.likedByMe ?? false}
+					onAddComment={openCommentSheet}
+					onOpenProfile={(riderId) => router.push(`/rider/${riderId}`)}
+					onShare={openShareSheet}
+					onToggleLike={handleToggleLike}
+					scrollY={scrollY}
 				/>
+
+				{isOwner ? (
+					<View style={styles.ownerActions}>
+						<Pressable onPress={onPressEdit} style={[styles.ownerBtn, styles.editBtn]}>
+							<Text style={styles.ownerBtnText}>Edit Post</Text>
+						</Pressable>
+						<Pressable
+							disabled={deleting}
+							onPress={onPressDelete}
+							style={[styles.ownerBtn, styles.deleteBtn]}
+						>
+							<Text style={styles.ownerBtnText}>
+								{deleting ? "Deleting..." : "Delete Post"}
+							</Text>
+						</Pressable>
+					</View>
+				) : null}
 
 				{relatedPosts.length > 0 ? (
 					<>
@@ -508,25 +431,59 @@ export default function PostDetailsPage() {
 							</Text>
 						</View>
 
-						{relatedPosts.map((item) => (
-							<React.Fragment key={item.id}>
-								<PostCard
-									deleting={false}
-									isSelected={false}
-									item={item}
-									onOpenProfile={() =>
-										item.rider?.id && router.push(`/rider/${item.rider.id}`)
-									}
-									onPressDelete={() => undefined}
-									onPressEdit={() => undefined}
-									showOwnerActions={false}
-								/>
-								<View style={styles.divider} />
-							</React.Fragment>
-						))}
+						{relatedPosts.map((item, index) => {
+							const feedItem = toFeedPostItem(item);
+							const feedItemWithCounts: FeedPostItem = {
+								...feedItem,
+								likes: likeCounts[item.id] ?? item.likesCount ?? 0,
+								comments: commentCounts[item.id] ?? item.commentsCount ?? 0,
+								likedByMe: likedPostIds[item.id] ?? item.likedByMe ?? false,
+							};
+							return (
+								<React.Fragment key={item.id}>
+									<FeedPost
+										index={index + 1}
+										item={feedItemWithCounts}
+										liked={feedItemWithCounts.likedByMe ?? false}
+										onAddComment={openCommentSheet}
+										onOpenProfile={(riderId) => router.push(`/rider/${riderId}`)}
+										onShare={openShareSheet}
+										onToggleLike={handleToggleLike}
+										scrollY={scrollY}
+									/>
+									<View style={styles.divider} />
+								</React.Fragment>
+							);
+						})}
 					</>
 				) : null}
 			</ScrollView>
+
+			<CommentsSheet
+				contentId={selectedActionPostId}
+				contentType="feed"
+				visible={isCommentSheetVisible}
+				onClose={() => setIsCommentSheetVisible(false)}
+				onCommentsCountChange={(newCount) => {
+					if (selectedActionPostId) {
+						handleCommentsCountChange(selectedActionPostId, newCount);
+					}
+				}}
+			/>
+
+			{(() => {
+				const targetPost = posts.find((p) => p.id === selectedActionPostId);
+				return (
+					<ShareSheet
+						postId={selectedActionPostId}
+						resourceType="post"
+						visible={isShareSheetVisible}
+						onClose={() => setIsShareSheetVisible(false)}
+						caption={targetPost?.caption ?? undefined}
+						thumbnailUrl={targetPost?.mediaUrl ?? undefined}
+					/>
+				);
+			})()}
 		</SafeAreaView>
 	);
 }

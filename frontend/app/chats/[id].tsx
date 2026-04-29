@@ -41,12 +41,7 @@ export default function ChatRoomScreen() {
 				return;
 			}
 
-			router.push({
-				pathname: `/group-chat/${invite.rideId}`,
-				params: {
-					name: invite.roomName,
-				},
-			});
+			router.push("/community");
 		},
 		[respondToRideInvite, router],
 	);
