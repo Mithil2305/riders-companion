@@ -28,8 +28,6 @@ export default function RideScreen() {
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("ride");
 
-	const [selected, setSelected] = React.useState<"solo" | "group" | null>(null);
-
 	const rideOptions: RideOption[] = [
 		{
 			key: "solo",
@@ -45,14 +43,6 @@ export default function RideScreen() {
 		},
 	];
 
-	const handleCreate = React.useCallback(() => {
-		if (!selected) return;
-		router.push({
-			pathname: "/ride-details",
-			params: { rideType: selected },
-		});
-	}, [selected, router]);
-
 	const styles = React.useMemo(
 		() =>
 			StyleSheet.create({
@@ -66,7 +56,7 @@ export default function RideScreen() {
 				scrollContent: {
 					paddingHorizontal: 24,
 					paddingTop: 10,
-					paddingBottom: 140,
+					paddingBottom: 40,
 				},
 				header: {
 					flexDirection: "row",
@@ -94,8 +84,6 @@ export default function RideScreen() {
 				card: {
 					backgroundColor: colors.card,
 					borderRadius: 20,
-					borderWidth: 1.5,
-					borderColor: colors.borderDark,
 					alignItems: "center",
 					justifyContent: "center",
 					paddingVertical: 24,
@@ -106,13 +94,6 @@ export default function RideScreen() {
 					shadowOpacity: 0.12,
 					shadowRadius: 8,
 					elevation: 4,
-				},
-				cardSelected: {
-					borderColor: colors.primary,
-					shadowColor: colors.primary,
-					shadowOpacity: 0.15,
-					shadowRadius: 12,
-					elevation: 6,
 				},
 				cardImage: {
 					width: 180,
@@ -132,33 +113,8 @@ export default function RideScreen() {
 					textAlign: "center",
 					lineHeight: typography.sizes.sm * typography.lineHeights.normal,
 				},
-				footer: {
-					position: "absolute",
-					left: 0,
-					right: 0,
-					bottom: 0,
-					paddingHorizontal: 24,
-					paddingTop: 12,
-					paddingBottom: metrics.safeArea.bottom - 10,
-					backgroundColor: colors.background,
-					borderTopWidth: 1,
-					borderTopColor: colors.border,
-				},
-				createButton: {
-					height: 56,
-					borderRadius: 16,
-					backgroundColor: colors.primary,
-					alignItems: "center",
-					justifyContent: "center",
-					opacity: selected ? 1 : 0.45,
-				},
-				createButtonText: {
-					fontSize: typography.sizes.base,
-					fontWeight: typography.weights.bold as any,
-					color: colors.textInverse,
-				},
 			}),
-		[colors, metrics, typography, selected],
+		[colors, metrics, typography],
 	);
 
 	return (
@@ -186,40 +142,25 @@ export default function RideScreen() {
 					</Text>
 
 					{rideOptions.map((option) => {
-						const isSelected = selected === option.key;
 						return (
-							<Pressable
-								key={option.key}
-								onPress={() => setSelected(option.key)}
-								style={({ pressed }) => [
-									styles.card,
-									isSelected && styles.cardSelected,
-									pressed && { opacity: 0.92, transform: [{ scale: 0.98 }] },
-								]}
-							>
-								<Image source={option.image} style={styles.cardImage} />
+							<View key={option.key} style={styles.card}>
+								<Pressable
+									onPress={() => {
+										router.push({
+											pathname: "/ride-details",
+											params: { rideType: option.key },
+										});
+									}}
+									style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}
+								>
+									<Image source={option.image} style={styles.cardImage} />
+								</Pressable>
 								<Text style={styles.cardTitle}>{option.title}</Text>
 								<Text style={styles.cardSubtitle}>{option.subtitle}</Text>
-							</Pressable>
+							</View>
 						);
 					})}
 				</ScrollView>
-
-				<View style={styles.footer}>
-					<Pressable
-						onPress={handleCreate}
-						disabled={!selected}
-						style={styles.createButton}
-					>
-						<Text style={styles.createButtonText}>
-							{selected === "group"
-								? "Create Group Ride"
-								: selected === "solo"
-									? "Create Solo Ride"
-									: "Select a ride mode"}
-						</Text>
-					</Pressable>
-				</View>
 			</Animated.View>
 		</SafeAreaView>
 	);

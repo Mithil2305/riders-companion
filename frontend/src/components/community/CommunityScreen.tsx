@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
 import { useCommunityData } from "../../hooks/useCommunityData";
 import type { RideItem } from "../../types/community";
@@ -27,14 +28,10 @@ const sectionOrder: SectionKey[] = ["nearby", "myRides"];
 export function CommunityScreen() {
 	const router = useRouter();
 	const params = useLocalSearchParams<{ rideAction?: string }>();
+	const { user: authUser } = useAuth();
 	const { colors, metrics, typography } = useTheme();
-	const {
-		activeRide,
-		nearbyRides,
-		myRides,
-		refreshing,
-		refreshCommunity,
-	} = useCommunityData();
+	const { activeRide, nearbyRides, myRides, refreshing, refreshCommunity } =
+		useCommunityData();
 
 	const [showConfirmation, setShowConfirmation] = React.useState(false);
 
@@ -108,12 +105,13 @@ export function CommunityScreen() {
 
 	const handleEdit = React.useCallback(
 		(ride: RideItem) => {
+			const rideType = ride.rideType ?? "group";
 			router.push({
 				pathname: "/ride-details",
 				params: {
 					editMode: "true",
 					rideId: ride.id,
-					rideType: "group",
+					rideType,
 				},
 			});
 		},
@@ -135,7 +133,10 @@ export function CommunityScreen() {
 								await RideService.deleteRide(rideId);
 								refreshCommunity();
 							} catch {
-								Alert.alert("Error", "Failed to delete ride. Please try again.");
+								Alert.alert(
+									"Error",
+									"Failed to delete ride. Please try again.",
+								);
 							}
 						},
 					},
@@ -153,9 +154,17 @@ export function CommunityScreen() {
 						<SectionHeader title="Nearby Rides" />
 						{nearbyRides.length === 0 ? (
 							<View style={styles.emptyStateWrap}>
-								<Ionicons color={colors.borderDark} name="map-outline" size={48} />
-								<Text style={styles.emptyStateTitle}>No nearby rides right now.</Text>
-								<Text style={styles.emptyStateSubtitle}>Be the first to start one!</Text>
+								<Ionicons
+									color={colors.borderDark}
+									name="map-outline"
+									size={48}
+								/>
+								<Text style={styles.emptyStateTitle}>
+									No nearby rides right now.
+								</Text>
+								<Text style={styles.emptyStateSubtitle}>
+									Be the first to start one!
+								</Text>
 							</View>
 						) : (
 							<View style={styles.rideListWrap}>
@@ -188,6 +197,9 @@ export function CommunityScreen() {
 								item={ride}
 								key={ride.id}
 								mode="myRides"
+								canManageRide={Boolean(
+									ride.isOrganizer || ride.organizerId === authUser?.id,
+								)}
 								onPrimaryAction={(rideId) => {
 									router.push(
 										ride.status === "completed"
@@ -206,7 +218,16 @@ export function CommunityScreen() {
 				</View>
 			);
 		},
-		[myRides, nearbyRides, styles, router, colors.borderDark, handleEdit, handleDelete],
+		[
+			myRides,
+			nearbyRides,
+			styles,
+			router,
+			colors.borderDark,
+			handleEdit,
+			handleDelete,
+			authUser?.id,
+		],
 	);
 
 	return (
