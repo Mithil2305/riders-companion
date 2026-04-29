@@ -17,6 +17,7 @@ import {
 	createRideInvitePayload,
 	serializeRideInviteMessage,
 } from "../utils/rideInviteMessage";
+import type { RideInviteRouteInfo } from "../types/chat";
 
 const AVATAR_MAP: Record<string, string> = {
 	SARAH: "https://randomuser.me/api/portraits/women/65.jpg",
@@ -238,6 +239,7 @@ export function useGroupChatScreen(
 		React.useState("Current location");
 	const [rideDestinationLabel, setRideDestinationLabel] =
 		React.useState("Destination");
+	const [rideInviteDetails, setRideInviteDetails] = React.useState<RideInviteRouteInfo | null>(null);
 	const [rideStatus, setRideStatus] = React.useState<string>("PENDING");
 	const [rideMembers, setRideMembers] = React.useState<GroupRideMember[]>([]);
 	const [organizerProfile, setOrganizerProfile] =
@@ -272,6 +274,7 @@ export function useGroupChatScreen(
 		setOrganizerProfile(null);
 		setRideSourceLabel("Current location");
 		setRideDestinationLabel("Destination");
+		setRideInviteDetails(null);
 		setInviteStateByFriendId({});
 		setRoomTitle(sanitizedInitialRoomName ?? `Ride Room ${roomId}`);
 
@@ -413,6 +416,32 @@ export function useGroupChatScreen(
 						? response.ride.details.destination
 						: "Destination",
 				);
+
+				setRideInviteDetails({
+					rideTitle:
+						typeof response.ride?.details?.rideTitle === "string" &&
+						response.ride.details.rideTitle.trim().length > 0
+							? response.ride.details.rideTitle
+							: response.ride?.communityName ?? undefined,
+					source:
+						typeof response.ride?.details?.source === "string"
+							? response.ride.details.source
+							: undefined,
+					destination:
+						typeof response.ride?.details?.destination === "string"
+							? response.ride.details.destination
+							: undefined,
+					startDate: response.ride?.details?.startDate ?? undefined,
+					endDate: response.ride?.details?.endDate ?? undefined,
+					days: response.ride?.details?.days,
+					budget: response.ride?.details?.budget,
+					ridePace: response.ride?.details?.ridePace,
+					roadPreference: response.ride?.details?.roadPreference,
+					meetupNotes:
+						typeof response.ride?.details?.meetupNotes === "string"
+							? response.ride.details.meetupNotes
+							: undefined,
+				});
 
 				const members = Array.isArray(response.ride?.riderProfiles)
 					? response.ride.riderProfiles.map((member) => ({
@@ -891,6 +920,7 @@ export function useGroupChatScreen(
 				roomName: roomTitle,
 				inviterId: user.id,
 				inviterName: user.name || user.username || "Rider",
+				...(rideInviteDetails ?? {}),
 			});
 
 			try {
@@ -910,7 +940,15 @@ export function useGroupChatScreen(
 				}));
 			}
 		},
-		[isRideEnded, roomId, roomTitle, user?.id, user?.name, user?.username],
+		[
+			isRideEnded,
+			rideInviteDetails,
+			roomId,
+			roomTitle,
+			user?.id,
+			user?.name,
+			user?.username,
+		],
 	);
 
 	const toggleTrackRider = React.useCallback((riderId: string) => {
