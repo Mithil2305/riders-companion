@@ -1,4 +1,8 @@
-import { RideInvitePayload, RideInviteStatus } from "../types/chat";
+import {
+	RideInvitePayload,
+	RideInviteRouteInfo,
+	RideInviteStatus,
+} from "../types/chat";
 
 const RIDE_INVITE_PREFIX = "[RIDE_INVITE]";
 
@@ -25,7 +29,7 @@ const isRideInvitePayload = (value: unknown): value is RideInvitePayload => {
 	);
 };
 
-export const createRideInvitePayload = (input: {
+type RideInvitePayloadInput = RideInviteRouteInfo & {
 	rideId: string;
 	roomName: string;
 	inviterId: string;
@@ -34,7 +38,30 @@ export const createRideInvitePayload = (input: {
 	inviteId?: string;
 	sentAt?: string;
 	respondedBy?: string;
-}): RideInvitePayload => ({
+};
+
+const formatRideRoute = (payload: RideInvitePayload): string => {
+	const source = payload.source?.trim();
+	const destination = payload.destination?.trim();
+
+	if (source && destination) {
+		return `${source} → ${destination}`;
+	}
+
+	if (source) {
+		return `${source} → Destination`;
+	}
+
+	if (destination) {
+		return `Current location → ${destination}`;
+	}
+
+	return payload.rideTitle?.trim() || payload.roomName;
+};
+
+export const createRideInvitePayload = (
+	input: RideInvitePayloadInput,
+): RideInvitePayload => ({
 	type: "ride-invite",
 	inviteId: input.inviteId ?? `invite-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
 	rideId: input.rideId,
@@ -44,6 +71,16 @@ export const createRideInvitePayload = (input: {
 	status: input.status ?? "pending",
 	sentAt: input.sentAt ?? new Date().toISOString(),
 	respondedBy: input.respondedBy,
+	rideTitle: input.rideTitle,
+	source: input.source,
+	destination: input.destination,
+	startDate: input.startDate,
+	endDate: input.endDate,
+	days: input.days,
+	budget: input.budget,
+	ridePace: input.ridePace,
+	roadPreference: input.roadPreference,
+	meetupNotes: input.meetupNotes,
 });
 
 export const serializeRideInviteMessage = (payload: RideInvitePayload): string =>
@@ -73,10 +110,12 @@ export const toRideInvitePreview = (
 	payload: RideInvitePayload,
 	viewerRole: "sender" | "receiver",
 ): string => {
+	const routeSummary = formatRideRoute(payload);
+
 	if (payload.status === "pending") {
 		return viewerRole === "sender"
-			? `Ride invite sent for ${payload.roomName}`
-			: `Ride invite: ${payload.roomName}`;
+			? `Invite sent for ${routeSummary}`
+			: `Ride invite: ${routeSummary}`;
 	}
 
 	if (payload.status === "joined") {

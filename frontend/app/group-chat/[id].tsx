@@ -4,10 +4,12 @@ import {
 	KeyboardAvoidingView,
 	PanResponder,
 	Platform,
+	Pressable,
 	StyleSheet,
 	View,
 	type LayoutChangeEvent,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -25,6 +27,7 @@ import {
 	LiveMapSection,
 } from "../../src/components/chat/group";
 import { useTheme } from "../../src/hooks/useTheme";
+import { withAlpha } from "../../src/utils/color";
 
 export default function GroupChatScreen() {
 	const router = useRouter();
@@ -90,9 +93,28 @@ export default function GroupChatScreen() {
 					position: "relative",
 				},
 				mapHalf: {
+					position: "relative",
 					paddingTop: 8,
 					paddingBottom: 8,
 					zIndex: 1,
+				},
+				fullscreenButton: {
+					position: "absolute",
+					right: 20,
+					top: 20,
+					width: 40,
+					height: 40,
+					borderRadius: 20,
+					alignItems: "center",
+					justifyContent: "center",
+					backgroundColor: withAlpha(colors.card, 0.92),
+					borderWidth: 1,
+					borderColor: colors.border,
+					shadowColor: colors.shadow,
+					shadowOpacity: 0.16,
+					shadowRadius: 6,
+					shadowOffset: { width: 0, height: 3 },
+					elevation: 4,
 				},
 				chatSheet: {
 					position: "absolute",
@@ -231,6 +253,21 @@ export default function GroupChatScreen() {
 								sourceLabel={rideSourceLabel}
 								destinationLabel={rideDestinationLabel}
 							/>
+							<Pressable
+								hitSlop={10}
+								onPress={() => {
+									router.push({
+										pathname: "/navigation",
+										params: {
+											sourceLabel: rideSourceLabel ?? "",
+											destinationLabel: rideDestinationLabel ?? "",
+										},
+									});
+								}}
+								style={styles.fullscreenButton}
+							>
+								<Ionicons name="expand-outline" size={18} color={colors.textPrimary} />
+							</Pressable>
 						</View>
 
 						<Animated.View style={[styles.chatSheet, { top: sheetTop }]}>
