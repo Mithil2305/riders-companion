@@ -14,6 +14,7 @@ import {
   toSharedContentPreview,
 } from "../../utils/sharedContentMessage";
 import { useRouter } from "expo-router";
+import { withAlpha } from "../../utils/color";
 
 interface MessageBubbleProps {
   message: PersonalChatMessage;
@@ -24,6 +25,80 @@ export function MessageBubble({ message, onInviteAction }: MessageBubbleProps) {
   const { colors, metrics, typography } = useTheme();
   const router = useRouter();
   const isOutgoing = message.sender === "me";
+
+  const inviteRouteLine =
+    message.kind === "invite"
+      ? [message.invite.source?.trim(), message.invite.destination?.trim()]
+          .filter((value): value is string => Boolean(value))
+          .join(" → ") || message.invite.rideTitle?.trim() || message.invite.roomName
+      : null;
+
+  const inviteStatusLabel =
+    message.kind === "invite"
+      ? message.invite.status === "pending"
+        ? isOutgoing
+          ? "Awaiting reply"
+          : "Pending"
+        : message.invite.status === "joined"
+          ? "Accepted"
+          : "Declined"
+      : null;
+
+  const inviteStatusTone =
+    message.kind === "invite"
+      ? message.invite.status === "joined"
+        ? {
+          backgroundColor: withAlpha(colors.success, 0.12),
+          textColor: colors.success,
+        }
+        : message.invite.status === "rejected"
+          ? {
+            backgroundColor: withAlpha(colors.error, 0.12),
+            textColor: colors.error,
+          }
+          : {
+            backgroundColor: withAlpha(colors.primary, 0.12),
+            textColor: colors.primary,
+          }
+      : null;
+
+  const inviteMetaItems =
+    message.kind === "invite"
+      ? [
+        message.invite.startDate
+          ? {
+            label: "Start",
+            value: new Date(message.invite.startDate).toLocaleDateString([], {
+              month: "short",
+              day: "2-digit",
+            }),
+          }
+          : null,
+        message.invite.days != null
+          ? {
+            label: "Days",
+            value: String(message.invite.days),
+          }
+          : null,
+        message.invite.budget != null
+          ? {
+            label: "Budget",
+            value: `₹${message.invite.budget.toLocaleString()}`,
+          }
+          : null,
+        message.invite.ridePace
+          ? {
+            label: "Pace",
+            value: `${message.invite.ridePace.charAt(0).toUpperCase()}${message.invite.ridePace.slice(1)}`,
+          }
+          : null,
+      ].filter((item): item is { label: string; value: string } => Boolean(item)).slice(0, 3)
+      : [];
+
+  const inviteNotes =
+    message.kind === "invite" && typeof message.invite.meetupNotes === "string"
+      ? message.invite.meetupNotes.trim()
+      : "";
 
   const styles = React.useMemo(
     () =>
@@ -107,17 +182,36 @@ export function MessageBubble({ message, onInviteAction }: MessageBubbleProps) {
         inviteWrap: {
           borderRadius: 16,
           borderWidth: 1,
-          borderColor: isOutgoing ? colors.overlayLight : colors.border,
+          borderColor: isOutgoing ? withAlpha(colors.chatOutgoingBubbleBg, 0.6) : colors.border,
           backgroundColor: isOutgoing ? colors.chatOutgoingBubbleBg : colors.surface,
           padding: metrics.md,
-          gap: metrics.xs,
+          gap: metrics.sm,
+        },
+        inviteHeaderRow: {
+          flexDirection: "row",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: metrics.sm,
+        },
+        inviteHeaderCopy: {
+          gap: 4,
         },
         inviteBadge: {
           alignSelf: "flex-start",
           borderRadius: metrics.radius.full,
           paddingHorizontal: metrics.sm,
+          paddingVertical: 3,
+          backgroundColor: isOutgoing
+            ? withAlpha(colors.textInverse, 0.18)
+            : colors.chatDateBadgeBg,
+        },
+        inviteStatusBadge: {
+          borderRadius: metrics.radius.full,
+          position: "absolute",
+          top: 0,
+          right: 0,
+          paddingHorizontal: metrics.sm,
           paddingVertical: 4,
-          backgroundColor: isOutgoing ? colors.overlay : colors.chatDateBadgeBg,
         },
         inviteBadgeText: {
           color: isOutgoing ? colors.textInverse : colors.chatDateBadgeText,
@@ -125,15 +219,88 @@ export function MessageBubble({ message, onInviteAction }: MessageBubbleProps) {
           fontWeight: "700",
           letterSpacing: 0.4,
         },
+        inviteStatusText: {
+          fontSize: typography.sizes.xs,
+          fontWeight: "700",
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+        },
         inviteTitle: {
           color: isOutgoing ? colors.textInverse : colors.textPrimary,
           fontSize: typography.sizes.base,
           fontWeight: "700",
         },
         inviteSubtitle: {
-          color: isOutgoing ? colors.textInverse : colors.textSecondary,
+          color: isOutgoing ? withAlpha(colors.textInverse, 0.72) : colors.textSecondary,
           fontSize: typography.sizes.sm,
           fontWeight: "500",
+        },
+        inviteRouteRow: {
+          flexDirection: "row",
+          alignItems: "flex-start",
+          gap: metrics.xs,
+        },
+        inviteRouteIcon: {
+          marginTop: 1,
+        },
+        inviteRouteText: {
+          flex: 1,
+          color: isOutgoing ? colors.textInverse : colors.textPrimary,
+          fontSize: typography.sizes.sm,
+          fontWeight: "600",
+          lineHeight: 20,
+        },
+        inviteMetaRow: {
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: metrics.xs,
+        },
+        inviteMetaPill: {
+          flexGrow: 1,
+          minWidth: 96,
+          borderRadius: 12,
+          paddingHorizontal: metrics.sm,
+          paddingVertical: metrics.xs,
+          backgroundColor: isOutgoing
+            ? withAlpha(colors.textInverse, 0.16)
+            : colors.chatDateBadgeBg,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: metrics.xs,
+        },
+        inviteMetaLabel: {
+          color: isOutgoing ? withAlpha(colors.textInverse, 0.7) : colors.textSecondary,
+          fontSize: typography.sizes.xs,
+          fontWeight: "600",
+          textTransform: "uppercase",
+        },
+        inviteMetaValue: {
+          color: isOutgoing ? colors.textInverse : colors.textPrimary,
+          fontSize: typography.sizes.xs,
+          fontWeight: "700",
+        },
+        inviteNotesWrap: {
+          borderRadius: 12,
+          paddingHorizontal: metrics.sm,
+          paddingVertical: metrics.sm,
+          backgroundColor: isOutgoing
+            ? withAlpha(colors.textInverse, 0.14)
+            : colors.chatDateBadgeBg,
+          gap: 4,
+        },
+        inviteNotesLabel: {
+          color: isOutgoing ? withAlpha(colors.textInverse, 0.7) : colors.textSecondary,
+          fontSize: typography.sizes.xs,
+          fontWeight: "700",
+          letterSpacing: 0.3,
+          textTransform: "uppercase",
+        },
+        inviteNotesText: {
+          color: isOutgoing ? colors.textInverse : colors.textPrimary,
+          fontSize: typography.sizes.sm,
+          fontWeight: "500",
+          lineHeight: 18,
         },
         inviteActionRow: {
           marginTop: metrics.xs,
@@ -142,22 +309,27 @@ export function MessageBubble({ message, onInviteAction }: MessageBubbleProps) {
         },
         inviteActionBtn: {
           flex: 1,
-          minHeight: 34,
-          borderRadius: 17,
+          minHeight: 36,
+          borderRadius: 18,
           alignItems: "center",
           justifyContent: "center",
           paddingHorizontal: metrics.sm,
         },
         inviteJoinBtn: {
-          backgroundColor: colors.success,
+          backgroundColor: colors.primary,
         },
         inviteRejectBtn: {
-          backgroundColor: colors.warning,
+          backgroundColor: isOutgoing ? withAlpha(colors.textInverse, 0.18) : colors.surface,
+          borderWidth: 1,
+          borderColor: isOutgoing ? withAlpha(colors.textInverse, 0.35) : colors.border,
         },
         inviteActionText: {
           color: colors.textInverse,
           fontSize: typography.sizes.sm,
           fontWeight: "700",
+        },
+        inviteRejectText: {
+          color: isOutgoing ? colors.textInverse : colors.textPrimary,
         },
         sharedWrap: {
           borderRadius: 16,
@@ -245,26 +417,82 @@ export function MessageBubble({ message, onInviteAction }: MessageBubbleProps) {
             ]}
           >
             <View style={styles.inviteWrap}>
-              <View style={styles.inviteBadge}>
-                <Text style={styles.inviteBadgeText}>RIDE INVITE</Text>
+              <View style={styles.inviteHeaderRow}>
+                <View style={styles.inviteHeaderCopy}>
+                  <View style={styles.inviteBadge}>
+                    <Text style={styles.inviteBadgeText}>RIDE INVITE</Text>
+                  </View>
+                  <Text numberOfLines={1} style={styles.inviteTitle}>
+                    {message.invite.roomName}
+                  </Text>
+                  <Text style={styles.inviteSubtitle}>{inviteLabel}</Text>
+                </View>
+                {inviteStatusLabel && inviteStatusTone ? (
+                  <View
+                    style={[
+                      styles.inviteStatusBadge,
+                      { backgroundColor: inviteStatusTone.backgroundColor },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.inviteStatusText,
+                        { color: inviteStatusTone.textColor },
+                      ]}
+                    >
+                      {inviteStatusLabel}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
-              <Text numberOfLines={1} style={styles.inviteTitle}>
-                {message.invite.roomName}
-              </Text>
-              <Text style={styles.inviteSubtitle}>{inviteLabel}</Text>
+
+              <View style={styles.inviteRouteRow}>
+                <Ionicons
+                  color={isOutgoing ? colors.textInverse : colors.primary}
+                  name="navigate-outline"
+                  size={16}
+                  style={styles.inviteRouteIcon}
+                />
+                <Text numberOfLines={2} style={styles.inviteRouteText}>
+                  {inviteRouteLine}
+                </Text>
+              </View>
+
+              {inviteMetaItems.length > 0 ? (
+                <View style={styles.inviteMetaRow}>
+                  {inviteMetaItems.map((item) => (
+                    <View key={`${message.id}-${item.label}`} style={styles.inviteMetaPill}>
+                      <Text style={styles.inviteMetaLabel}>{item.label}</Text>
+                      <Text numberOfLines={1} style={styles.inviteMetaValue}>
+                        {item.value}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {inviteNotes ? (
+                <View style={styles.inviteNotesWrap}>
+                  <Text style={styles.inviteNotesLabel}>Meeting notes</Text>
+                  <Text style={styles.inviteNotesText}>{inviteNotes}</Text>
+                </View>
+              ) : null}
+
               {message.sender === "other" && message.invite.status === "pending" ? (
                 <View style={styles.inviteActionRow}>
                   <Pressable
                     onPress={() => onInviteAction?.(message.id, "join")}
                     style={[styles.inviteActionBtn, styles.inviteJoinBtn]}
                   >
-                    <Text style={styles.inviteActionText}>Join</Text>
+                    <Text style={styles.inviteActionText}>Accept</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => onInviteAction?.(message.id, "reject")}
                     style={[styles.inviteActionBtn, styles.inviteRejectBtn]}
                   >
-                    <Text style={styles.inviteActionText}>Reject</Text>
+                    <Text style={[styles.inviteActionText, styles.inviteRejectText]}>
+                      Reject
+                    </Text>
                   </Pressable>
                 </View>
               ) : null}
