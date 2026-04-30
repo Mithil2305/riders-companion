@@ -17,19 +17,27 @@ import {
 	SoloRideForm,
 	GroupRideFormLevel1,
 	GroupRideFormLevel2,
+	GroupRideFormLevel3,
 	type CoRider,
 } from "../../src/components/ride";
+import type { RideLocationValue } from "../../src/components/map/RideLocationPicker";
 
-type RideScreenStep = "picker" | "solo-form" | "group-level1" | "group-level2";
+type RideScreenStep =
+	| "picker"
+	| "solo-start"
+	| "solo-end"
+	| "group-start"
+	| "group-end"
+	| "group-invite";
 
 export default function RideScreen() {
 	const router = useRouter();
 	const { colors, metrics, typography } = useTheme();
 	const [currentStep, setCurrentStep] = useState<RideScreenStep>("picker");
-	const [groupRideData, setGroupRideData] = useState({
-		startingPoint: "",
-		endingPoint: "",
-	});
+	const [soloStartingLocation, setSoloStartingLocation] = useState<RideLocationValue | null>(null);
+	const [soloEndingLocation, setSoloEndingLocation] = useState<RideLocationValue | null>(null);
+	const [groupStartingLocation, setGroupStartingLocation] = useState<RideLocationValue | null>(null);
+	const [groupEndingLocation, setGroupEndingLocation] = useState<RideLocationValue | null>(null);
 
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("ride");
@@ -45,19 +53,44 @@ export default function RideScreen() {
 		});
 	};
 
-	const handleGroupRideLevel1Proceed = (
-		startingPoint: string,
-		endingPoint: string,
-	) => {
-		setGroupRideData({ startingPoint, endingPoint });
-		setCurrentStep("group-level2");
+	const handleSelectSoloRide = () => {
+		setCurrentStep("solo-start");
 	};
 
-	const handleGroupRideLevel2Submit = (
-		startingPoint: string,
-		endingPoint: string,
-		selectedRiders: CoRider[],
-	) => {
+	const handleSelectGroupRide = () => {
+		setCurrentStep("group-start");
+	};
+
+	const handleSoloStartProceed = (location: RideLocationValue) => {
+		setSoloStartingLocation(location);
+		setCurrentStep("solo-end");
+	};
+
+	const handleSoloEndSubmit = (location: RideLocationValue) => {
+		setSoloEndingLocation(location);
+		const startingPoint = soloStartingLocation?.placeName ?? '';
+		if (!startingPoint.trim()) {
+			return;
+		}
+		handleSoloRideStart(startingPoint, location.placeName);
+	};
+
+	const handleGroupRideStartProceed = (location: RideLocationValue) => {
+		setGroupStartingLocation(location);
+		setCurrentStep("group-end");
+	};
+
+	const handleGroupRideEndProceed = (location: RideLocationValue) => {
+		setGroupEndingLocation(location);
+		setCurrentStep("group-invite");
+	};
+
+	const handleGroupRideInviteSubmit = (selectedRiders: CoRider[]) => {
+		const startingPoint = groupStartingLocation?.placeName ?? "";
+		const endingPoint = groupEndingLocation?.placeName ?? "";
+		if (!startingPoint.trim() || !endingPoint.trim()) {
+			return;
+		}
 		router.push({
 			pathname: "/group-chat/[id]",
 			params: {
@@ -69,20 +102,20 @@ export default function RideScreen() {
 		});
 	};
 
-	const handleSelectSoloRide = () => {
-		setCurrentStep("solo-form");
-	};
-
-	const handleSelectGroupRide = () => {
-		setCurrentStep("group-level1");
-	};
-
 	const handleBack = () => {
-		if (currentStep === "group-level2") {
-			setCurrentStep("group-level1");
+		if (currentStep === "solo-end") {
+			setCurrentStep("solo-start");
 			return;
 		}
-		if (currentStep === "solo-form" || currentStep === "group-level1") {
+		if (currentStep === "group-end") {
+			setCurrentStep("group-start");
+			return;
+		}
+		if (currentStep === "group-invite") {
+			setCurrentStep("group-end");
+			return;
+		}
+		if (currentStep === "solo-start" || currentStep === "group-start") {
 			setCurrentStep("picker");
 			return;
 		}
@@ -243,10 +276,16 @@ export default function RideScreen() {
 		);
 	};
 
-	const renderSoloForm = () => (
+	const renderSoloForm = (step: "starting" | "ending") => (
 		<Animated.View entering={FadeInDown} exiting={FadeOutUp} style={styles.content}>
 			<SoloRideForm
-				onStartRide={handleSoloRideStart}
+				step={step}
+				startingLocation={soloStartingLocation}
+				endingLocation={soloEndingLocation}
+				onChangeStartingLocation={setSoloStartingLocation}
+				onChangeEndingLocation={setSoloEndingLocation}
+				onNext={handleSoloStartProceed}
+				onSubmit={handleSoloEndSubmit}
 				isLoading={false}
 			/>
 		</Animated.View>
@@ -255,7 +294,9 @@ export default function RideScreen() {
 	const renderGroupLevel1 = () => (
 		<Animated.View entering={FadeInDown} exiting={FadeOutUp} style={styles.content}>
 			<GroupRideFormLevel1
-				onProceed={handleGroupRideLevel1Proceed}
+				startingLocation={groupStartingLocation}
+				onChangeStartingLocation={setGroupStartingLocation}
+				onProceed={handleGroupRideStartProceed}
 				isLoading={false}
 			/>
 		</Animated.View>
@@ -264,9 +305,25 @@ export default function RideScreen() {
 	const renderGroupLevel2 = () => (
 		<Animated.View entering={FadeInDown} exiting={FadeOutUp} style={styles.content}>
 			<GroupRideFormLevel2
-				startingPoint={groupRideData.startingPoint}
-				endingPoint={groupRideData.endingPoint}
-				onSubmit={handleGroupRideLevel2Submit}
+				endingLocation={groupEndingLocation}
+				onChangeEndingLocation={setGroupEndingLocation}
+				onProceed={handleGroupRideEndProceed}
+				isLoading={false}
+			/>
+		</Animated.View>
+	);
+
+	const renderGroupLevel3 = () => (
+		<Animated.View entering={FadeInDown} exiting={FadeOutUp} style={styles.content}>
+			<GroupRideFormLevel3
+				startingPoint={groupStartingLocation?.placeName ?? ""}
+				endingPoint={groupEndingLocation?.placeName ?? ""}
+				onSubmit={(startingPoint, endingPoint, selectedRiders) => {
+					if (!startingPoint || !endingPoint) {
+						return;
+					}
+					handleGroupRideInviteSubmit(selectedRiders);
+				}}
 				isLoading={false}
 			/>
 		</Animated.View>
@@ -276,25 +333,39 @@ export default function RideScreen() {
 		switch (currentStep) {
 			case "picker":
 				return renderPicker();
-			case "solo-form":
+			case "solo-start":
 				return (
 					<>
 						{renderHeader()}
-						{renderSoloForm()}
+						{renderSoloForm("starting")}
 					</>
 				);
-			case "group-level1":
+			case "solo-end":
+				return (
+					<>
+						{renderHeader()}
+						{renderSoloForm("ending")}
+					</>
+				);
+			case "group-start":
 				return (
 					<>
 						{renderHeader()}
 						{renderGroupLevel1()}
 					</>
 				);
-			case "group-level2":
+			case "group-end":
 				return (
 					<>
 						{renderHeader()}
 						{renderGroupLevel2()}
+					</>
+				);
+			case "group-invite":
+				return (
+					<>
+						{renderHeader()}
+						{renderGroupLevel3()}
 					</>
 				);
 			default:
