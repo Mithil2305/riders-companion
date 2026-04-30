@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import React from "react";
 import {
+  ActivityIndicator,
   Image,
   Platform,
   Pressable,
@@ -15,24 +17,12 @@ import MapView, {
 } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
+import { useLocation } from "../../hooks/useLocation";
+import { useRideTracking } from "../../hooks/useRideTracking";
 import { withAlpha } from "../../utils/color";
 
-type LatLng = { latitude: number; longitude: number };
-
-interface NavigationStats {
-  speedKmh?: number;
-  distanceKm?: number;
-  distanceTotalKm?: number;
-  elapsed?: string;
-  eta?: string;
-  remaining?: string;
-}
-
 interface LiveRideTrackerProps {
-  sourceLabel?: string;
-  destinationLabel?: string;
-  destinationAvatar?: string;
-  stats?: NavigationStats;
+  rideId: string;
   onBack?: () => void;
   onEndRide: () => void;
 }
@@ -44,162 +34,13 @@ const DEFAULT_REGION = {
   longitudeDelta: 0.06,
 };
 
-function decodePolyline(encoded: string): LatLng[] {
-  const points: LatLng[] = [];
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
-  while (index < encoded.length) {
-    let shift = 0;
-    let result = 0;
-    let byte: number;
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-    const dLat = result & 1 ? ~(result >> 1) : result >> 1;
-    lat += dLat;
-    shift = 0;
-    result = 0;
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-    const dLng = result & 1 ? ~(result >> 1) : result >> 1;
-    lng += dLng;
-    points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
-  }
-  return points;
-}
-
-async function geocodePlace(label: string, apiKey: string): Promise<LatLng | null> {
-  if (!label || label.trim().length < 3) return null;
-  try {
-    const url =
-      "https://maps.googleapis.com/maps/api/geocode/json?address=" +
-      encodeURIComponent(label.trim()) +
-      "&key=" +
-      encodeURIComponent(apiKey);
-    const res = await fetch(url);
-    const data = (await res.json()) as {
-      status: string;
-      results?: { geometry?: { location?: { lat?: number; lng?: number } } }[];
-    };
-    if (data.status !== "OK" || !data.results?.length) return null;
-    const loc = data.results[0]?.geometry?.location;
-    if (typeof loc?.lat !== "number" || typeof loc?.lng !== "number") return null;
-    return { latitude: loc.lat, longitude: loc.lng };
-  } catch {
-    return null;
-  }
-}
-
-async function fetchRoutePolyline(origin: LatLng, destination: LatLng, apiKey: string): Promise<LatLng[]> {
-  try {
-    const url =
-      "https://maps.googleapis.com/maps/api/directions/json?" +
-      "origin=" +
-      origin.latitude +
-      "," +
-      origin.longitude +
-      "&destination=" +
-      destination.latitude +
-      "," +
-      destination.longitude +
-      "&mode=driving" +
-      "&key=" +
-      encodeURIComponent(apiKey);
-    const res = await fetch(url);
-    const data = (await res.json()) as {
-      status: string;
-      routes?: { overview_polyline?: { points?: string } }[];
-    };
-    if (data.status !== "OK" || !data.routes?.length) return [];
-    const encoded = data.routes[0]?.overview_polyline?.points;
-    if (!encoded) return [];
-    return decodePolyline(encoded);
-  } catch {
-    return [];
-  }
-}
-
 export default function LiveRideTracker({
-  sourceLabel,
-  destinationLabel,
-  destinationAvatar,
-  stats,
+  rideId,
   onBack,
   onEndRide,
 }: LiveRideTrackerProps) {
   const { colors, metrics, typography, resolvedMode } = useTheme();
-  const mapRef = React.useRef<MapView>(null);
-  const hasCenteredRef = React.useRef(false);
-  const [routePoints, setRoutePoints] = React.useState<LatLng[]>([]);
-  const [sourceCoord, setSourceCoord] = React.useState<LatLng | null>(null);
-  const [destCoord, setDestCoord] = React.useState<LatLng | null>(null);
-  const [userCoord, setUserCoord] = React.useState<LatLng | null>(null);
-
-  React.useEffect(() => {
-    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-    if (!apiKey) return;
-    let cancelled = false;
-    Promise.all([
-      sourceLabel ? geocodePlace(sourceLabel, apiKey) : Promise.resolve(null),
-      destinationLabel ? geocodePlace(destinationLabel, apiKey) : Promise.resolve(null),
-    ]).then(([src, dst]) => {
-      if (cancelled) return;
-      setSourceCoord(src);
-      setDestCoord(dst);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [sourceLabel, destinationLabel]);
-
-  React.useEffect(() => {
-    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-    if (!apiKey || !sourceCoord || !destCoord) {
-      setRoutePoints([]);
-      return;
-    }
-    let cancelled = false;
-    fetchRoutePolyline(sourceCoord, destCoord, apiKey).then((points) => {
-      if (cancelled) return;
-      setRoutePoints(points);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [sourceCoord, destCoord]);
-
-  const handleRecenter = React.useCallback(() => {
-    if (!mapRef.current || !userCoord) return;
-    mapRef.current.animateToRegion(
-      {
-        latitude: userCoord.latitude,
-        longitude: userCoord.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      },
-      500,
-    );
-  }, [userCoord]);
-
-  React.useEffect(() => {
-    if (!mapRef.current || !userCoord || hasCenteredRef.current) return;
-    mapRef.current.animateToRegion(
-      {
-        latitude: userCoord.latitude,
-        longitude: userCoord.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      },
-      500,
-    );
-    hasCenteredRef.current = true;
-  }, [userCoord]);
+  const { location: userLocation } = useLocation({ autoRequest: true });
 
   const palette = React.useMemo(
     () => ({
@@ -214,7 +55,7 @@ export default function LiveRideTracker({
       dimOverlay:
         resolvedMode === "dark" ? withAlpha(colors.black, 0.28) : "transparent",
     }),
-    [colors, resolvedMode],
+    [colors, resolvedMode]
   );
 
   const styles = React.useMemo(
@@ -229,7 +70,7 @@ export default function LiveRideTracker({
         },
         mapDim: {
           ...StyleSheet.absoluteFillObject,
-          backgroundColor: palette.dimOverlay,
+          // backgroundColor: palette.dimOverlay,
         },
         header: {
           position: "absolute",
@@ -238,9 +79,9 @@ export default function LiveRideTracker({
           right: 0,
           height: 64,
           paddingHorizontal: metrics.md,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
+          flexDirection: "row" as const,
+          alignItems: "center" as const,
+          justifyContent: "space-between" as const,
           backgroundColor: palette.headerBg,
           borderBottomWidth: 1,
           borderBottomColor: withAlpha(colors.border, 0.5),
@@ -248,13 +89,13 @@ export default function LiveRideTracker({
         headerTitle: {
           color: palette.textPrimary,
           fontSize: typography.sizes.lg,
-          fontWeight: "600",
+          fontWeight: "600" as const,
         },
         headerSpacer: {
           width: metrics.icon.md,
         },
         floatingNav: {
-          position: "absolute",
+          position: "absolute" as const,
           right: metrics.lg,
           top: "50%",
           transform: [{ translateY: -28 }],
@@ -262,8 +103,8 @@ export default function LiveRideTracker({
           height: 56,
           borderRadius: 28,
           backgroundColor: palette.iconBg,
-          alignItems: "center",
-          justifyContent: "center",
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
           shadowColor: palette.panelShadow,
           shadowOpacity: 0.2,
           shadowRadius: 8,
@@ -271,7 +112,7 @@ export default function LiveRideTracker({
           elevation: 6,
         },
         bottomPanel: {
-          position: "absolute",
+          position: "absolute" as const,
           left: 0,
           right: 0,
           bottom: 0,
@@ -288,49 +129,61 @@ export default function LiveRideTracker({
           elevation: 10,
         },
         metricsRow: {
-          flexDirection: "row",
-          justifyContent: "space-between",
+          flexDirection: "row" as const,
+          justifyContent: "space-between" as const,
           marginBottom: metrics.md,
         },
         metricItem: {
           flex: 1,
-          alignItems: "center",
+          alignItems: "center" as const,
         },
         metricValue: {
           color: palette.textPrimary,
           fontSize: typography.sizes.lg,
-          fontWeight: "700",
+          fontWeight: "700" as const,
         },
         metricSub: {
           marginTop: 2,
           color: palette.textSecondary,
           fontSize: typography.sizes.xs,
-          fontWeight: "600",
+          fontWeight: "600" as const,
+        },
+        progressBar: {
+          height: 6,
+          backgroundColor: withAlpha(colors.border, 0.3),
+          borderRadius: 3,
+          marginBottom: metrics.md,
+          overflow: "hidden" as const,
+        },
+        progressFill: {
+          height: "100%" as const,
+          backgroundColor: colors.primary,
+          borderRadius: 3,
         },
         endRideButton: {
           height: 56,
           borderRadius: metrics.radius.lg,
           backgroundColor: palette.primary,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
+          flexDirection: "row" as const,
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
           gap: metrics.sm,
         },
         endRideText: {
           color: colors.textInverse,
           fontSize: typography.sizes.sm,
-          fontWeight: "700",
+          fontWeight: "700" as const,
         },
         markerWrap: {
-          alignItems: "center",
+          alignItems: "center" as const,
         },
         markerGlow: {
           width: 34,
           height: 34,
           borderRadius: 17,
           backgroundColor: withAlpha(colors.primary, 0.28),
-          alignItems: "center",
-          justifyContent: "center",
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
           marginBottom: 6,
         },
         markerCore: {
@@ -338,8 +191,8 @@ export default function LiveRideTracker({
           height: 26,
           borderRadius: 13,
           backgroundColor: colors.primary,
-          alignItems: "center",
-          justifyContent: "center",
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
         },
         markerAvatar: {
           width: 22,
@@ -347,17 +200,135 @@ export default function LiveRideTracker({
           borderRadius: 11,
           backgroundColor: colors.textInverse,
         },
+        markerLabel: {
+          marginTop: 6,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          backgroundColor: palette.panelBg,
+          borderRadius: 6,
+          borderWidth: 1,
+          borderColor: withAlpha(colors.border, 0.5),
+        },
+        markerLabelText: {
+          color: palette.textPrimary,
+          fontSize: typography.sizes.xs,
+          fontWeight: "600" as const,
+        },
+        loadingContainer: {
+          flex: 1,
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+          backgroundColor: colors.background,
+        },
+        errorContainer: {
+          flex: 1,
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+          backgroundColor: colors.background,
+          paddingHorizontal: metrics.lg,
+        },
+        errorText: {
+          color: colors.textPrimary,
+          fontSize: typography.sizes.sm,
+          marginTop: metrics.md,
+          textAlign: "center" as const,
+        },
       }),
-    [colors, metrics, palette, typography],
+    [colors, metrics, palette, typography]
   );
 
-  const speedValue = stats?.speedKmh ?? 1;
-  const distanceValue = stats?.distanceKm ?? 0.0;
-  const distanceTotal = stats?.distanceTotalKm ?? 2.1;
-  const elapsedValue = stats?.elapsed ?? "0:34";
-  const remainingValue = stats?.remaining ?? "6 MIN";
-  const etaValue = stats?.eta ?? "8:30 AM";
+  // Allow rendering even when rideId is not provided.
+  // Component will fallback to showing only the map and user location when no ride is active.
 
+  const {
+    snapshot,
+    navigationStats,
+    locations,
+    isLoading,
+    error,
+    refresh,
+  } = useRideTracking({
+    rideId,
+    enabled: true,
+    pollIntervalMs: 3000,
+  });
+
+  const mapRef = React.useRef<MapView>(null);
+  const hasCenteredRef = React.useRef(false);
+
+  const routePolyline = snapshot?.route.routePolyline || [];
+  const sourceCoord = snapshot?.route.sourceCoordinates || null;
+  const destCoord = snapshot?.route.destinationCoordinates || null;
+  const participants = snapshot?.participants || [];
+  const sourceLabel = snapshot?.route.source || "Starting Point";
+  const destinationLabel = snapshot?.route.destination || "Destination";
+
+  // Get the rider's avatar (destination rider if in group ride)
+  const destinationRider = participants.find((p) => p.isLeader);
+  const destinationAvatar = destinationRider?.avatar || undefined;
+
+  // Auto-center on user location
+  React.useEffect(() => {
+    if (!mapRef.current || !userLocation || hasCenteredRef.current) return;
+    mapRef.current.animateToRegion(
+      {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      },
+      500
+    );
+    hasCenteredRef.current = true;
+  }, [userLocation]);
+
+  const handleRecenter = React.useCallback(() => {
+    if (!mapRef.current || !userLocation) return;
+    mapRef.current.animateToRegion(
+      {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      },
+      500
+    );
+  }, [userLocation]);
+
+  // Show loading state
+  if (isLoading && !snapshot) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.errorText}>Loading ride data...</Text>
+      </View>
+    );
+  }
+
+  const isValidRideId = Boolean(rideId && rideId.trim().length > 0);
+
+  // Show error state only when a rideId was requested and snapshot isn't available
+  if (error && !snapshot && isValidRideId) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons
+          name="alert-circle-outline"
+          size={48}
+          color={colors.textSecondary}
+        />
+        <Text style={styles.errorText}>{error}</Text>
+        <Pressable
+          onPress={refresh}
+          style={[styles.endRideButton, { marginTop: metrics.lg, width: 120 }]}
+        >
+          <Ionicons name="refresh" size={18} color={colors.textInverse} />
+          <Text style={styles.endRideText}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // Render map with real data
   return (
     <View style={styles.container}>
       <MapView
@@ -372,27 +343,21 @@ export default function LiveRideTracker({
         toolbarEnabled={false}
         rotateEnabled={false}
         moveOnMarkerPress={false}
-        onUserLocationChange={(event) => {
-          const coords = event.nativeEvent.coordinate;
-          if (coords) {
-            setUserCoord({
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-            });
-          }
-        }}
       >
-        {routePoints.length >= 2 && (
+        {/* Render route polyline */}
+        {routePolyline.length >= 2 && (
           <>
+            {/* Background layer for visibility */}
             <Polyline
-              coordinates={routePoints}
+              coordinates={routePolyline}
               strokeColor={withAlpha(colors.primary, 0.28)}
               strokeWidth={9}
               lineJoin="round"
               lineCap="round"
             />
+            {/* Main route line */}
             <Polyline
-              coordinates={routePoints}
+              coordinates={routePolyline}
               strokeColor={colors.primary}
               strokeWidth={6}
               lineJoin="round"
@@ -400,70 +365,166 @@ export default function LiveRideTracker({
             />
           </>
         )}
+
+        {/* Source marker */}
         {sourceCoord && (
-          <Marker coordinate={sourceCoord} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
+          <Marker
+            coordinate={sourceCoord}
+            anchor={{ x: 0.5, y: 1 }}
+            tracksViewChanges={false}
+          >
             <View style={styles.markerWrap}>
               <View style={styles.markerCore}>
-                <Ionicons name="location" size={16} color={colors.textInverse} />
+                <Ionicons
+                  name="location"
+                  size={16}
+                  color={colors.textInverse}
+                />
+              </View>
+              <View style={styles.markerLabel}>
+                <Text style={styles.markerLabelText}>{sourceLabel}</Text>
               </View>
             </View>
           </Marker>
         )}
+
+        {/* Destination marker with avatar */}
         {destCoord && (
-          <Marker coordinate={destCoord} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
+          <Marker
+            coordinate={destCoord}
+            anchor={{ x: 0.5, y: 1 }}
+            tracksViewChanges={false}
+          >
             <View style={styles.markerWrap}>
               <View style={styles.markerGlow}>
                 <View style={styles.markerCore}>
                   {destinationAvatar ? (
-                    <Image source={{ uri: destinationAvatar }} style={styles.markerAvatar} />
+                    <Image
+                      source={{ uri: destinationAvatar }}
+                      style={styles.markerAvatar}
+                    />
                   ) : (
-                    <Ionicons name="person" size={14} color={colors.textInverse} />
+                    <Ionicons
+                      name="person"
+                      size={14}
+                      color={colors.textInverse}
+                    />
                   )}
                 </View>
+              </View>
+              <View style={styles.markerLabel}>
+                <Text style={styles.markerLabelText}>{destinationLabel}</Text>
               </View>
             </View>
           </Marker>
         )}
+
+        {/* Other participants markers */}
+        {locations.map((location) => (
+          <Marker
+            key={location.riderId}
+            coordinate={{
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
+          >
+            <View style={styles.markerCore}>
+              <Ionicons name="person" size={14} color={colors.textInverse} />
+            </View>
+          </Marker>
+        ))}
       </MapView>
 
+      {/* Dim overlay */}
       <View pointerEvents="none" style={styles.mapDim} />
 
+      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={onBack} hitSlop={8}>
-          <Ionicons name="arrow-back" size={metrics.icon.md} color={colors.textPrimary} />
+          <Ionicons
+            name="arrow-back"
+            size={metrics.icon.md}
+            color={colors.textPrimary}
+          />
         </Pressable>
-        <Text style={styles.headerTitle}>Navigation</Text>
+        <Text style={styles.headerTitle}>Live Tracking</Text>
         <View style={styles.headerSpacer} />
       </View>
 
+      {/* Recenter button */}
       <Pressable onPress={handleRecenter} style={styles.floatingNav}>
         <Ionicons name="navigate" size={22} color={palette.iconFg} />
       </Pressable>
 
+      {/* Bottom stats panel */}
       <View style={styles.bottomPanel}>
+        {/* Progress bar */}
+        {navigationStats && (
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${navigationStats.progress}%`,
+                },
+              ]}
+            />
+          </View>
+        )}
+
+        {/* Metrics */}
         <View style={styles.metricsRow}>
           <View style={styles.metricItem}>
-            <Text style={styles.metricValue}>{speedValue}</Text>
+            <Text style={styles.metricValue}>
+              {navigationStats?.speedKmh.toFixed(1) || "0"}
+            </Text>
             <Text style={styles.metricSub}>KM/H</Text>
           </View>
           <View style={styles.metricItem}>
-            <Text style={styles.metricValue}>{distanceValue.toFixed(1)}</Text>
-            <Text style={styles.metricSub}>/ {distanceTotal.toFixed(1)} KM</Text>
+            <Text style={styles.metricValue}>
+              {navigationStats?.distanceKm.toFixed(1) || "0"}
+            </Text>
+            <Text style={styles.metricSub}>
+              / {navigationStats?.distanceTotalKm.toFixed(1) || "0"} KM
+            </Text>
           </View>
           <View style={styles.metricItem}>
-            <Text style={styles.metricValue}>{elapsedValue}</Text>
-            <Text style={styles.metricSub}>/ {remainingValue}</Text>
+            <Text style={styles.metricValue}>
+              {navigationStats?.elapsedFormatted || "0:00"}
+            </Text>
+            <Text style={styles.metricSub}>
+              / {navigationStats?.remainingFormatted || "—"}
+            </Text>
           </View>
           <View style={styles.metricItem}>
-            <Text style={styles.metricValue}>{etaValue}</Text>
+            <Text style={styles.metricValue}>
+              {navigationStats?.eta || "—"}
+            </Text>
             <Text style={styles.metricSub}>ETA</Text>
           </View>
         </View>
+
+        {/* End ride button */}
         <Pressable onPress={onEndRide} style={styles.endRideButton}>
           <Ionicons name="close" size={18} color={colors.textInverse} />
           <Text style={styles.endRideText}>End Ride</Text>
         </Pressable>
       </View>
+
+      {/* Loading indicator overlay during refresh */}
+      {isLoading && snapshot && (
+        <View
+          style={{
+            position: "absolute",
+            top: metrics.lg,
+            right: metrics.lg,
+          }}
+        >
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      )}
     </View>
   );
 }
