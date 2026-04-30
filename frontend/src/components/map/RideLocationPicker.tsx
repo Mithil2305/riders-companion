@@ -12,7 +12,6 @@ import {
 	type ViewStyle,
 } from 'react-native';
 import MapView, {
-	Marker,
 	PROVIDER_DEFAULT,
 	PROVIDER_GOOGLE,
 	type LatLng,
@@ -46,18 +45,23 @@ type MapPreviewStyles = {
 	mapOverlay: StyleProp<ViewStyle>;
 	mapBadge: StyleProp<ViewStyle>;
 	mapBadgeText: StyleProp<TextStyle>;
-	markerOuter: StyleProp<ViewStyle>;
-	markerInner: StyleProp<ViewStyle>;
+	mapPointer: StyleProp<ViewStyle>;
+	mapPointerHalo: StyleProp<ViewStyle>;
+	mapPointerPin: StyleProp<ViewStyle>;
 };
+
+interface MapLocationPointerProps {
+	styles: MapPreviewStyles;
+	pointerColor: string;
+}
 
 interface MapPreviewProps {
 	region: Region;
-	marker: LatLng;
-	onMapPress: (coordinate: LatLng) => void;
+	onCoordinateChange: (coordinate: LatLng) => void;
 	isResolvingLocation: boolean;
 	styles: MapPreviewStyles;
 	markerColor: string;
-	badgeColor: string;
+	pointerColor: string;
 }
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
@@ -210,37 +214,51 @@ async function getCurrentCoordinates(): Promise<LatLng | null> {
 
 const MapPreview = React.memo(function MapPreview({
 	region,
-	marker,
-	onMapPress,
+	onCoordinateChange,
 	isResolvingLocation,
 	styles,
 	markerColor,
-	badgeColor,
+	pointerColor,
 }: MapPreviewProps) {
+	const mapRef = React.useRef<MapView>(null);
+	const isDraggingRef = React.useRef(false);
+
+	React.useEffect(() => {
+		mapRef.current?.animateToRegion(region, 260);
+	}, [region]);
+
 	return (
 		<View style={styles.mapCard}>
 			<MapView
+				ref={mapRef}
 				provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
 				style={StyleSheet.absoluteFillObject}
-				region={region}
+				initialRegion={region}
 				onPress={(event) => {
-					onMapPress(event.nativeEvent.coordinate);
+					onCoordinateChange(event.nativeEvent.coordinate);
 				}}
-				scrollEnabled={false}
-				zoomEnabled={false}
+				onPanDrag={() => {
+					isDraggingRef.current = true;
+				}}
+				onRegionChangeComplete={(nextRegion) => {
+					if (!isDraggingRef.current) {
+						return;
+					}
+
+					isDraggingRef.current = false;
+					onCoordinateChange({
+						latitude: nextRegion.latitude,
+						longitude: nextRegion.longitude,
+					});
+				}}
+				scrollEnabled
+				zoomEnabled
 				rotateEnabled={false}
 				pitchEnabled={false}
 				toolbarEnabled={false}
 				loadingEnabled
-			>
-				<Marker coordinate={marker} tracksViewChanges={false}>
-					<View style={styles.markerOuter}>
-						<View style={styles.markerInner}>
-							<Ionicons name="location" size={18} color={badgeColor} />
-						</View>
-					</View>
-				</Marker>
-			</MapView>
+			/>
+			<MapLocationPointer styles={styles} pointerColor={pointerColor} />
 			<View style={styles.mapOverlay} />
 			<View style={styles.mapBadge}>
 				{isResolvingLocation ? (
@@ -248,7 +266,21 @@ const MapPreview = React.memo(function MapPreview({
 				) : (
 					<Ionicons name="navigate" size={14} color={markerColor} />
 				)}
-				<Text style={styles.mapBadgeText}>Map preview</Text>
+				<Text style={styles.mapBadgeText}>Drag to adjust</Text>
+			</View>
+		</View>
+	);
+});
+
+const MapLocationPointer = React.memo(function MapLocationPointer({
+	styles,
+	pointerColor,
+}: MapLocationPointerProps) {
+	return (
+		<View pointerEvents="none" style={styles.mapPointer}>
+			<View style={styles.mapPointerHalo} />
+			<View style={styles.mapPointerPin}>
+				<Ionicons name="location" size={18} color={pointerColor} />
 			</View>
 		</View>
 	);
@@ -284,9 +316,19 @@ export function RideLocationPicker({
 			placeholder: colors.textTertiary,
 			chipBackground: colors.surfaceRaised,
 		}),
-		[
-			colors
-		],
+			[
+				colors.background,
+				colors.border,
+				colors.borderDark,
+				colors.overlay,
+				colors.primary,
+				colors.shadow,
+				colors.surface,
+				colors.surfaceMuted,
+				colors.surfaceRaised,
+				colors.textPrimary,
+				colors.textTertiary,
+			],
 	);
 	const [query, setQuery] = React.useState(value?.placeName ?? '');
 	const [suggestions, setSuggestions] = React.useState<RideLocationSuggestion[]>([]);
@@ -370,6 +412,26 @@ export function RideLocationPicker({
 		[mapMarker],
 	);
 
+	const handleCoordinateChange = React.useCallback(
+		async (coordinate: LatLng) => {
+			setIsResolvingCurrentLocation(true);
+			try {
+				const placeName =
+					(await reverseGeocode(coordinate)) ??
+					`${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`;
+				onChange({
+					placeName,
+					latitude: coordinate.latitude,
+					longitude: coordinate.longitude,
+				});
+				setQuery(placeName);
+			} finally {
+				setIsResolvingCurrentLocation(false);
+			}
+		},
+		[onChange],
+	);
+
 	const handleSelectSuggestion = React.useCallback(
 		async (suggestion: RideLocationSuggestion) => {
 			setIsSearching(false);
@@ -396,21 +458,10 @@ export function RideLocationPicker({
 	);
 
 	const handleMapPress = React.useCallback(
-		async (coordinate: LatLng) => {
-			setIsResolvingCurrentLocation(true);
-			try {
-				const placeName =
-					(await reverseGeocode(coordinate)) ?? `${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`;
-				onChange({
-					placeName,
-					latitude: coordinate.latitude,
-					longitude: coordinate.longitude,
-				});
-			} finally {
-				setIsResolvingCurrentLocation(false);
-			}
+		(coordinate: LatLng) => {
+			void handleCoordinateChange(coordinate);
 		},
-		[onChange],
+		[handleCoordinateChange],
 	);
 
 	const handleUseCurrentLocation = React.useCallback(async () => {
@@ -504,6 +555,36 @@ export function RideLocationPicker({
 				},
 				mapOverlay: {
 					...StyleSheet.absoluteFillObject,
+				},
+				mapPointer: {
+					position: 'absolute',
+					left: '50%',
+					top: '50%',
+					transform: [{ translateX: -16 }, { translateY: -32 }],
+					alignItems: 'center',
+					justifyContent: 'center',
+				},
+				mapPointerHalo: {
+					position: 'absolute',
+					width: 56,
+					height: 56,
+					borderRadius: 28,
+					backgroundColor: withAlpha(palette.primary, 0.12),
+					borderWidth: 1,
+					borderColor: withAlpha(palette.primary, 0.22),
+				},
+				mapPointerPin: {
+					width: 32,
+					height: 32,
+					borderRadius: 16,
+					backgroundColor: palette.primary,
+					alignItems: 'center',
+					justifyContent: 'center',
+					shadowColor: palette.shadow,
+					shadowOpacity: 0.18,
+					shadowRadius: 10,
+					shadowOffset: { width: 0, height: 6 },
+					elevation: 4,
 				},
 				mapBadge: {
 					position: 'absolute',
@@ -611,12 +692,11 @@ export function RideLocationPicker({
 
 			<MapPreview
 				region={mapRegion}
-				marker={mapMarker}
-				onMapPress={handleMapPress}
+				onCoordinateChange={handleMapPress}
 				isResolvingLocation={isResolvingCurrentLocation}
 				styles={styles}
 				markerColor={palette.primary}
-				badgeColor={colors.textPrimary}
+				pointerColor={colors.textInverse}
 			/>
 		</View>
 	);
