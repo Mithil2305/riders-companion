@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	FlatList,
@@ -8,11 +8,11 @@ import {
 	Text,
 	TextInput,
 	View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../hooks/useTheme';
-import ProfileService from '../../services/ProfileService';
-import TrackerService from '../../services/TrackerService';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../hooks/useTheme";
+import ProfileService from "../../services/ProfileService";
+import TrackerService from "../../services/TrackerService";
 
 export interface CoRider {
 	id: string;
@@ -26,7 +26,11 @@ export interface CoRider {
 interface GroupRideFormLevel3Props {
 	startingPoint: string;
 	endingPoint: string;
-	onSubmit: (startingPoint: string, endingPoint: string, selectedRiders: CoRider[]) => void;
+	onSubmit: (
+		startingPoint: string,
+		endingPoint: string,
+		selectedRiders: CoRider[],
+	) => void;
 	isLoading?: boolean;
 }
 
@@ -37,17 +41,17 @@ export function GroupRideFormLevel3({
 	isLoading = false,
 }: GroupRideFormLevel3Props) {
 	const { colors, typography, metrics } = useTheme();
-	const [searchQuery, setSearchQuery] = useState('');
+	const [searchQuery, setSearchQuery] = useState("");
 	const [baseRiders, setBaseRiders] = useState<CoRider[]>([]);
 	const [coRidersList, setCoRidersList] = useState<CoRider[]>([]);
 	const [selectedRiders, setSelectedRiders] = useState<CoRider[]>([]);
 	const [isLoadingRiders, setIsLoadingRiders] = useState(true);
 	const [isSearchingGlobal, setIsSearchingGlobal] = useState(false);
 
-	const FALLBACK_AVATAR = 'https://i.pravatar.cc/150?img=11';
+	const FALLBACK_AVATAR = "https://i.pravatar.cc/150?img=11";
 
 	const toTrackerRider = (value: unknown): CoRider | null => {
-		if (!value || typeof value !== 'object') {
+		if (!value || typeof value !== "object") {
 			return null;
 		}
 
@@ -58,18 +62,18 @@ export function GroupRideFormLevel3({
 			isFollowing?: unknown;
 		};
 
-		if (typeof item.id !== 'string' || item.id.trim().length === 0) {
+		if (typeof item.id !== "string" || item.id.trim().length === 0) {
 			return null;
 		}
 
 		return {
 			id: item.id,
 			name:
-				typeof item.name === 'string' && item.name.trim().length > 0
+				typeof item.name === "string" && item.name.trim().length > 0
 					? item.name
-					: 'Rider',
+					: "Rider",
 			avatar:
-				typeof item.avatar === 'string' && item.avatar.trim().length > 0
+				typeof item.avatar === "string" && item.avatar.trim().length > 0
 					? item.avatar
 					: FALLBACK_AVATAR,
 			isFollowing: Boolean(item.isFollowing),
@@ -170,7 +174,7 @@ export function GroupRideFormLevel3({
 					const existing = merged.get(user.id);
 					merged.set(user.id, {
 						id: user.id,
-						name: user.name || user.username || 'Rider',
+						name: user.name || user.username || "Rider",
 						username: user.username,
 						avatar:
 							user.profileImageUrl && user.profileImageUrl.trim().length > 0
@@ -182,7 +186,9 @@ export function GroupRideFormLevel3({
 				});
 
 				setCoRidersList(
-					Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name)),
+					Array.from(merged.values()).sort((a, b) =>
+						a.name.localeCompare(b.name),
+					),
 				);
 			} catch {
 				if (mounted) {
@@ -205,7 +211,7 @@ export function GroupRideFormLevel3({
 	const filteredRiders = useMemo(
 		() =>
 			coRidersList.filter((rider) =>
-				`${rider.name} ${rider.username || ''}`
+				`${rider.name} ${rider.username || ""}`
 					.toLowerCase()
 					.includes(searchQuery.toLowerCase()),
 			),
@@ -238,9 +244,9 @@ export function GroupRideFormLevel3({
 			paddingBottom: metrics.lg,
 		},
 		titleRow: {
-			flexDirection: 'row',
-			alignItems: 'center',
-			justifyContent: 'space-between',
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
 			marginTop: 6,
 			marginBottom: 16,
 		},
@@ -268,8 +274,8 @@ export function GroupRideFormLevel3({
 			paddingBottom: 8,
 		},
 		riderItem: {
-			flexDirection: 'row',
-			alignItems: 'center',
+			flexDirection: "row",
+			alignItems: "center",
 			height: 64,
 			paddingHorizontal: 16,
 			marginBottom: 12,
@@ -298,7 +304,7 @@ export function GroupRideFormLevel3({
 			color: colors.primaryDark,
 		},
 		badgeRow: {
-			flexDirection: 'row',
+			flexDirection: "row",
 			marginTop: 4,
 			gap: 6,
 		},
@@ -315,7 +321,7 @@ export function GroupRideFormLevel3({
 		},
 		emptyState: {
 			paddingVertical: 24,
-			alignItems: 'center',
+			alignItems: "center",
 		},
 		emptyStateText: {
 			fontSize: typography.sizes.base,
@@ -323,7 +329,7 @@ export function GroupRideFormLevel3({
 		},
 		loadingRow: {
 			paddingVertical: 24,
-			alignItems: 'center',
+			alignItems: "center",
 		},
 		searchHint: {
 			fontSize: typography.sizes.xs,
@@ -345,11 +351,7 @@ export function GroupRideFormLevel3({
 						disabled={!isValid || isLoading}
 						hitSlop={8}
 					>
-						<Ionicons
-							name="arrow-forward"
-							size={30}
-							color={colors.primary}
-						/>
+						<Ionicons name="arrow-forward" size={30} color={colors.primary} />
 					</Pressable>
 				</View>
 
@@ -362,9 +364,6 @@ export function GroupRideFormLevel3({
 						onChangeText={setSearchQuery}
 						editable={!isLoading}
 					/>
-					<Text style={styles.searchHint}>
-						Tracking = you follow them, Tracker = they follow you
-					</Text>
 				</View>
 
 				{isLoadingRiders || isSearchingGlobal ? (
@@ -387,7 +386,10 @@ export function GroupRideFormLevel3({
 									onPress={() => toggleRiderSelection(item)}
 									hitSlop={8}
 								>
-									<Image source={{ uri: item.avatar }} style={styles.riderAvatar} />
+									<Image
+										source={{ uri: item.avatar }}
+										style={styles.riderAvatar}
+									/>
 									<View style={styles.riderInfo}>
 										<Text
 											style={[
@@ -398,20 +400,11 @@ export function GroupRideFormLevel3({
 											{item.name}
 										</Text>
 										{item.username ? (
-											<Text style={styles.emptyStateText}>@{item.username}</Text>
+											<Text style={styles.emptyStateText}>
+												@{item.username}
+											</Text>
 										) : null}
-										<View style={styles.badgeRow}>
-											{item.isTracking ? (
-												<View style={styles.badge}>
-													<Text style={styles.badgeText}>Tracking</Text>
-												</View>
-											) : null}
-											{item.isFollowing ? (
-												<View style={styles.badge}>
-													<Text style={styles.badgeText}>Tracker</Text>
-												</View>
-											) : null}
-										</View>
+										<View style={styles.badgeRow} />
 									</View>
 								</Pressable>
 							);

@@ -23,6 +23,7 @@ import Animated, {
 import { useTheme } from "../../hooks/useTheme";
 import { StreamingVideo } from "../common";
 import { FeedPostItem } from "../../types/feed";
+import { useRelativeTime } from "../../hooks/useRelativeTime";
 
 interface FeedPostProps {
 	item: FeedPostItem;
@@ -50,11 +51,14 @@ function FeedPostComponent({
 	const { colors, metrics, typography, resolvedMode } = useTheme();
 	const likeCount = item.likes;
 	const isVideoPost = item.mediaType === "VIDEO";
+	const relativeTime = useRelativeTime(item.createdAt);
 	const [imageLoading, setImageLoading] = React.useState(
 		item.mediaType !== "VIDEO",
 	);
 	const [imageAspectRatio, setImageAspectRatio] = React.useState(
-		item.aspectRatio && Number.isFinite(item.aspectRatio) && item.aspectRatio > 0
+		item.aspectRatio &&
+			Number.isFinite(item.aspectRatio) &&
+			item.aspectRatio > 0
 			? item.aspectRatio
 			: 1,
 	);
@@ -160,6 +164,9 @@ function FeedPostComponent({
 					alignItems: "center",
 					gap: metrics.sm,
 				},
+				userMeta: {
+					justifyContent: "center",
+				},
 				avatar: {
 					width: 34,
 					height: 34,
@@ -245,11 +252,9 @@ function FeedPostComponent({
 		? { height: metrics.screenWidth * 0.9 }
 		: { aspectRatio: imageAspectRatio };
 
-	const defaultFistBumpIcon: ImageSourcePropType =
-		require("../../../assets/icons/fist-bump-white.png");
+	const defaultFistBumpIcon: ImageSourcePropType = require("../../../assets/icons/fist-bump-white.png");
 
-	const activeFistBumpIcon: ImageSourcePropType =
-		require("../../../assets/icons/fist-bump-color.png");
+	const activeFistBumpIcon: ImageSourcePropType = require("../../../assets/icons/fist-bump-color.png");
 
 	const runBumpPulse = React.useCallback(() => {
 		setShowBumpPulse(true);
@@ -291,8 +296,10 @@ function FeedPostComponent({
 						<Image source={{ uri: item.avatar }} style={styles.avatar} />
 					</Pressable>
 					<Pressable disabled={!item.riderId} onPress={openProfile}>
-						<Text style={styles.username}>{item.user}</Text>
-						<Text style={styles.time}>{item.time}</Text>
+						<View style={styles.userMeta}>
+							<Text style={styles.username}>{item.user}</Text>
+							<Text style={styles.time}>{relativeTime}</Text>
+						</View>
 					</Pressable>
 				</View>
 			</View>
@@ -308,7 +315,9 @@ function FeedPostComponent({
 				style={[styles.mediaWrap, mediaWrapStyle]}
 			>
 				{isVideoPost ? (
-					<Animated.View style={[styles.media, parallaxStyle, imageAnimatedStyle]}>
+					<Animated.View
+						style={[styles.media, parallaxStyle, imageAnimatedStyle]}
+					>
 						<StreamingVideo
 							contentFit="cover"
 							muted
@@ -415,9 +424,7 @@ function FeedPostComponent({
 						);
 					}}
 				>
-					<Text style={[styles.likes]}>
-						{likeCount} bumps
-					</Text>
+					<Text style={[styles.likes]}>{likeCount} bumps</Text>
 				</AnimatedPressable>
 				<Text numberOfLines={2} style={styles.caption}>
 					<Text style={styles.captionUser}>{item.user} </Text>

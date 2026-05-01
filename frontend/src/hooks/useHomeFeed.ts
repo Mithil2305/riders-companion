@@ -2,7 +2,6 @@ import React from "react";
 import { FeedPostItem, Story } from "../types/feed";
 import FeedService, { FeedPostPayload } from "../services/FeedService";
 import { useUploadManager } from "../contexts/UploadContext";
-import { formatCompactTimeAgo } from "../utils/formatters";
 
 interface UseHomeFeedResult {
 	loading: boolean;
@@ -42,7 +41,7 @@ const toFeedPostItem = (post: FeedPostPayload): FeedPostItem | null => {
 		caption: post.caption ?? "",
 		likes: Number(post.likesCount ?? 0),
 		comments: Number(post.commentsCount ?? 0),
-		time: formatCompactTimeAgo(post.createdAt),
+		createdAt: post.createdAt,
 		likedByMe: Boolean(post.likedByMe),
 	};
 };

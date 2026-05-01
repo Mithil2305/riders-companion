@@ -1,4 +1,4 @@
-import React from "react"
+import React from "react";
 import {
 	FlatList,
 	Modal,
@@ -6,28 +6,31 @@ import {
 	StyleSheet,
 	Text,
 	View,
-} from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
-import Animated, { useSharedValue } from "react-native-reanimated"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { ExploreGrid, SearchBar, SearchSuggestions } from "../../src/components/explore"
-import { ExploreSkeleton } from "../../src/components/explore/ExploreSkeleton"
-import { CommentsSheet } from "../../src/components/comments"
-import { FeedPost } from "../../src/components/feed/FeedPost"
-import { ShareSheet } from "../../src/components/share"
-import FeedService from "../../src/services/FeedService"
-import { useExploreData } from "../../src/hooks/useExploreData"
-import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation"
-import { useTheme } from "../../src/hooks/useTheme"
-import { FeedPostItem } from "../../src/types/feed"
-import { TrendingClip } from "../../src/types/explore"
-import { formatTimeAgo } from "../../src/utils/formatters"
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import Animated, { useSharedValue } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+	ExploreGrid,
+	SearchBar,
+	SearchSuggestions,
+} from "../../src/components/explore";
+import { ExploreSkeleton } from "../../src/components/explore/ExploreSkeleton";
+import { CommentsSheet } from "../../src/components/comments";
+import { FeedPost } from "../../src/components/feed/FeedPost";
+import { ShareSheet } from "../../src/components/share";
+import FeedService from "../../src/services/FeedService";
+import { useExploreData } from "../../src/hooks/useExploreData";
+import { useTabSwipeNavigation } from "../../src/hooks/useTabSwipeNavigation";
+import { useTheme } from "../../src/hooks/useTheme";
+import { FeedPostItem } from "../../src/types/feed";
+import { TrendingClip } from "../../src/types/explore";
 
 export default function ExploreScreen() {
-	const { colors, metrics, typography } = useTheme()
-	const router = useRouter()
-	const detailScrollY = useSharedValue(0)
+	const { colors, metrics, typography } = useTheme();
+	const router = useRouter();
+	const detailScrollY = useSharedValue(0);
 	const {
 		query,
 		setQuery,
@@ -42,56 +45,57 @@ export default function ExploreScreen() {
 		isLoadingMore,
 		loadMoreClips,
 		onRefresh,
-	} = useExploreData()
+	} = useExploreData();
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
-		useTabSwipeNavigation("explore")
-	const [detailVisible, setDetailVisible] = React.useState(false)
+		useTabSwipeNavigation("explore");
+	const [detailVisible, setDetailVisible] = React.useState(false);
 	const [selectedPostId, setSelectedPostId] = React.useState<string | null>(
 		null,
-	)
-	const [searchFocused, setSearchFocused] = React.useState(false)
+	);
+	const [searchFocused, setSearchFocused] = React.useState(false);
 	const [selectedActionPostId, setSelectedActionPostId] = React.useState<
 		string | null
-	>(null)
-	const [isCommentSheetVisible, setIsCommentSheetVisible] = React.useState(false)
-	const [isShareSheetVisible, setIsShareSheetVisible] = React.useState(false)
-	const [likedPostIds, setLikedPostIds] = React.useState<Record<string, boolean>>(
-		{},
-	)
+	>(null);
+	const [isCommentSheetVisible, setIsCommentSheetVisible] =
+		React.useState(false);
+	const [isShareSheetVisible, setIsShareSheetVisible] = React.useState(false);
+	const [likedPostIds, setLikedPostIds] = React.useState<
+		Record<string, boolean>
+	>({});
 	const [likeCountByPostId, setLikeCountByPostId] = React.useState<
 		Record<string, number>
-	>({})
+	>({});
 	const [commentCountByPostId, setCommentCountByPostId] = React.useState<
 		Record<string, number>
-	>({})
+	>({});
 
 	const allPosts = React.useMemo(
 		() => clips.filter((clip) => clip.type === "post"),
 		[clips],
-	)
+	);
 
 	const selectedIndex = React.useMemo(
 		() => allPosts.findIndex((clip) => clip.id === selectedPostId),
 		[allPosts, selectedPostId],
-	)
+	);
 
 	const relatedPosts = React.useMemo(() => {
 		if (selectedIndex < 0) {
-			return allPosts
+			return allPosts;
 		}
 
-		const current = allPosts[selectedIndex]
-		const rest = allPosts.filter((clip) => clip.id !== current.id)
-		return [current, ...rest]
-	}, [allPosts, selectedIndex])
+		const current = allPosts[selectedIndex];
+		const rest = allPosts.filter((clip) => clip.id !== current.id);
+		return [current, ...rest];
+	}, [allPosts, selectedIndex]);
 
 	const mapExplorePostToFeedPost = React.useCallback(
 		(
 			clip: TrendingClip,
 			overrides?: {
-				likedByMe?: boolean
-				likes?: number
-				comments?: number
+				likedByMe?: boolean;
+				likes?: number;
+				comments?: number;
 			},
 		): FeedPostItem => ({
 			id: clip.id,
@@ -104,86 +108,86 @@ export default function ExploreScreen() {
 			caption: clip.title,
 			likes: overrides?.likes ?? clip.likes,
 			comments: overrides?.comments ?? clip.comments,
-			time: formatTimeAgo(clip.createdAt),
+			createdAt: clip.createdAt,
 			likedByMe: overrides?.likedByMe ?? clip.likedByMe,
 		}),
 		[],
-	)
+	);
 
 	const normalizePostId = React.useCallback(
 		(postId: string) => postId.replace(/^post-/, ""),
 		[],
-	)
+	);
 
 	const openCommentSheet = React.useCallback((postId: string) => {
-		setSelectedActionPostId(postId)
-		setIsCommentSheetVisible(true)
-	}, [])
+		setSelectedActionPostId(postId);
+		setIsCommentSheetVisible(true);
+	}, []);
 
 	const openShareSheet = React.useCallback((postId: string) => {
-		setSelectedActionPostId(postId)
-		setIsShareSheetVisible(true)
-	}, [])
+		setSelectedActionPostId(postId);
+		setIsShareSheetVisible(true);
+	}, []);
 
 	const openClipDetail = React.useCallback(
 		(clip: TrendingClip) => {
 			if (clip.type === "clip") {
-				const clipId = clip.id.replace(/^clip-/, "")
-				setDetailVisible(false)
-				router.push({ pathname: "/(tabs)/clips", params: { clipId } })
-				return
+				const clipId = clip.id.replace(/^clip-/, "");
+				setDetailVisible(false);
+				router.push({ pathname: "/(tabs)/clips", params: { clipId } });
+				return;
 			}
 
-			setSelectedPostId(clip.id)
-			setDetailVisible(true)
+			setSelectedPostId(clip.id);
+			setDetailVisible(true);
 		},
 		[router],
-	)
+	);
 
 	const handleTogglePostLike = React.useCallback(
 		async (postId: string) => {
-			const post = allPosts.find((item) => item.id === postId)
+			const post = allPosts.find((item) => item.id === postId);
 			if (!post) {
-				return
+				return;
 			}
 
-			const currentLiked = likedPostIds[postId] ?? Boolean(post.likedByMe)
-			const currentLikeCount = likeCountByPostId[postId] ?? post.likes
-			const nextLiked = !currentLiked
+			const currentLiked = likedPostIds[postId] ?? Boolean(post.likedByMe);
+			const currentLikeCount = likeCountByPostId[postId] ?? post.likes;
+			const nextLiked = !currentLiked;
 			const nextLikeCount = Math.max(
 				0,
 				currentLikeCount + (nextLiked ? 1 : -1),
-			)
+			);
 
 			setLikedPostIds((prev) => ({
 				...prev,
 				[postId]: nextLiked,
-			}))
+			}));
 			setLikeCountByPostId((prev) => ({
 				...prev,
 				[postId]: nextLikeCount,
-			}))
+			}));
 
 			try {
-				const normalizedPostId = normalizePostId(postId)
+				const normalizedPostId = normalizePostId(postId);
 				if (nextLiked) {
-					await FeedService.likePost(normalizedPostId)
+					await FeedService.likePost(normalizedPostId);
 				} else {
-					await FeedService.unlikePost(normalizedPostId)
+					await FeedService.unlikePost(normalizedPostId);
 				}
 			} catch {
 				setLikedPostIds((prev) => ({
 					...prev,
 					[postId]: currentLiked,
-				}))
+				}));
 				setLikeCountByPostId((prev) => ({
 					...prev,
 					[postId]: currentLikeCount,
-				}))
+				}));
 			}
 		},
 		[allPosts, likeCountByPostId, likedPostIds, normalizePostId],
-	)
+	);
 
 	const styles = React.useMemo(
 		() =>
@@ -240,16 +244,16 @@ export default function ExploreScreen() {
 				},
 			}),
 		[colors, metrics, typography],
-	)
+	);
 
-	const showSuggestions = query.length > 0 || searchFocused
-	const shouldShowSkeleton = !showSuggestions && isInitialLoading
+	const showSuggestions = query.length > 0 || searchFocused;
+	const shouldShowSkeleton = !showSuggestions && isInitialLoading;
 
 	const renderDetailPost = React.useCallback(
 		({ item, index }: { item: TrendingClip; index: number }) => {
-			const liked = likedPostIds[item.id] ?? Boolean(item.likedByMe)
-			const likeCount = likeCountByPostId[item.id] ?? item.likes
-			const commentCount = commentCountByPostId[item.id] ?? item.comments
+			const liked = likedPostIds[item.id] ?? Boolean(item.likedByMe);
+			const likeCount = likeCountByPostId[item.id] ?? item.likes;
+			const commentCount = commentCountByPostId[item.id] ?? item.comments;
 
 			return (
 				<FeedPost
@@ -261,13 +265,13 @@ export default function ExploreScreen() {
 					index={index}
 					liked={liked}
 					onToggleLike={(postId) => {
-						void handleTogglePostLike(postId)
+						void handleTogglePostLike(postId);
 					}}
 					onAddComment={openCommentSheet}
 					onShare={openShareSheet}
 					scrollY={detailScrollY}
 				/>
-			)
+			);
 		},
 		[
 			commentCountByPostId,
@@ -279,18 +283,21 @@ export default function ExploreScreen() {
 			openCommentSheet,
 			openShareSheet,
 		],
-	)
+	);
 
 	return (
 		<SafeAreaView style={styles.container} edges={["top"]}>
-			<Animated.View style={[styles.container, swipeAnimatedStyle]} {...swipeHandlers}>
+			<Animated.View
+				style={[styles.container, swipeAnimatedStyle]}
+				{...swipeHandlers}
+			>
 				<View style={styles.searchWrap}>
 					<SearchBar
 						value={query}
 						onChangeText={setQuery}
 						onFocus={() => setSearchFocused(true)}
 						onBlur={() => {
-							setTimeout(() => setSearchFocused(false), 150)
+							setTimeout(() => setSearchFocused(false), 150);
 						}}
 					/>
 				</View>
@@ -302,7 +309,7 @@ export default function ExploreScreen() {
 							isLoading={isSearchLoading}
 							query={query}
 							onClose={() => {
-								setSearchFocused(false)
+								setSearchFocused(false);
 							}}
 						/>
 					</View>
@@ -354,12 +361,14 @@ export default function ExploreScreen() {
 							</View>
 						}
 						onScroll={(event) => {
-							detailScrollY.value = event.nativeEvent.contentOffset.y
+							detailScrollY.value = event.nativeEvent.contentOffset.y;
 						}}
 						renderItem={renderDetailPost}
 						scrollEventThrottle={16}
 						showsVerticalScrollIndicator={false}
-						ItemSeparatorComponent={() => <View style={styles.detailSeparator} />}
+						ItemSeparatorComponent={() => (
+							<View style={styles.detailSeparator} />
+						)}
 					/>
 				</View>
 			</Modal>
@@ -376,16 +385,22 @@ export default function ExploreScreen() {
 						setCommentCountByPostId((prev) => ({
 							...prev,
 							[selectedActionPostId]: newCount,
-						}))
+						}));
 					}
 				}}
 			/>
 
 			{(() => {
-				const selectedPost = allPosts.find((p) => p.id === selectedActionPostId);
+				const selectedPost = allPosts.find(
+					(p) => p.id === selectedActionPostId,
+				);
 				return (
 					<ShareSheet
-						postId={selectedActionPostId ? normalizePostId(selectedActionPostId) : null}
+						postId={
+							selectedActionPostId
+								? normalizePostId(selectedActionPostId)
+								: null
+						}
 						resourceType="post"
 						visible={isShareSheetVisible}
 						onClose={() => setIsShareSheetVisible(false)}
@@ -395,5 +410,5 @@ export default function ExploreScreen() {
 				);
 			})()}
 		</SafeAreaView>
-	)
+	);
 }
