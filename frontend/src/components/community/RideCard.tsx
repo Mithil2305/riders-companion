@@ -24,18 +24,14 @@ function formatDateHumanReadable(dateStr: string): string {
 	try {
 		const d = new Date(dateStr);
 		if (isNaN(d.getTime())) return dateStr;
-		const options: Intl.DateTimeFormatOptions = {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		};
-		return d
-			.toLocaleDateString("en-US", options)
-			.replace(",", "")
-			.replace(" PM", " PM")
-			.replace(" AM", " AM");
+		const day = String(d.getDate()).padStart(2, "0");
+		const month = String(d.getMonth() + 1).padStart(2, "0");
+		const year = d.getFullYear();
+		const hours24 = d.getHours();
+		const minutes = String(d.getMinutes()).padStart(2, "0");
+		const period = hours24 >= 12 ? "pm" : "am";
+		const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+		return `${day}-${month}-${year} - ${hours12}:${minutes}${period}`;
 	} catch {
 		return dateStr;
 	}
@@ -58,9 +54,7 @@ export function RideCard({
 	const routeParts = item.route.split("->").map((r) => r.trim());
 	const source = routeParts[0];
 	const destination = routeParts.length > 1 ? routeParts[1] : null;
-	const dateFormatted = item.startsAt.includes("T")
-		? formatDateHumanReadable(item.startsAt)
-		: item.startsAt;
+	const dateFormatted = formatDateHumanReadable(item.startsAt);
 
 	const styles = React.useMemo(
 		() =>

@@ -47,17 +47,20 @@ function RootNavigator() {
 	const { colors, resolvedMode } = useTheme();
 	const { isAuthenticated } = useAuth();
 	const [showVideoSplash, setShowVideoSplash] = useState(true);
-	
+
 	// Animation Refs
 	const boomScale = useRef(new Animated.Value(1.24)).current;
 	const boomOpacity = useRef(new Animated.Value(0.9)).current;
 	const appEntryY = useRef(new Animated.Value(110)).current;
 	const appEntryOpacity = useRef(new Animated.Value(0)).current;
 	const hasStartedAppEntry = useRef(false);
-	const splashVideoPlayer = useVideoPlayer(require("../assets/logo.mp4"), (player) => {
-		player.loop = false;
-		player.muted = true;
-	});
+	const splashVideoPlayer = useVideoPlayer(
+		require("../assets/logo.mp4"),
+		(player) => {
+			player.loop = false;
+			player.muted = true;
+		},
+	);
 
 	const hideNativeSplash = useCallback(async () => {
 		try {
@@ -101,12 +104,15 @@ function RootNavigator() {
 
 		let cancelled = false;
 		const setupPushNotifications = async () => {
-			const { initializePushNotifications } = await import("../src/services/PushNotificationService");
+			const { initializePushNotifications } =
+				await import("../src/services/PushNotificationService");
 			if (!cancelled) await initializePushNotifications();
 		};
 
 		void setupPushNotifications();
-		return () => { cancelled = true; };
+		return () => {
+			cancelled = true;
+		};
 	}, [isAuthenticated]);
 
 	useEffect(() => {
@@ -191,7 +197,10 @@ function RootNavigator() {
 					<Stack.Screen name="(tabs)" />
 					<Stack.Screen
 						name="create"
-						options={{ animation: "slide_from_bottom", presentation: "fullScreenModal" }}
+						options={{
+							animation: "slide_from_bottom",
+							presentation: "fullScreenModal",
+						}}
 					/>
 					<Stack.Screen name="auth" options={{ animation: "fade" }} />
 					<Stack.Screen name="setup/profile" />
@@ -204,8 +213,10 @@ function RootNavigator() {
 					<Stack.Screen name="ride-details" />
 					<Stack.Screen
 						name="settings"
-						options={{ presentation: "transparentModal", animation: "none" }}
+						options={{ animation: "slide_from_right" }}
 					/>
+					<Stack.Screen name="settings/appearance" />
+					<Stack.Screen name="settings/data-saver" />
 					<Stack.Screen name="tracking" />
 					<Stack.Screen name="community" />
 					<Stack.Screen name="notifications" />

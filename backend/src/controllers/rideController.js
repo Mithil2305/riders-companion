@@ -2,6 +2,7 @@ const { randomUUID } = require("crypto");
 const { Op } = require("sequelize");
 const {
 	Community,
+	CommunityMember,
 	Friend,
 	Ride,
 	RideParticipant,
@@ -94,18 +95,14 @@ const normalizeRideStatus = (status) => {
 const serializeRideSystemMessage = (message) =>
 	`${RIDE_SYSTEM_PREFIX}${String(message || "").trim()}`;
 
-const buildRideInviteMessage = ({
-	ride,
-	details,
-	inviteeId,
-	inviter,
-}) =>
+const buildRideInviteMessage = ({ ride, details, inviteeId, inviter }) =>
 	`${RIDE_INVITE_PREFIX}${JSON.stringify({
 		type: "ride-invite",
 		inviteId: randomUUID(),
 		rideId: ride.id,
 		roomName:
-			typeof details.rideTitle === "string" && details.rideTitle.trim().length > 0
+			typeof details.rideTitle === "string" &&
+			details.rideTitle.trim().length > 0
 				? details.rideTitle.trim()
 				: `${details.source || "Ride"} -> ${details.destination || "Destination"}`,
 		inviterId: inviter.id,
@@ -115,7 +112,8 @@ const buildRideInviteMessage = ({
 		status: "pending",
 		sentAt: new Date().toISOString(),
 		rideTitle:
-			typeof details.rideTitle === "string" && details.rideTitle.trim().length > 0
+			typeof details.rideTitle === "string" &&
+			details.rideTitle.trim().length > 0
 				? details.rideTitle.trim()
 				: undefined,
 		source: details.source || undefined,
@@ -156,11 +154,7 @@ const createStoredDirectMessage = async ({
 	});
 };
 
-const createStoredRideRoomMessage = async ({
-	rideId,
-	senderId,
-	plainText,
-}) => {
+const createStoredRideRoomMessage = async ({ rideId, senderId, plainText }) => {
 	const encrypted = chatCryptoService.encryptMessage({
 		plainText,
 		roomId: rideId,
@@ -376,11 +370,7 @@ const emitRideChatMessage = ({
 	}
 };
 
-const emitRideSyncRequired = ({
-	participantIds,
-	rideId,
-	reason,
-}) => {
+const emitRideSyncRequired = ({ participantIds, rideId, reason }) => {
 	for (const riderId of participantIds) {
 		websocketHub.sendToRider(riderId, "RIDE_SYNC_REQUIRED", {
 			rideId,
@@ -417,11 +407,7 @@ const appendRideSystemMessage = async ({
 	return saved;
 };
 
-const deliverRideInvites = async ({
-	ride,
-	inviter,
-	invitedRiderIds,
-}) => {
+const deliverRideInvites = async ({ ride, inviter, invitedRiderIds }) => {
 	if (!Array.isArray(invitedRiderIds) || invitedRiderIds.length === 0) {
 		return;
 	}
@@ -784,7 +770,8 @@ exports.getRideById = async (req, res) => {
 
 exports.getCommunityRides = async (req, res) => {
 	const selectedLocation =
-		typeof req.query.location === "string" && req.query.location.trim().length > 0
+		typeof req.query.location === "string" &&
+		req.query.location.trim().length > 0
 			? req.query.location.trim().toLowerCase()
 			: "";
 
@@ -916,6 +903,16 @@ exports.joinRide = async (req, res) => {
 	}
 
 	if (membershipChanged) {
+		if (ride.community_id) {
+			await CommunityMember.findOrCreate({
+				where: {
+					community_id: ride.community_id,
+					rider_id: req.user.id,
+				},
+				defaults: { role: "MEMBER" },
+			});
+		}
+
 		const rider = await RiderAccount.findByPk(req.user.id, {
 			attributes: ["id", "name", "username"],
 		});
@@ -968,7 +965,9 @@ exports.acceptInvitation = async (req, res) => {
 	const rider = await RiderAccount.findByPk(req.user.id, {
 		attributes: ["id", "name", "username"],
 	});
-	const { participantIds } = await getRideParticipantDirectory(req.params.rideId);
+	const { participantIds } = await getRideParticipantDirectory(
+		req.params.rideId,
+	);
 	if (ride && rider) {
 		await appendRideSystemMessage({
 			rideId: ride.id,
@@ -1013,10 +1012,15 @@ exports.declineInvitation = async (req, res) => {
 	const rider = await RiderAccount.findByPk(req.user.id, {
 		attributes: ["id", "name", "username"],
 	});
-	const { participantIds } = await getRideParticipantDirectory(req.params.rideId, {
-		includeDeclined: true,
-	});
-	const remainingParticipantIds = participantIds.filter((id) => id !== req.user.id);
+	const { participantIds } = await getRideParticipantDirectory(
+		req.params.rideId,
+		{
+			includeDeclined: true,
+		},
+	);
+	const remainingParticipantIds = participantIds.filter(
+		(id) => id !== req.user.id,
+	);
 	if (ride && rider) {
 		await appendRideSystemMessage({
 			rideId: ride.id,
@@ -1065,7 +1069,9 @@ exports.leaveRide = async (req, res) => {
 	const rider = await RiderAccount.findByPk(req.user.id, {
 		attributes: ["id", "name", "username"],
 	});
-	const { participantIds } = await getRideParticipantDirectory(req.params.rideId);
+	const { participantIds } = await getRideParticipantDirectory(
+		req.params.rideId,
+	);
 
 	const removedCount = await RideParticipant.destroy({
 		where: { ride_id: req.params.rideId, rider_id: req.user.id },
@@ -1080,7 +1086,9 @@ exports.leaveRide = async (req, res) => {
 		);
 	}
 
-	const remainingParticipantIds = participantIds.filter((id) => id !== req.user.id);
+	const remainingParticipantIds = participantIds.filter(
+		(id) => id !== req.user.id,
+	);
 	if (rider) {
 		await appendRideSystemMessage({
 			rideId: req.params.rideId,
@@ -1303,12 +1311,7 @@ exports.updateLocation = async (req, res) => {
 	}
 
 	if (normalizeRideStatus(ride.status) !== "ACTIVE") {
-		return formatError(
-			res,
-			400,
-			"Ride is not active yet",
-			"RIDE_NOT_ACTIVE",
-		);
+		return formatError(res, 400, "Ride is not active yet", "RIDE_NOT_ACTIVE");
 	}
 
 	const participant = await RideParticipant.findOne({

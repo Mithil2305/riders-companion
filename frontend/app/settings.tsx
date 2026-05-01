@@ -3,6 +3,7 @@ import {
 	ActivityIndicator,
 	Alert,
 	Image,
+	Linking,
 	Modal,
 	Pressable,
 	ScrollView,
@@ -14,7 +15,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { SettingsDrawer } from "../src/components/settings";
+import {
+	SafeAreaView,
+	useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import ProfileService from "../src/services/ProfileService";
 import AuthService from "../src/services/AuthService";
 import { usePlaybackSettings } from "../src/hooks/usePlaybackSettings";
@@ -60,7 +64,8 @@ const blobToDataUrl = async (uri: string) => {
 export default function SettingsScreen() {
 	const router = useRouter();
 	const { colors, metrics, typography } = useTheme();
-	const { dataSaverEnabled, setDataSaverEnabled } = usePlaybackSettings();
+	const insets = useSafeAreaInsets();
+	const { dataSaverEnabled } = usePlaybackSettings();
 	const [loading, setLoading] = React.useState(true);
 	const [saving, setSaving] = React.useState(false);
 	const [isEditorOpen, setIsEditorOpen] = React.useState(false);
@@ -195,9 +200,156 @@ export default function SettingsScreen() {
 		}
 	}, [router]);
 
+	const openHelp = React.useCallback(() => {
+		void Linking.openURL("https://riderscompanion.com/delete-account.html");
+	}, []);
+
+	const openPrivacy = React.useCallback(() => {
+		void Linking.openURL("https://riderscompanion.com/privacy.html");
+	}, []);
+
+	const openAppearance = React.useCallback(() => {
+		router.push("/settings/appearance");
+	}, [router]);
+
+	const openDataSaver = React.useCallback(() => {
+		router.push("/settings/data-saver");
+	}, [router]);
+
 	const styles = React.useMemo(
 		() =>
 			StyleSheet.create({
+				container: {
+					flex: 1,
+					backgroundColor: colors.background,
+				},
+				header: {
+					height: 64,
+					flexDirection: "row",
+					alignItems: "center",
+					justifyContent: "space-between",
+					paddingHorizontal: metrics.md,
+					borderBottomWidth: 1,
+					borderBottomColor: colors.border,
+				},
+				headerTitle: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.lg,
+					fontWeight: "700",
+				},
+				content: {
+					paddingHorizontal: metrics.md,
+					paddingTop: metrics.md,
+					paddingBottom: metrics["3xl"] + insets.bottom,
+					gap: metrics.lg,
+				},
+				profileCard: {
+					borderRadius: metrics.radius.xl,
+					borderWidth: 1,
+					borderColor: colors.border,
+					backgroundColor: colors.card,
+					padding: metrics.md,
+					gap: metrics.sm,
+				},
+				profileRow: {
+					flexDirection: "row",
+					alignItems: "center",
+					gap: metrics.sm,
+				},
+				profileAvatar: {
+					width: 64,
+					height: 64,
+					borderRadius: 32,
+					backgroundColor: colors.surface,
+				},
+				profileName: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.lg,
+					fontWeight: "700",
+				},
+				profileMeta: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.sm,
+					marginTop: 2,
+				},
+				profileButton: {
+					alignSelf: "flex-start",
+					marginTop: metrics.sm,
+					borderRadius: metrics.radius.full,
+					paddingHorizontal: metrics.lg,
+					paddingVertical: metrics.xs + 6,
+					borderWidth: 1,
+					borderColor: colors.primary,
+				},
+				profileButtonText: {
+					color: colors.primary,
+					fontSize: typography.sizes.sm,
+					fontWeight: "700",
+				},
+				sectionTitle: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.xs,
+					fontWeight: "700",
+					letterSpacing: 0.6,
+					marginBottom: metrics.sm,
+				},
+				listCard: {
+					borderRadius: metrics.radius.xl,
+					borderWidth: 1,
+					borderColor: colors.border,
+					backgroundColor: colors.card,
+					overflow: "hidden",
+				},
+				itemRow: {
+					minHeight: 72,
+					flexDirection: "row",
+					alignItems: "center",
+					gap: metrics.sm,
+					paddingHorizontal: metrics.md,
+					paddingVertical: metrics.sm,
+				},
+				itemIcon: {
+					width: 44,
+					height: 44,
+					borderRadius: 14,
+					backgroundColor: colors.surface,
+					alignItems: "center",
+					justifyContent: "center",
+					borderWidth: 1,
+					borderColor: colors.border,
+				},
+				itemBody: {
+					flex: 1,
+				},
+				itemTitle: {
+					color: colors.textPrimary,
+					fontSize: typography.sizes.base,
+					fontWeight: "700",
+				},
+				itemSubtitle: {
+					color: colors.textSecondary,
+					fontSize: typography.sizes.sm,
+					marginTop: 2,
+				},
+				divider: {
+					height: 1,
+					backgroundColor: colors.border,
+					marginHorizontal: metrics.md,
+				},
+				signOutButton: {
+					height: metrics.button.md.height,
+					borderRadius: metrics.radius.full,
+					backgroundColor: colors.primary,
+					alignItems: "center",
+					justifyContent: "center",
+					flexDirection: "row",
+					gap: metrics.sm,
+				},
+				signOutText: {
+					color: colors.textInverse,
+					fontSize: typography.sizes.base,
+					fontWeight: "700",
+				},
 				editorBackdrop: {
 					flex: 1,
 					backgroundColor: colors.overlay,
@@ -211,7 +363,7 @@ export default function SettingsScreen() {
 					padding: metrics.md,
 					gap: metrics.md,
 				},
-				header: {
+				editorHeader: {
 					flexDirection: "row",
 					alignItems: "center",
 					justifyContent: "space-between",
@@ -284,36 +436,252 @@ export default function SettingsScreen() {
 					fontWeight: "700",
 				},
 			}),
-		[colors, metrics, typography],
+		[colors, insets.bottom, metrics, typography],
 	);
 
 	if (loading || !draft) {
 		return (
-			<View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-				<ActivityIndicator color={colors.primary} size="small" />
+			<View style={styles.container}>
+				<SafeAreaView
+					edges={["top", "left", "right", "bottom"]}
+					style={styles.container}
+				>
+					<View style={styles.header}>
+						<Pressable onPress={() => router.back()} hitSlop={8}>
+							<Ionicons
+								color={colors.textPrimary}
+								name="arrow-back"
+								size={22}
+							/>
+						</Pressable>
+						<Text style={styles.headerTitle}>Settings</Text>
+						<View style={{ width: 22 }} />
+					</View>
+					<View
+						style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+					>
+						<ActivityIndicator color={colors.primary} size="small" />
+					</View>
+				</SafeAreaView>
 			</View>
 		);
 	}
 
 	const displayName = draft.name.trim().length > 0 ? draft.name : "Rider";
-	const avatarLetter = (displayName[0] || "R").toUpperCase();
 
 	return (
 		<>
-			<SettingsDrawer
-				onClose={() => router.back()}
-				onHelpPress={() => Alert.alert("Help", "Support chat is coming soon.")}
-				onNotificationsPress={() => router.push("/notifications")}
-				onPrivacyPress={() =>
-					Alert.alert("Privacy", "Advanced privacy controls are coming soon.")
-				}
-				onProfilePress={() => setIsEditorOpen(true)}
-				onSignOutPress={() => void handleSignOut()}
-				dataSaverEnabled={dataSaverEnabled}
-				onToggleDataSaver={() => void setDataSaverEnabled(!dataSaverEnabled)}
-				username={displayName}
-				avatarLetter={avatarLetter}
-			/>
+			<View style={styles.container}>
+				<SafeAreaView
+					edges={["top", "left", "right", "bottom"]}
+					style={styles.container}
+				>
+					<View style={styles.header}>
+						<Pressable onPress={() => router.back()} hitSlop={8}>
+							<Ionicons
+								color={colors.textPrimary}
+								name="arrow-back"
+								size={22}
+							/>
+						</Pressable>
+						<Text style={styles.headerTitle}>Settings</Text>
+						<View style={{ width: 22 }} />
+					</View>
+
+					<ScrollView
+						contentContainerStyle={styles.content}
+						showsVerticalScrollIndicator={false}
+					>
+						<View style={styles.profileCard}>
+							<View style={styles.profileRow}>
+								<Image
+									source={{ uri: draft.profileImageUrl }}
+									style={styles.profileAvatar}
+								/>
+								<View style={{ flex: 1 }}>
+									<Text style={styles.profileName}>{displayName}</Text>
+									<Text style={styles.profileMeta}>
+										@{draft.username || "rider"}
+									</Text>
+									<Text style={styles.profileMeta} numberOfLines={2}>
+										{draft.bio || "Update your profile details and ride info."}
+									</Text>
+								</View>
+							</View>
+							<Pressable
+								onPress={() => setIsEditorOpen(true)}
+								style={styles.profileButton}
+							>
+								<Text style={styles.profileButtonText}>Edit Profile</Text>
+							</Pressable>
+						</View>
+
+						<View>
+							<Text style={styles.sectionTitle}>PREFERENCES</Text>
+							<View style={styles.listCard}>
+								<Pressable
+									onPress={openAppearance}
+									style={({ pressed }) => [
+										styles.itemRow,
+										pressed && { backgroundColor: colors.surfaceMuted },
+									]}
+								>
+									<View style={styles.itemIcon}>
+										<Ionicons
+											color={colors.primary}
+											name="color-palette-outline"
+											size={metrics.icon.md}
+										/>
+									</View>
+									<View style={styles.itemBody}>
+										<Text style={styles.itemTitle}>Appearance</Text>
+										<Text style={styles.itemSubtitle}>
+											Theme and display options
+										</Text>
+									</View>
+									<Ionicons
+										color={colors.textSecondary}
+										name="chevron-forward"
+										size={metrics.icon.md}
+									/>
+								</Pressable>
+								<View style={styles.divider} />
+								<Pressable
+									onPress={openDataSaver}
+									style={({ pressed }) => [
+										styles.itemRow,
+										pressed && { backgroundColor: colors.surfaceMuted },
+									]}
+								>
+									<View style={styles.itemIcon}>
+										<Ionicons
+											color={colors.primary}
+											name="cellular-outline"
+											size={metrics.icon.md}
+										/>
+									</View>
+									<View style={styles.itemBody}>
+										<Text style={styles.itemTitle}>Data Saver</Text>
+										<Text style={styles.itemSubtitle}>
+											{dataSaverEnabled
+												? "Enabled for lighter playback"
+												: "Preload nearby clips for speed"}
+										</Text>
+									</View>
+									<Ionicons
+										color={colors.textSecondary}
+										name="chevron-forward"
+										size={metrics.icon.md}
+									/>
+								</Pressable>
+							</View>
+						</View>
+
+						<View>
+							<Text style={styles.sectionTitle}>ACCOUNT</Text>
+							<View style={styles.listCard}>
+								<Pressable
+									onPress={() => router.push("/notifications")}
+									style={({ pressed }) => [
+										styles.itemRow,
+										pressed && { backgroundColor: colors.surfaceMuted },
+									]}
+								>
+									<View style={styles.itemIcon}>
+										<Ionicons
+											color={colors.primary}
+											name="notifications-outline"
+											size={metrics.icon.md}
+										/>
+									</View>
+									<View style={styles.itemBody}>
+										<Text style={styles.itemTitle}>Notifications</Text>
+										<Text style={styles.itemSubtitle}>
+											Configure alerts and updates
+										</Text>
+									</View>
+									<Ionicons
+										color={colors.textSecondary}
+										name="chevron-forward"
+										size={metrics.icon.md}
+									/>
+								</Pressable>
+							</View>
+						</View>
+
+						<View>
+							<Text style={styles.sectionTitle}>SUPPORT</Text>
+							<View style={styles.listCard}>
+								<Pressable
+									onPress={openHelp}
+									style={({ pressed }) => [
+										styles.itemRow,
+										pressed && { backgroundColor: colors.surfaceMuted },
+									]}
+								>
+									<View style={styles.itemIcon}>
+										<Ionicons
+											color={colors.primary}
+											name="help-circle-outline"
+											size={metrics.icon.md}
+										/>
+									</View>
+									<View style={styles.itemBody}>
+										<Text style={styles.itemTitle}>Help & Support</Text>
+										<Text style={styles.itemSubtitle}>
+											Account help and data requests
+										</Text>
+									</View>
+									<Ionicons
+										color={colors.textSecondary}
+										name="open-outline"
+										size={metrics.icon.md}
+									/>
+								</Pressable>
+								<View style={styles.divider} />
+								<Pressable
+									onPress={openPrivacy}
+									style={({ pressed }) => [
+										styles.itemRow,
+										pressed && { backgroundColor: colors.surfaceMuted },
+									]}
+								>
+									<View style={styles.itemIcon}>
+										<Ionicons
+											color={colors.primary}
+											name="shield-outline"
+											size={metrics.icon.md}
+										/>
+									</View>
+									<View style={styles.itemBody}>
+										<Text style={styles.itemTitle}>Privacy</Text>
+										<Text style={styles.itemSubtitle}>
+											Read our privacy policy
+										</Text>
+									</View>
+									<Ionicons
+										color={colors.textSecondary}
+										name="open-outline"
+										size={metrics.icon.md}
+									/>
+								</Pressable>
+							</View>
+						</View>
+
+						<Pressable
+							onPress={() => void handleSignOut()}
+							style={styles.signOutButton}
+						>
+							<Ionicons
+								color={colors.textInverse}
+								name="log-out-outline"
+								size={metrics.icon.md}
+							/>
+							<Text style={styles.signOutText}>Sign Out</Text>
+						</Pressable>
+					</ScrollView>
+				</SafeAreaView>
+			</View>
 
 			<Modal
 				visible={isEditorOpen}
@@ -323,7 +691,7 @@ export default function SettingsScreen() {
 			>
 				<View style={styles.editorBackdrop}>
 					<View style={styles.editorCard}>
-						<View style={styles.header}>
+						<View style={styles.editorHeader}>
 							<Text style={styles.title}>Edit Profile</Text>
 							<Pressable onPress={() => setIsEditorOpen(false)}>
 								<Ionicons color={colors.textPrimary} name="close" size={22} />

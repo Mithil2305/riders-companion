@@ -58,7 +58,7 @@ const toRideItem = (
 ): RideItem => ({
 	id: ride.id,
 	route: `${ride.details.source || "Source"} -> ${ride.details.destination || "Destination"}`,
-	startsAt: `Starts: ${ride.details.startDate || "TBA"}`,
+	startsAt: ride.details.startDate || "TBA",
 	tags: toTagChips(ride.details),
 	joinedText: `${ride.joinedCount} joined • ${ride.invitedCount} invited`,
 	pricePerDay: `₹${ride.details.budget || 0}`,

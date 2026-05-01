@@ -23,27 +23,6 @@ import type { FeedPostItem } from "../../src/types/feed";
 const FALLBACK_AVATAR =
 	"https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80";
 
-const formatRelativeTime = (isoDate: string) => {
-	const created = new Date(isoDate).getTime();
-	if (Number.isNaN(created)) {
-		return "now";
-	}
-
-	const diffMs = Date.now() - created;
-	const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
-	if (diffMinutes < 60) {
-		return `${diffMinutes}m ago`;
-	}
-
-	const diffHours = Math.floor(diffMinutes / 60);
-	if (diffHours < 24) {
-		return `${diffHours}h ago`;
-	}
-
-	const diffDays = Math.floor(diffHours / 24);
-	return `${diffDays}d ago`;
-};
-
 function isSameAuthor(candidate: FeedPostPayload, selected: FeedPostPayload) {
 	if (candidate.id === selected.id) {
 		return false;
@@ -64,7 +43,9 @@ function toFeedPostItem(post: FeedPostPayload): FeedPostItem {
 	return {
 		id: post.id,
 		riderId: post.rider?.id,
-		user: post.rider?.username ? `@${post.rider.username}` : post.rider?.name ?? "rider",
+		user: post.rider?.username
+			? `@${post.rider.username}`
+			: (post.rider?.name ?? "rider"),
 		avatar: post.rider?.profileImageUrl ?? FALLBACK_AVATAR,
 		image: post.mediaUrl ?? "",
 		mediaType: post.mediaType,
@@ -75,7 +56,7 @@ function toFeedPostItem(post: FeedPostPayload): FeedPostItem {
 		caption: post.caption ?? "",
 		likes: post.likesCount ?? 0,
 		comments: post.commentsCount ?? 0,
-		time: formatRelativeTime(post.createdAt),
+		createdAt: post.createdAt,
 		likedByMe: post.likedByMe,
 	};
 }
@@ -90,12 +71,21 @@ export default function PostDetailsPage() {
 	const [deleting, setDeleting] = React.useState(false);
 	const [posts, setPosts] = React.useState<FeedPostPayload[]>([]);
 	const [myRiderId, setMyRiderId] = React.useState<string | null>(null);
-	const [likedPostIds, setLikedPostIds] = React.useState<Record<string, boolean>>({});
-	const [likeCounts, setLikeCounts] = React.useState<Record<string, number>>({});
-	const [commentCounts, setCommentCounts] = React.useState<Record<string, number>>({});
-	const [isCommentSheetVisible, setIsCommentSheetVisible] = React.useState(false);
+	const [likedPostIds, setLikedPostIds] = React.useState<
+		Record<string, boolean>
+	>({});
+	const [likeCounts, setLikeCounts] = React.useState<Record<string, number>>(
+		{},
+	);
+	const [commentCounts, setCommentCounts] = React.useState<
+		Record<string, number>
+	>({});
+	const [isCommentSheetVisible, setIsCommentSheetVisible] =
+		React.useState(false);
 	const [isShareSheetVisible, setIsShareSheetVisible] = React.useState(false);
-	const [selectedActionPostId, setSelectedActionPostId] = React.useState<string | null>(null);
+	const [selectedActionPostId, setSelectedActionPostId] = React.useState<
+		string | null
+	>(null);
 
 	const scrollY = useSharedValue(0);
 
@@ -128,7 +118,8 @@ export default function PostDetailsPage() {
 
 				const primaryPost = postData.post;
 				const sameAuthorPosts = feedData.posts.filter(
-					(candidate) => Boolean(candidate.mediaUrl) && isSameAuthor(candidate, primaryPost),
+					(candidate) =>
+						Boolean(candidate.mediaUrl) && isSameAuthor(candidate, primaryPost),
 				);
 
 				const allPosts = [primaryPost, ...sameAuthorPosts];
@@ -176,7 +167,9 @@ export default function PostDetailsPage() {
 			setLikedPostIds((prev) => ({ ...prev, [targetPostId]: !currentlyLiked }));
 			setLikeCounts((prev) => ({
 				...prev,
-				[targetPostId]: currentlyLiked ? Math.max(0, currentCount - 1) : currentCount + 1,
+				[targetPostId]: currentlyLiked
+					? Math.max(0, currentCount - 1)
+					: currentCount + 1,
 			}));
 			try {
 				if (currentlyLiked) {
@@ -185,7 +178,10 @@ export default function PostDetailsPage() {
 					await FeedService.likePost(targetPostId);
 				}
 			} catch {
-				setLikedPostIds((prev) => ({ ...prev, [targetPostId]: currentlyLiked }));
+				setLikedPostIds((prev) => ({
+					...prev,
+					[targetPostId]: currentlyLiked,
+				}));
 				setLikeCounts((prev) => ({ ...prev, [targetPostId]: currentCount }));
 			}
 		},
@@ -337,7 +333,10 @@ export default function PostDetailsPage() {
 
 	if (loading) {
 		return (
-			<SafeAreaView edges={["left", "right", "top", "bottom"]} style={styles.container}>
+			<SafeAreaView
+				edges={["left", "right", "top", "bottom"]}
+				style={styles.container}
+			>
 				<View style={styles.header}>
 					<Pressable onPress={() => router.back()}>
 						<Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
@@ -354,7 +353,10 @@ export default function PostDetailsPage() {
 
 	if (!selectedPost || !selectedPost.mediaUrl) {
 		return (
-			<SafeAreaView edges={["left", "right", "top", "bottom"]} style={styles.container}>
+			<SafeAreaView
+				edges={["left", "right", "top", "bottom"]}
+				style={styles.container}
+			>
 				<View style={styles.header}>
 					<Pressable onPress={() => router.back()}>
 						<Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
@@ -378,7 +380,10 @@ export default function PostDetailsPage() {
 	};
 
 	return (
-		<SafeAreaView edges={["left", "right", "top", "bottom"]} style={styles.container}>
+		<SafeAreaView
+			edges={["left", "right", "top", "bottom"]}
+			style={styles.container}
+		>
 			<View style={styles.header}>
 				<Pressable onPress={() => router.back()}>
 					<Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
@@ -387,7 +392,10 @@ export default function PostDetailsPage() {
 				<View style={styles.spacer} />
 			</View>
 
-			<ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+			<ScrollView
+				contentContainerStyle={styles.scrollContent}
+				showsVerticalScrollIndicator={false}
+			>
 				<FeedPost
 					index={0}
 					item={selectedFeedItemWithCounts}
@@ -401,7 +409,10 @@ export default function PostDetailsPage() {
 
 				{isOwner ? (
 					<View style={styles.ownerActions}>
-						<Pressable onPress={onPressEdit} style={[styles.ownerBtn, styles.editBtn]}>
+						<Pressable
+							onPress={onPressEdit}
+							style={[styles.ownerBtn, styles.editBtn]}
+						>
 							<Text style={styles.ownerBtnText}>Edit Post</Text>
 						</Pressable>
 						<Pressable
@@ -446,7 +457,9 @@ export default function PostDetailsPage() {
 										item={feedItemWithCounts}
 										liked={feedItemWithCounts.likedByMe ?? false}
 										onAddComment={openCommentSheet}
-										onOpenProfile={(riderId) => router.push(`/rider/${riderId}`)}
+										onOpenProfile={(riderId) =>
+											router.push(`/rider/${riderId}`)
+										}
 										onShare={openShareSheet}
 										onToggleLike={handleToggleLike}
 										scrollY={scrollY}
