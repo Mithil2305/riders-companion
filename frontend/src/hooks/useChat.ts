@@ -18,6 +18,7 @@ import {
 	serializeRideInviteMessage,
 } from "../utils/rideInviteMessage";
 import { parseSharedContentMessage } from "../utils/sharedContentMessage";
+import { useAuth } from "../contexts/AuthContext";
 
 const FALLBACK_META: PersonalChatMeta = {
 	roomId: "",
@@ -93,6 +94,7 @@ const toListItems = (
 };
 
 export function useChat(roomId: string) {
+	const { user } = useAuth();
 	const [meta, setMeta] = React.useState<PersonalChatMeta>(() => ({
 		...FALLBACK_META,
 		roomId,
@@ -109,12 +111,9 @@ export function useChat(roomId: string) {
 		if (Number.isNaN(date.getTime())) {
 			return "";
 		}
-
-		return date.toLocaleTimeString([], {
-			hour: "2-digit",
-			minute: "2-digit",
-			hour12: true,
-		});
+		const hour = `${date.getHours()}`.padStart(2, "0");
+		const minute = `${date.getMinutes()}`.padStart(2, "0");
+		return `${hour}:${minute}`;
 	}, []);
 
 	const mapMessage = React.useCallback(
@@ -201,6 +200,53 @@ export function useChat(roomId: string) {
 	}, [loadConversation, roomId]);
 
 	React.useEffect(() => {
+		if (lastMessage?.type === "CHAT_MESSAGE") {
+			const payload = (lastMessage.payload || {}) as Record<string, unknown>;
+			const senderId =
+				typeof payload.senderId === "string" ? payload.senderId : null;
+			const receiverId =
+				typeof payload.receiverId === "string" ? payload.receiverId : null;
+
+			const isRelevantDirectMessage =
+				(senderId === roomId && receiverId === user?.id) ||
+				(senderId === user?.id && receiverId === roomId);
+
+			if (!isRelevantDirectMessage) {
+				return;
+			}
+
+			const mapped = mapMessage({
+				id: String(payload.id ?? `msg-${Date.now()}`),
+				roomId,
+				senderId: senderId || roomId,
+				receiverId,
+				message:
+					typeof payload.message === "string" ? payload.message : "[message]",
+				attachmentUrl:
+					typeof payload.attachmentUrl === "string"
+						? payload.attachmentUrl
+						: null,
+				createdAt:
+					typeof payload.createdAt === "string"
+						? payload.createdAt
+						: new Date().toISOString(),
+				senderName:
+					typeof payload.senderName === "string" ? payload.senderName : null,
+				senderUsername:
+					typeof payload.senderUsername === "string"
+						? payload.senderUsername
+						: null,
+			});
+
+			setMessages((prev) => {
+				if (prev.some((message) => message.id === mapped.id)) {
+					return prev;
+				}
+				return [...prev, mapped];
+			});
+			return;
+		}
+
 		if (
 			lastMessage?.type !== "NOTIFICATION_EVENT" ||
 			typeof lastMessage.payload !== "object" ||
@@ -222,7 +268,7 @@ export function useChat(roomId: string) {
 		) {
 			void loadConversation();
 		}
-	}, [lastMessage, loadConversation, roomId]);
+	}, [lastMessage, loadConversation, mapMessage, roomId, user?.id]);
 
 	const sendMessage = React.useCallback(async () => {
 		const trimmed = draft.trim();
@@ -378,7 +424,7 @@ export function useChat(roomId: string) {
 										status: "pending",
 										respondedBy: undefined,
 									},
-							  }
+								}
 							: message,
 					),
 				);

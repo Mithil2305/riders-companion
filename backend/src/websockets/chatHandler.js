@@ -1,4 +1,5 @@
-const { UserEncryptedChat } = require("../models");
+const { Op } = require("sequelize");
+const { Ride, RideParticipant, UserEncryptedChat } = require("../models");
 const chatCryptoService = require("../services/chatCryptoService");
 
 const CHAT_EVENTS = new Set([
@@ -13,6 +14,67 @@ const ensureRoomSet = (chatRooms, roomId) => {
 		chatRooms.set(roomId, new Set());
 	}
 	return chatRooms.get(roomId);
+};
+
+const isUuid = (value) =>
+	typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value);
+
+const resolveRoomAccess = async ({ riderId, roomId }) => {
+	if (typeof roomId !== "string" || roomId.trim().length === 0) {
+		return {
+			allowed: false,
+			code: "CHAT_ROOM_REQUIRED",
+			message: "roomId is required",
+		};
+	}
+
+	if (roomId.startsWith("direct:")) {
+		const roomMembers = roomId
+			.slice("direct:".length)
+			.split(":")
+			.filter(Boolean);
+
+		if (roomMembers.length !== 2 || !roomMembers.includes(riderId)) {
+			return {
+				allowed: false,
+				code: "CHAT_ROOM_FORBIDDEN",
+				message: "You do not have access to this direct chat",
+			};
+		}
+
+		return { allowed: true };
+	}
+
+	if (!isUuid(roomId)) {
+		return { allowed: true };
+	}
+
+	const ride = await Ride.findByPk(roomId, {
+		attributes: ["id"],
+	});
+
+	if (!ride) {
+		return { allowed: true };
+	}
+
+	const participant = await RideParticipant.findOne({
+		where: {
+			ride_id: ride.id,
+			rider_id: riderId,
+			status: { [Op.notIn]: ["DECLINED"] },
+		},
+		attributes: ["rider_id"],
+	});
+
+	if (!participant) {
+		return {
+			allowed: false,
+			code: "CHAT_ROOM_FORBIDDEN",
+			message: "You are not allowed to access this ride chat",
+		};
+	}
+
+	return { allowed: true };
 };
 
 const broadcastToRoom = ({
@@ -37,10 +99,16 @@ const broadcastToRoom = ({
 	}
 };
 
-const joinRoom = ({ ws, payload, state, sendToSocket, sendError }) => {
+const joinRoom = async ({ ws, payload, state, sendToSocket, sendError }) => {
 	const roomId = payload?.roomId;
 	if (!roomId || typeof roomId !== "string") {
 		sendError(ws, "CHAT_JOIN_BAD_PAYLOAD", "roomId is required");
+		return true;
+	}
+
+	const access = await resolveRoomAccess({ riderId: ws.rider.id, roomId });
+	if (!access.allowed) {
+		sendError(ws, access.code, access.message, { roomId });
 		return true;
 	}
 
@@ -181,6 +249,12 @@ const sendMessage = async ({ ws, payload, state, sendToSocket, sendError }) => {
 
 	if (typeof messageText !== "string" || messageText.trim().length === 0) {
 		sendError(ws, "CHAT_SEND_BAD_PAYLOAD", "message is required");
+		return true;
+	}
+
+	const access = await resolveRoomAccess({ riderId: ws.rider.id, roomId });
+	if (!access.allowed) {
+		sendError(ws, access.code, access.message, { roomId });
 		return true;
 	}
 

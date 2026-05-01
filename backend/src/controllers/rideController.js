@@ -1,3 +1,4 @@
+const { randomUUID } = require("crypto");
 const { Op } = require("sequelize");
 const {
 	Community,
@@ -6,6 +7,7 @@ const {
 	RideParticipant,
 	RiderAccount,
 	RideLocationPoint,
+	UserEncryptedChat,
 } = require("../models");
 const { formatError } = require("../utils/errorFormatter");
 const { canCreateContentOrRide } = require("../utils/profileAccess");
@@ -14,9 +16,12 @@ const {
 	calculateSpeedKmh,
 } = require("../services/telemetryService");
 const { createNotifications } = require("../services/notificationService");
+const chatCryptoService = require("../services/chatCryptoService");
 const websocketHub = require("../websockets/hub");
 
 const MAX_REASONABLE_SPEED_KMH = 220;
+const RIDE_INVITE_PREFIX = "[RIDE_INVITE]";
+const RIDE_SYSTEM_PREFIX = "[RIDE_SYSTEM]";
 
 const isFiniteNumber = (value) =>
 	typeof value === "number" && Number.isFinite(value);
@@ -76,13 +81,109 @@ const normalizeRouteMeta = (details) => {
 	};
 };
 
+const normalizeRideStatus = (status) => {
+	const normalized = String(status || "").toUpperCase();
+
+	if (normalized === "PLANNING") {
+		return "PENDING";
+	}
+
+	return normalized || "PENDING";
+};
+
+const serializeRideSystemMessage = (message) =>
+	`${RIDE_SYSTEM_PREFIX}${String(message || "").trim()}`;
+
+const buildRideInviteMessage = ({
+	ride,
+	details,
+	inviteeId,
+	inviter,
+}) =>
+	`${RIDE_INVITE_PREFIX}${JSON.stringify({
+		type: "ride-invite",
+		inviteId: randomUUID(),
+		rideId: ride.id,
+		roomName:
+			typeof details.rideTitle === "string" && details.rideTitle.trim().length > 0
+				? details.rideTitle.trim()
+				: `${details.source || "Ride"} -> ${details.destination || "Destination"}`,
+		inviterId: inviter.id,
+		inviterName: inviter.username
+			? `@${inviter.username}`
+			: inviter.name || "Rider",
+		status: "pending",
+		sentAt: new Date().toISOString(),
+		rideTitle:
+			typeof details.rideTitle === "string" && details.rideTitle.trim().length > 0
+				? details.rideTitle.trim()
+				: undefined,
+		source: details.source || undefined,
+		destination: details.destination || undefined,
+		startDate: details.startDate || undefined,
+		endDate: details.endDate || undefined,
+		days: Number.isFinite(Number(details.days))
+			? Number(details.days)
+			: undefined,
+		budget: Number.isFinite(Number(details.budget))
+			? Number(details.budget)
+			: undefined,
+		ridePace: details.ridePace || undefined,
+		roadPreference: details.roadPreference || undefined,
+		meetupNotes: details.meetupNotes || undefined,
+		inviteeId,
+	})}`;
+
+const createStoredDirectMessage = async ({
+	senderId,
+	receiverId,
+	plainText,
+}) => {
+	const roomId = `direct:${[senderId, receiverId].sort().join(":")}`;
+	const encrypted = chatCryptoService.encryptMessage({
+		plainText,
+		roomId,
+		senderId,
+		receiverId,
+	});
+
+	return UserEncryptedChat.create({
+		sender_id: senderId,
+		receiver_id: receiverId,
+		room_id: null,
+		encrypted_payload: encrypted.encryptedPayload,
+		iv: encrypted.iv,
+	});
+};
+
+const createStoredRideRoomMessage = async ({
+	rideId,
+	senderId,
+	plainText,
+}) => {
+	const encrypted = chatCryptoService.encryptMessage({
+		plainText,
+		roomId: rideId,
+		senderId,
+		receiverId: null,
+	});
+
+	return UserEncryptedChat.create({
+		sender_id: senderId,
+		receiver_id: null,
+		room_id: rideId,
+		encrypted_payload: encrypted.encryptedPayload,
+		iv: encrypted.iv,
+	});
+};
+
 const toRidePayload = (ride, participants = [], options = {}) => {
 	const organizerId = options.organizerId || ride.creator_id || null;
 	const details = ride.route_polygon || {};
 	return {
 		id: ride.id,
 		communityId: ride.community_id,
-		status: ride.status,
+		status: normalizeRideStatus(ride.status),
 		details,
 		route: normalizeRouteMeta(details),
 		participants,
@@ -158,7 +259,7 @@ const getLatestRideLocations = async (rideId) => {
 	const riderIds = latestPoints.map((entry) => entry.rider_id);
 	const riders = await RiderAccount.findAll({
 		where: { id: { [Op.in]: riderIds } },
-		attributes: ["id", "name", "username"],
+		attributes: ["id", "name", "username", "profile_image_url"],
 	});
 
 	const riderById = new Map(riders.map((rider) => [rider.id, rider]));
@@ -171,6 +272,7 @@ const getLatestRideLocations = async (rideId) => {
 			riderId: point.rider_id,
 			name: rider?.name || "Rider",
 			username: rider?.username || null,
+			avatar: rider?.profile_image_url || null,
 			latitude: point.latitude,
 			longitude: point.longitude,
 			deviceSpeedKmh: point.device_speed_kmh,
@@ -209,19 +311,146 @@ const buildRideSnapshot = async (ride) => {
 
 	return {
 		rideId: ride.id,
-		rideStatus: ride.status,
+		rideStatus: normalizeRideStatus(ride.status),
 		leaderRiderId: leaderId,
 		route: normalizeRouteMeta(ride.route_polygon || {}),
 		participants: participants.map((entry) => ({
 			riderId: entry.rider_id,
 			name: profileById.get(entry.rider_id)?.name || "Rider",
 			username: profileById.get(entry.rider_id)?.username || null,
+			avatar: profileById.get(entry.rider_id)?.profile_image_url || null,
 			participantStatus: entry.status,
 			isLeader: leaderId === entry.rider_id,
 		})),
 		locations,
 		snapshotAt: new Date().toISOString(),
 	};
+};
+
+const getRideParticipantDirectory = async (rideId, options = {}) => {
+	const where = { ride_id: rideId };
+	if (options.includeDeclined !== true) {
+		where.status = { [Op.notIn]: ["DECLINED"] };
+	}
+
+	const participants = await RideParticipant.findAll({
+		where,
+		attributes: ["rider_id", "status"],
+	});
+
+	const riderIds = participants.map((entry) => entry.rider_id);
+	const riders = riderIds.length
+		? await RiderAccount.findAll({
+				where: { id: { [Op.in]: riderIds } },
+				attributes: ["id", "name", "username", "profile_image_url"],
+			})
+		: [];
+
+	return {
+		participants,
+		ridersById: new Map(riders.map((rider) => [rider.id, rider])),
+		participantIds: participants
+			.map((entry) => entry.rider_id)
+			.filter((value) => typeof value === "string" && value.length > 0),
+	};
+};
+
+const emitRideChatMessage = ({
+	participantIds,
+	saved,
+	rideId,
+	sender,
+	message,
+}) => {
+	for (const riderId of participantIds) {
+		websocketHub.sendToRider(riderId, "CHAT_MESSAGE", {
+			id: saved.id,
+			roomId: rideId,
+			senderId: sender.id,
+			receiverId: null,
+			message,
+			createdAt: saved.created_at,
+			senderName: sender.name || "Rider",
+			senderUsername: sender.username || null,
+		});
+	}
+};
+
+const emitRideSyncRequired = ({
+	participantIds,
+	rideId,
+	reason,
+}) => {
+	for (const riderId of participantIds) {
+		websocketHub.sendToRider(riderId, "RIDE_SYNC_REQUIRED", {
+			rideId,
+			reason,
+			issuedAt: new Date().toISOString(),
+		});
+	}
+};
+
+const appendRideSystemMessage = async ({
+	rideId,
+	sender,
+	participantIds,
+	text,
+}) => {
+	if (!Array.isArray(participantIds) || participantIds.length === 0) {
+		return null;
+	}
+
+	const saved = await createStoredRideRoomMessage({
+		rideId,
+		senderId: sender.id,
+		plainText: serializeRideSystemMessage(text),
+	});
+
+	emitRideChatMessage({
+		participantIds,
+		saved,
+		rideId,
+		sender,
+		message: serializeRideSystemMessage(text),
+	});
+
+	return saved;
+};
+
+const deliverRideInvites = async ({
+	ride,
+	inviter,
+	invitedRiderIds,
+}) => {
+	if (!Array.isArray(invitedRiderIds) || invitedRiderIds.length === 0) {
+		return;
+	}
+
+	const details = ride.route_polygon || {};
+	for (const riderId of invitedRiderIds) {
+		const message = buildRideInviteMessage({
+			ride,
+			details,
+			inviteeId: riderId,
+			inviter,
+		});
+		const saved = await createStoredDirectMessage({
+			senderId: inviter.id,
+			receiverId: riderId,
+			plainText: message,
+		});
+
+		websocketHub.sendToRider(riderId, "CHAT_MESSAGE", {
+			id: saved.id,
+			roomId: `direct:${[inviter.id, riderId].sort().join(":")}`,
+			senderId: inviter.id,
+			receiverId: riderId,
+			message,
+			createdAt: saved.created_at,
+			senderName: inviter.name || "Rider",
+			senderUsername: inviter.username || null,
+		});
+	}
 };
 
 exports.listFriends = async (req, res) => {
@@ -367,7 +596,7 @@ exports.createRide = async (req, res) => {
 		const ride = await Ride.create({
 			community_id: resolvedCommunityId,
 			creator_id: req.user.id,
-			status: "PLANNING",
+			status: "PENDING",
 			route_polygon: details,
 		});
 
@@ -391,6 +620,56 @@ exports.createRide = async (req, res) => {
 				})),
 				{ ignoreDuplicates: true },
 			);
+		}
+
+		const inviter = await RiderAccount.findByPk(req.user.id, {
+			attributes: ["id", "name", "username"],
+		});
+
+		if (inviter && inviteIds.length > 0) {
+			await createNotifications({
+				recipientIds: inviteIds.filter((id) => id !== req.user.id),
+				actorId: req.user.id,
+				type: "RIDE_INVITED",
+				title: inviter.username
+					? `@${inviter.username} invited you to a ride`
+					: `${inviter.name || "A rider"} invited you to a ride`,
+				body: "Open the ride chat to accept or decline.",
+				entityType: "ride",
+				entityId: ride.id,
+				metadata: {
+					rideId: ride.id,
+					communityId: ride.community_id,
+				},
+			});
+
+			const inviteeDirectory = await RiderAccount.findAll({
+				where: { id: { [Op.in]: inviteIds } },
+				attributes: ["id", "name"],
+			});
+
+			const invitedNames = inviteeDirectory
+				.map((entry) => entry.name || "Rider")
+				.slice(0, 3);
+			const inviteText =
+				inviteeDirectory.length > 0
+					? inviteeDirectory.length > 3
+						? `Invited ${invitedNames.join(", ")} and ${inviteeDirectory.length - 3} more riders.`
+						: `Invited ${invitedNames.join(", ")} to this ride.`
+					: "Sent ride invites.";
+
+			const { participantIds } = await getRideParticipantDirectory(ride.id);
+			await appendRideSystemMessage({
+				rideId: ride.id,
+				sender: inviter,
+				participantIds,
+				text: inviteText,
+			});
+			await deliverRideInvites({
+				ride,
+				inviter,
+				invitedRiderIds: inviteIds.filter((id) => id !== req.user.id),
+			});
 		}
 
 		const participants = await RideParticipant.findAll({
@@ -504,6 +783,11 @@ exports.getRideById = async (req, res) => {
 };
 
 exports.getCommunityRides = async (req, res) => {
+	const selectedLocation =
+		typeof req.query.location === "string" && req.query.location.trim().length > 0
+			? req.query.location.trim().toLowerCase()
+			: "";
+
 	const rides = await Ride.findAll({
 		order: [["created_at", "DESC"]],
 		limit: 50,
@@ -527,10 +811,29 @@ exports.getCommunityRides = async (req, res) => {
 
 	const groupRides = rides
 		.filter((ride) => (ride.route_polygon || {}).rideType === "group")
+		.filter((ride) => {
+			const details = ride.route_polygon || {};
+			const privacy = String(details.privacy || "").toLowerCase();
+			const haystack = [
+				details.source,
+				details.destination,
+				details.pickupLocation,
+				details.dropLocation,
+			]
+				.filter((value) => typeof value === "string" && value.trim().length > 0)
+				.join(" ")
+				.toLowerCase();
+
+			const matchesLocation =
+				selectedLocation.length === 0 || haystack.includes(selectedLocation);
+			const isCommunityRide = privacy !== "friends";
+
+			return matchesLocation && isCommunityRide;
+		})
 		.map((ride) => ({
 			communityId: ride.community_id,
 			id: ride.id,
-			status: ride.status,
+			status: normalizeRideStatus(ride.status),
 			details: ride.route_polygon || {},
 			joinedCount: (byRide[ride.id] || []).filter(
 				(item) => item.status === "CONFIRMED" || item.status === "STARTED",
@@ -588,7 +891,7 @@ exports.joinRide = async (req, res) => {
 		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
 	}
 
-	if (String(ride.status).toUpperCase() === "COMPLETED") {
+	if (normalizeRideStatus(ride.status) === "COMPLETED") {
 		return formatError(
 			res,
 			400,
@@ -601,6 +904,7 @@ exports.joinRide = async (req, res) => {
 		where: { ride_id: ride.id, rider_id: req.user.id },
 		defaults: { status: "CONFIRMED" },
 	});
+	let membershipChanged = created;
 
 	if (
 		!created &&
@@ -608,6 +912,27 @@ exports.joinRide = async (req, res) => {
 	) {
 		participant.status = "CONFIRMED";
 		await participant.save();
+		membershipChanged = true;
+	}
+
+	if (membershipChanged) {
+		const rider = await RiderAccount.findByPk(req.user.id, {
+			attributes: ["id", "name", "username"],
+		});
+		const { participantIds } = await getRideParticipantDirectory(ride.id);
+		if (rider) {
+			await appendRideSystemMessage({
+				rideId: ride.id,
+				sender: rider,
+				participantIds,
+				text: `${rider.name || "A rider"} joined the ride.`,
+			});
+		}
+		emitRideSyncRequired({
+			participantIds,
+			rideId: ride.id,
+			reason: "ride-joined",
+		});
 	}
 
 	return res.status(200).json({
@@ -637,6 +962,27 @@ exports.acceptInvitation = async (req, res) => {
 	participant.status = "CONFIRMED";
 	await participant.save();
 
+	const ride = await Ride.findByPk(req.params.rideId, {
+		attributes: ["id"],
+	});
+	const rider = await RiderAccount.findByPk(req.user.id, {
+		attributes: ["id", "name", "username"],
+	});
+	const { participantIds } = await getRideParticipantDirectory(req.params.rideId);
+	if (ride && rider) {
+		await appendRideSystemMessage({
+			rideId: ride.id,
+			sender: rider,
+			participantIds,
+			text: `${rider.name || "A rider"} accepted the ride invite.`,
+		});
+	}
+	emitRideSyncRequired({
+		participantIds,
+		rideId: req.params.rideId,
+		reason: "invite-accepted",
+	});
+
 	return res.status(200).json({ success: true, data: { accepted: true } });
 };
 
@@ -661,12 +1007,92 @@ exports.declineInvitation = async (req, res) => {
 	participant.status = "DECLINED";
 	await participant.save();
 
+	const ride = await Ride.findByPk(req.params.rideId, {
+		attributes: ["id"],
+	});
+	const rider = await RiderAccount.findByPk(req.user.id, {
+		attributes: ["id", "name", "username"],
+	});
+	const { participantIds } = await getRideParticipantDirectory(req.params.rideId, {
+		includeDeclined: true,
+	});
+	const remainingParticipantIds = participantIds.filter((id) => id !== req.user.id);
+	if (ride && rider) {
+		await appendRideSystemMessage({
+			rideId: ride.id,
+			sender: rider,
+			participantIds: remainingParticipantIds,
+			text: `${rider.name || "A rider"} declined the ride invite.`,
+		});
+	}
+	emitRideSyncRequired({
+		participantIds: remainingParticipantIds,
+		rideId: req.params.rideId,
+		reason: "invite-declined",
+	});
+
 	return res.status(200).json({ success: true, data: { accepted: false } });
 };
 
 exports.leaveRide = async (req, res) => {
-	await RideParticipant.destroy({
+	const ride = await Ride.findByPk(req.params.rideId, {
+		attributes: ["id", "community_id"],
+	});
+
+	if (!ride) {
+		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
+	}
+
+	if (normalizeRideStatus(ride.status) === "COMPLETED") {
+		return formatError(
+			res,
+			400,
+			"Ride has already ended",
+			"RIDE_ALREADY_COMPLETED",
+		);
+	}
+
+	const organizerId = await getOrganizerIdByCommunity(ride.community_id);
+	if (organizerId && organizerId === req.user.id) {
+		return formatError(
+			res,
+			403,
+			"Ride organizer must end the ride instead of leaving it",
+			"RIDE_ORGANIZER_CANNOT_LEAVE",
+		);
+	}
+
+	const rider = await RiderAccount.findByPk(req.user.id, {
+		attributes: ["id", "name", "username"],
+	});
+	const { participantIds } = await getRideParticipantDirectory(req.params.rideId);
+
+	const removedCount = await RideParticipant.destroy({
 		where: { ride_id: req.params.rideId, rider_id: req.user.id },
+	});
+
+	if (removedCount === 0) {
+		return formatError(
+			res,
+			404,
+			"You are not part of this ride",
+			"RIDE_PARTICIPANT_NOT_FOUND",
+		);
+	}
+
+	const remainingParticipantIds = participantIds.filter((id) => id !== req.user.id);
+	if (rider) {
+		await appendRideSystemMessage({
+			rideId: req.params.rideId,
+			sender: rider,
+			participantIds: remainingParticipantIds,
+			text: `${rider.name || "A rider"} left the ride.`,
+		});
+	}
+	emitRideSyncRequired({
+		participantIds: remainingParticipantIds,
+		rideId: req.params.rideId,
+		reason: "ride-left",
 	});
 
 	return res.status(200).json({
@@ -677,20 +1103,31 @@ exports.leaveRide = async (req, res) => {
 
 exports.startRide = async (req, res) => {
 	const ride = await Ride.findByPk(req.params.rideId, {
-		attributes: ["id", "creator_id", "status"],
+		attributes: ["id", "creator_id", "community_id", "status"],
 	});
 
 	if (!ride) {
 		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
 	}
 
-	// Check authorization: only the ride creator can start the ride
-	if (ride.creator_id !== req.user.id) {
+	const organizerId = await getOrganizerIdByCommunity(ride.community_id);
+
+	// Check authorization: only the organizer can start the ride
+	if ((organizerId || ride.creator_id) !== req.user.id) {
 		return formatError(
 			res,
 			403,
-			"Only the ride creator can start this ride",
+			"Only the ride organizer can start this ride",
 			"RIDE_START_FORBIDDEN",
+		);
+	}
+
+	if (normalizeRideStatus(ride.status) === "COMPLETED") {
+		return formatError(
+			res,
+			400,
+			"Ride has already ended",
+			"RIDE_ALREADY_COMPLETED",
 		);
 	}
 
@@ -706,6 +1143,33 @@ exports.startRide = async (req, res) => {
 			},
 		},
 	);
+
+	const starter = await RiderAccount.findByPk(req.user.id, {
+		attributes: ["id", "name", "username"],
+	});
+	const { participantIds } = await getRideParticipantDirectory(ride.id);
+	if (starter) {
+		await appendRideSystemMessage({
+			rideId: ride.id,
+			sender: starter,
+			participantIds,
+			text: `${starter.name || "Organizer"} started the ride.`,
+		});
+	}
+
+	for (const riderId of participantIds) {
+		websocketHub.sendToRider(riderId, "RIDE_STARTED", {
+			rideId: ride.id,
+			startedBy: req.user.id,
+			rideStatus: "ACTIVE",
+			startedAt: new Date().toISOString(),
+		});
+	}
+	emitRideSyncRequired({
+		participantIds,
+		rideId: ride.id,
+		reason: "ride-started",
+	});
 
 	return res.status(200).json({
 		success: true,
@@ -751,6 +1215,18 @@ exports.endRide = async (req, res) => {
 	const participantIds = participants
 		.map((entry) => entry.rider_id)
 		.filter((value) => typeof value === "string" && value.length > 0);
+	const organizer = await RiderAccount.findByPk(req.user.id, {
+		attributes: ["id", "name", "username"],
+	});
+
+	if (organizer) {
+		await appendRideSystemMessage({
+			rideId: ride.id,
+			sender: organizer,
+			participantIds,
+			text: `${organizer.name || "Organizer"} ended the ride.`,
+		});
+	}
 
 	for (const riderId of participantIds) {
 		websocketHub.sendToRider(riderId, "RIDE_ENDED", {
@@ -760,6 +1236,11 @@ exports.endRide = async (req, res) => {
 			endedAt: new Date().toISOString(),
 		});
 	}
+	emitRideSyncRequired({
+		participantIds,
+		rideId: ride.id,
+		reason: "ride-ended",
+	});
 
 	return res.status(200).json({
 		success: true,
@@ -821,12 +1302,12 @@ exports.updateLocation = async (req, res) => {
 		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
 	}
 
-	if (String(ride.status).toUpperCase() === "COMPLETED") {
+	if (normalizeRideStatus(ride.status) !== "ACTIVE") {
 		return formatError(
 			res,
 			400,
-			"Ride has already ended",
-			"RIDE_ALREADY_COMPLETED",
+			"Ride is not active yet",
+			"RIDE_NOT_ACTIVE",
 		);
 	}
 
@@ -1016,119 +1497,161 @@ exports.getRideSnapshot = async (req, res) => {
 };
 
 exports.inviteRiders = async (req, res) => {
-	const ride = await Ride.findByPk(req.params.rideId, {
-		attributes: ["id", "community_id", "creator_id", "status"],
-	});
+	try {
+		const ride = await Ride.findByPk(req.params.rideId, {
+			attributes: ["id", "community_id", "creator_id", "status"],
+		});
 
-	if (!ride) {
-		return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
-	}
+		if (!ride) {
+			return formatError(res, 404, "Ride not found", "RIDE_NOT_FOUND");
+		}
 
-	const organizerId = await getOrganizerIdByCommunity(ride.community_id);
-	if (!organizerId || organizerId !== req.user.id) {
-		return formatError(
-			res,
-			403,
-			"Only the ride organizer can invite riders",
-			"RIDE_INVITE_FORBIDDEN",
-		);
-	}
+		const organizerId = await getOrganizerIdByCommunity(ride.community_id);
+		if (!organizerId || organizerId !== req.user.id) {
+			return formatError(
+				res,
+				403,
+				"Only the ride organizer can invite riders",
+				"RIDE_INVITE_FORBIDDEN",
+			);
+		}
 
-	if (String(ride.status).toUpperCase() === "COMPLETED") {
-		return formatError(
-			res,
-			400,
-			"Cannot invite riders to an ended ride",
-			"RIDE_ALREADY_COMPLETED",
-		);
-	}
+		if (normalizeRideStatus(ride.status) === "COMPLETED") {
+			return formatError(
+				res,
+				400,
+				"Cannot invite riders to an ended ride",
+				"RIDE_ALREADY_COMPLETED",
+			);
+		}
 
-	const invitedRiderIds = Array.isArray(req.body.invitedRiderIds)
-		? Array.from(
-				new Set(
-					req.body.invitedRiderIds.filter(
-						(value) => typeof value === "string" && value.length > 0,
+		const invitedRiderIds = Array.isArray(req.body.invitedRiderIds)
+			? Array.from(
+					new Set(
+						req.body.invitedRiderIds.filter(
+							(value) => typeof value === "string" && value.length > 0,
+						),
 					),
-				),
-			)
-		: [];
+				)
+			: [];
 
-	if (invitedRiderIds.length === 0) {
-		return formatError(
-			res,
-			400,
-			"invitedRiderIds must be a non-empty array",
-			"RIDE_INVITE_BAD_PAYLOAD",
+		if (invitedRiderIds.length === 0) {
+			return formatError(
+				res,
+				400,
+				"invitedRiderIds must be a non-empty array",
+				"RIDE_INVITE_BAD_PAYLOAD",
+			);
+		}
+
+		const existingParticipants = await RideParticipant.findAll({
+			where: {
+				ride_id: ride.id,
+				rider_id: { [Op.in]: invitedRiderIds },
+			},
+			attributes: ["rider_id", "status"],
+		});
+
+		const existingById = new Map(
+			existingParticipants.map((entry) => [entry.rider_id, entry]),
 		);
-	}
 
-	const existingParticipants = await RideParticipant.findAll({
-		where: {
-			ride_id: ride.id,
-			rider_id: { [Op.in]: invitedRiderIds },
-		},
-		attributes: ["rider_id", "status"],
-	});
-
-	const existingById = new Map(
-		existingParticipants.map((entry) => [entry.rider_id, entry]),
-	);
-
-	const createdInvites = [];
-	for (const riderId of invitedRiderIds) {
-		if (riderId === req.user.id) {
-			continue;
-		}
-
-		const existing = existingById.get(riderId);
-		if (existing) {
-			if (existing.status === "DECLINED") {
-				existing.status = "INVITED";
-				await existing.save();
-				createdInvites.push(riderId);
+		const createdInvites = [];
+		for (const riderId of invitedRiderIds) {
+			if (riderId === req.user.id) {
+				continue;
 			}
-			continue;
+
+			const existing = existingById.get(riderId);
+			if (existing) {
+				if (existing.status === "DECLINED") {
+					existing.status = "INVITED";
+					await existing.save();
+					createdInvites.push(riderId);
+				}
+				continue;
+			}
+
+			await RideParticipant.create({
+				ride_id: ride.id,
+				rider_id: riderId,
+				status: "INVITED",
+			});
+			createdInvites.push(riderId);
 		}
 
-		await RideParticipant.create({
-			ride_id: ride.id,
-			rider_id: riderId,
-			status: "INVITED",
-		});
-		createdInvites.push(riderId);
-	}
+		if (createdInvites.length > 0) {
+			const organizer = await RiderAccount.findByPk(req.user.id, {
+				attributes: ["id", "name", "username"],
+			});
 
-	if (createdInvites.length > 0) {
-		const organizer = await RiderAccount.findByPk(req.user.id, {
-			attributes: ["name", "username"],
-		});
+			const organizerName = organizer?.username
+				? `@${organizer.username}`
+				: organizer?.name || "A rider";
 
-		const organizerName = organizer?.username
-			? `@${organizer.username}`
-			: organizer?.name || "A rider";
+			await createNotifications({
+				recipientIds: createdInvites,
+				actorId: req.user.id,
+				type: "RIDE_INVITED",
+				title: `${organizerName} invited you to a ride`,
+				body: "Open the ride room to accept or decline.",
+				entityType: "ride",
+				entityId: ride.id,
+				metadata: {
+					rideId: ride.id,
+					communityId: ride.community_id,
+				},
+			});
 
-		await createNotifications({
-			recipientIds: createdInvites,
-			actorId: req.user.id,
-			type: "RIDE_INVITED",
-			title: `${organizerName} invited you to a ride`,
-			body: "Open the ride room to accept or decline.",
-			entityType: "ride",
-			entityId: ride.id,
-			metadata: {
+			const invitedRiders = await RiderAccount.findAll({
+				where: { id: { [Op.in]: createdInvites } },
+				attributes: ["id", "name"],
+			});
+			const invitedNames = invitedRiders
+				.map((entry) => entry.name || "Rider")
+				.slice(0, 3);
+			const inviteText =
+				invitedRiders.length > 3
+					? `Invited ${invitedNames.join(", ")} and ${invitedRiders.length - 3} more riders.`
+					: `Invited ${invitedNames.join(", ")} to this ride.`;
+
+			const { participantIds } = await getRideParticipantDirectory(ride.id);
+			if (organizer) {
+				await appendRideSystemMessage({
+					rideId: ride.id,
+					sender: organizer,
+					participantIds,
+					text: inviteText,
+				});
+				await deliverRideInvites({
+					ride,
+					inviter: organizer,
+					invitedRiderIds: createdInvites,
+				});
+			}
+			emitRideSyncRequired({
+				participantIds,
 				rideId: ride.id,
-				communityId: ride.community_id,
+				reason: "ride-invited",
+			});
+		}
+
+		return res.status(201).json({
+			success: true,
+			data: {
+				rideId: ride.id,
+				invitedCount: createdInvites.length,
 			},
 		});
+	} catch (error) {
+		console.error("Failed to invite riders:", error);
+		return formatError(
+			res,
+			500,
+			"Failed to send invitations",
+			"RIDE_INVITE_SEND_ERR",
+		);
 	}
-
-	return res.status(201).json({
-		success: true,
-		data: {
-			rideId: ride.id,
-			invitedCount: createdInvites.length,
-		},
-	});
 };
 
 exports.updateRide = async (req, res) => {
@@ -1158,12 +1681,12 @@ exports.updateRide = async (req, res) => {
 			);
 		}
 
-		// Only allow editing rides in PLANNING status
-		if (ride.status !== "PLANNING") {
+		// Only allow editing rides in pending status
+		if (!["PLANNING", "PENDING"].includes(normalizeRideStatus(ride.status))) {
 			return formatError(
 				res,
 				400,
-				"Can only edit rides in PLANNING status",
+				"Can only edit rides before they start",
 				"RIDE_EDIT_NOT_ALLOWED",
 			);
 		}
@@ -1344,12 +1867,12 @@ exports.deleteRide = async (req, res) => {
 			);
 		}
 
-		// Only allow deleting rides in PLANNING status
-		if (ride.status !== "PLANNING") {
+		// Only allow deleting rides before they start
+		if (!["PLANNING", "PENDING"].includes(normalizeRideStatus(ride.status))) {
 			return formatError(
 				res,
 				400,
-				"Can only delete rides in PLANNING status",
+				"Can only delete rides before they start",
 				"RIDE_DELETE_NOT_ALLOWED",
 			);
 		}

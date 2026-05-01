@@ -6,21 +6,27 @@ import { withAlpha } from "../../../utils/color";
 interface GroupChatMenuSheetProps {
 	visible: boolean;
 	isAdmin: boolean;
+	canStartRide?: boolean;
 	isRideEnded?: boolean;
 	onClose: () => void;
 	onRideDetails: () => void;
 	onInvite: () => void;
+	onStartRide: () => void;
 	onEndRide: () => void;
+	onLeaveRide: () => void;
 }
 
 export function GroupChatMenuSheet({
 	visible,
 	isAdmin,
+	canStartRide = false,
 	isRideEnded = false,
 	onClose,
 	onRideDetails,
 	onInvite,
+	onStartRide,
 	onEndRide,
+	onLeaveRide,
 }: GroupChatMenuSheetProps) {
 	const { colors, metrics, typography } = useTheme();
 
@@ -91,12 +97,26 @@ export function GroupChatMenuSheet({
 	const rows = isAdmin
 		? isRideEnded
 			? ["Ride Details", "Mute Notifications", "Report"]
-			: ["Ride Details", "End Ride", "Mute Notifications", "Report"]
-		: ["Ride Details", "Mute Notifications", "Report"];
+			: canStartRide
+				? ["Ride Details", "Start Ride", "Mute Notifications", "Report"]
+				: ["Ride Details", "End Ride", "Mute Notifications", "Report"]
+		: isRideEnded
+			? ["Ride Details", "Mute Notifications", "Report"]
+			: ["Ride Details", "Leave Ride", "Mute Notifications", "Report"];
 
 	const onRowPress = (row: string) => {
+		if (row === "Start Ride") {
+			onStartRide();
+			return;
+		}
+
 		if (row === "End Ride") {
 			onEndRide();
+			return;
+		}
+
+		if (row === "Leave Ride") {
+			onLeaveRide();
 			return;
 		}
 
@@ -128,7 +148,7 @@ export function GroupChatMenuSheet({
 							<Text style={styles.rowText}>{row}</Text>
 						</Pressable>
 					))}
-					{!isRideEnded ? (
+					{!isRideEnded && isAdmin ? (
 						<Pressable
 							accessibilityLabel="Invite friends"
 							onPress={onInvite}

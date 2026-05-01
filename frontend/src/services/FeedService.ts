@@ -75,7 +75,7 @@ class FeedService {
 			return feedInFlight;
 		}
 
-		feedInFlight = apiRequest<FeedResponse>("/feed")
+		feedInFlight = apiRequest<FeedResponse>("/feed", { requireAuth: false })
 			.then((data) => {
 				feedCache = { data, fetchedAt: Date.now() };
 				return data;
@@ -132,25 +132,38 @@ class FeedService {
 	}
 
 	async commentOnPost(postId: string, commentText: string) {
-		return apiRequest<{ commentsCount: number; comment?: CommentPayload }>(`/feed/${postId}/comments`, {
-			method: "POST",
-			body: { commentText },
-		});
+		return apiRequest<{ commentsCount: number; comment?: CommentPayload }>(
+			`/feed/${postId}/comments`,
+			{
+				method: "POST",
+				body: { commentText },
+			},
+		);
 	}
 
 	async getComments(postId: string, _page: number = 1, _limit: number = 20) {
-		return apiRequest<{ comments: CommentPayload[] }>(`/feed/${postId}/comments`);
+		return apiRequest<{ comments: CommentPayload[] }>(
+			`/feed/${postId}/comments`,
+		);
 	}
 
 	async likeComment(postId: string, commentId: string) {
-		return apiRequest<{ commentId: string; liked: boolean; likesCount: number }>(`/feed/${postId}/comments/${commentId}/likes`, {
-			method: "POST"
+		return apiRequest<{
+			commentId: string;
+			liked: boolean;
+			likesCount: number;
+		}>(`/feed/${postId}/comments/${commentId}/likes`, {
+			method: "POST",
 		});
 	}
 
 	async unlikeComment(postId: string, commentId: string) {
-		return apiRequest<{ commentId: string; liked: boolean; likesCount: number }>(`/feed/${postId}/comments/${commentId}/likes`, {
-			method: "DELETE"
+		return apiRequest<{
+			commentId: string;
+			liked: boolean;
+			likesCount: number;
+		}>(`/feed/${postId}/comments/${commentId}/likes`, {
+			method: "DELETE",
 		});
 	}
 
@@ -165,12 +178,13 @@ class FeedService {
 	}
 
 	async deleteComment(postId: string, commentId: string) {
-		return apiRequest<{ postId: string; commentId: string; commentsCount: number }>(
-			`/feed/${postId}/comments/${commentId}`,
-			{
-				method: "DELETE",
-			},
-		);
+		return apiRequest<{
+			postId: string;
+			commentId: string;
+			commentsCount: number;
+		}>(`/feed/${postId}/comments/${commentId}`, {
+			method: "DELETE",
+		});
 	}
 }
 

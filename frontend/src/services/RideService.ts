@@ -119,6 +119,7 @@ type RideLocationsResponse = {
 		riderId: string;
 		name: string;
 		username?: string | null;
+		avatar?: string | null;
 		latitude: number;
 		longitude: number;
 		deviceSpeedKmh?: number | null;
@@ -148,6 +149,7 @@ type RideSnapshotResponse = {
 			riderId: string;
 			name: string;
 			username?: string | null;
+			avatar?: string | null;
 			participantStatus: string;
 			isLeader: boolean;
 			isOnline?: boolean;
@@ -177,8 +179,12 @@ class RideService {
 		});
 	}
 
-	async getCommunityRides() {
-		return apiRequest<CommunityRidesResponse>("/rides/community");
+	async getCommunityRides(location?: string) {
+		const query =
+			typeof location === "string" && location.trim().length > 0
+				? `?location=${encodeURIComponent(location.trim())}`
+				: "";
+		return apiRequest<CommunityRidesResponse>(`/rides/community${query}`);
 	}
 
 	async joinRide(rideId: string) {
@@ -220,6 +226,15 @@ class RideService {
 	async endRide(rideId: string) {
 		return apiRequest<{ rideId: string; status: string }>(
 			`/rides/${rideId}/end`,
+			{
+				method: "POST",
+			},
+		);
+	}
+
+	async leaveRide(rideId: string) {
+		return apiRequest<{ rideId: string; joined: boolean }>(
+			`/rides/${rideId}/leave`,
 			{
 				method: "POST",
 			},

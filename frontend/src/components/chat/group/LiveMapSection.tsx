@@ -30,6 +30,8 @@ type LatLng = { latitude: number; longitude: number };
 
 const LIVE_ROUTE_MIN_INTERVAL_MS = 15000;
 const LIVE_ROUTE_MIN_DISTANCE_METERS = 40;
+const DIRECTIONS_REFRESH_MS = 12000;
+const DIRECTIONS_MIN_DISTANCE_METERS = 35;
 
 const haversineMeters = (from: LatLng, to: LatLng): number => {
 	const toRad = (value: number) => (value * Math.PI) / 180;
@@ -78,6 +80,35 @@ function decodePolyline(encoded: string): LatLng[] {
 	}
 	return points;
 }
+
+const stripHtml = (value: string) => value.replace(/<[^>]*>/g, "").trim();
+
+const formatDuration = (seconds?: number | null) => {
+	if (!seconds || seconds <= 0) return "--";
+	const totalMinutes = Math.max(1, Math.round(seconds / 60));
+	if (totalMinutes < 60) {
+		return `${totalMinutes} min`;
+	}
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	return `${hours}h ${minutes}m`;
+};
+
+const formatEta = (seconds?: number | null) => {
+	if (!seconds || seconds <= 0) return "--";
+	const eta = new Date(Date.now() + seconds * 1000);
+	const hour = `${eta.getHours()}`.padStart(2, "0");
+	const minute = `${eta.getMinutes()}`.padStart(2, "0");
+	return `${hour}:${minute}`;
+};
+
+const formatDistance = (km?: number | null) => {
+	if (!km || km <= 0) return "--";
+	if (km < 1) {
+		return `${Math.round(km * 1000)} m`;
+	}
+	return `${km.toFixed(1)} km`;
+};
 
 // ── Geocoding API ─────────────────────────────────────────────────────────────
 async function geocodePlace(
@@ -320,10 +351,41 @@ export function LiveMapSection({
 		route?.routePolyline ?? [],
 	);
 	const [liveRoutePoints, setLiveRoutePoints] = React.useState<LatLng[]>([]);
+	const [directionsMeta, setDirectionsMeta] = React.useState<{
+		distanceKm: number;
+		durationSec: number;
+		steps: Array<{
+			instruction: string;
+			distanceMeters: number;
+			maneuver?: string;
+		}>;
+	} | null>(null);
 	const [loading, setLoading] = React.useState(false);
 	const lastLiveRouteFetchAtRef = React.useRef(0);
 	const lastLiveRouteOriginRef = React.useRef<LatLng | null>(null);
 	const lastLiveRouteDestRef = React.useRef<LatLng | null>(null);
+	const lastDirectionsRef = React.useRef<{
+		origin: LatLng | null;
+		destination: LatLng | null;
+		fetchedAt: number;
+	}>({ origin: null, destination: null, fetchedAt: 0 });
+	const ridersSorted = React.useMemo(
+		() =>
+			[...riders].sort((a, b) =>
+				a.updatedAt === b.updatedAt
+					? a.riderId.localeCompare(b.riderId)
+					: a.updatedAt.localeCompare(b.updatedAt),
+			),
+		[riders],
+	);
+
+	const leaderRider = React.useMemo(
+		() =>
+			ridersSorted.find((r) => r.riderId === leaderRiderId) ??
+			ridersSorted[0] ??
+			null,
+		[leaderRiderId, ridersSorted],
+	);
 
 	React.useEffect(() => {
 		setSourceCoord(route?.sourceCoordinates ?? null);
@@ -389,6 +451,7 @@ export function LiveMapSection({
 	React.useEffect(() => {
 		if (!rideStarted) {
 			setLiveRoutePoints([]);
+			setDirectionsMeta(null);
 			return;
 		}
 
@@ -442,23 +505,109 @@ export function LiveMapSection({
 		};
 	}, [destCoord, leaderRider, rideStarted, ridersSorted]);
 
-	const ridersSorted = React.useMemo(
-		() =>
-			[...riders].sort((a, b) =>
-				a.updatedAt === b.updatedAt
-					? a.riderId.localeCompare(b.riderId)
-					: a.updatedAt.localeCompare(b.updatedAt),
-			),
-		[riders],
-	);
+	React.useEffect(() => {
+		if (!rideStarted) {
+			return;
+		}
 
-	const leaderRider = React.useMemo(
-		() =>
-			ridersSorted.find((r) => r.riderId === leaderRiderId) ??
-			ridersSorted[0] ??
-			null,
-		[leaderRiderId, ridersSorted],
-	);
+		const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+		if (!apiKey || !destCoord) {
+			setDirectionsMeta(null);
+			return;
+		}
+
+		const origin = leaderRider
+			? { latitude: leaderRider.latitude, longitude: leaderRider.longitude }
+			: ridersSorted[0]
+				? {
+						latitude: ridersSorted[0].latitude,
+						longitude: ridersSorted[0].longitude,
+					}
+				: null;
+
+		if (!origin) {
+			setDirectionsMeta(null);
+			return;
+		}
+
+		const now = Date.now();
+		const last = lastDirectionsRef.current;
+		const movedMeters = last.origin
+			? haversineMeters(last.origin, origin)
+			: DIRECTIONS_MIN_DISTANCE_METERS + 1;
+		const destChanged = last.destination
+			? haversineMeters(last.destination, destCoord) >
+				DIRECTIONS_MIN_DISTANCE_METERS
+			: true;
+
+		if (
+			now - last.fetchedAt < DIRECTIONS_REFRESH_MS &&
+			movedMeters < DIRECTIONS_MIN_DISTANCE_METERS &&
+			!destChanged
+		) {
+			return;
+		}
+
+		let cancelled = false;
+		lastDirectionsRef.current = {
+			origin,
+			destination: destCoord,
+			fetchedAt: now,
+		};
+
+		const url =
+			"https://maps.googleapis.com/maps/api/directions/json?" +
+			`origin=${origin.latitude},${origin.longitude}` +
+			`&destination=${destCoord.latitude},${destCoord.longitude}` +
+			"&mode=driving" +
+			"&units=metric" +
+			`&key=${encodeURIComponent(apiKey)}`;
+
+		fetch(url)
+			.then((response) => response.json())
+			.then(
+				(data: {
+					status?: string;
+					routes?: Array<{
+						legs?: Array<{
+							distance?: { value?: number };
+							duration?: { value?: number };
+							steps?: Array<{
+								html_instructions?: string;
+								distance?: { value?: number };
+								maneuver?: string;
+							}>;
+						}>;
+					}>;
+				}) => {
+					if (cancelled || data.status !== "OK" || !data.routes?.length) {
+						return;
+					}
+
+					const leg = data.routes[0]?.legs?.[0];
+					const steps = (leg?.steps ?? []).map((step) => ({
+						instruction: stripHtml(step.html_instructions || ""),
+						distanceMeters: Number(step.distance?.value ?? 0),
+						maneuver: step.maneuver,
+					}));
+
+					setDirectionsMeta({
+						distanceKm: Number(leg?.distance?.value ?? 0) / 1000,
+						durationSec: Number(leg?.duration?.value ?? 0),
+						steps,
+					});
+				},
+			)
+			.catch(() => {
+				if (!cancelled) {
+					setDirectionsMeta(null);
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [destCoord, leaderRider, rideStarted, ridersSorted]);
 
 	React.useEffect(() => {
 		const anim = Animated.loop(
@@ -552,6 +701,22 @@ export function LiveMapSection({
 
 	const rideChipTone =
 		isRideEnded || rideStarted ? colors.primary : colors.textPrimary;
+	const speedKmh =
+		leaderRider?.deviceSpeedKmh ??
+		leaderRider?.speed ??
+		leaderRider?.averageSpeedKmh ??
+		null;
+	const speedLabel = speedKmh != null ? Math.round(speedKmh).toString() : "--";
+	const distanceLabel = formatDistance(directionsMeta?.distanceKm ?? null);
+	const etaLabel = formatEta(directionsMeta?.durationSec ?? null);
+	const etaDurationLabel = formatDuration(directionsMeta?.durationSec ?? null);
+	const nextStep = directionsMeta?.steps?.[0];
+	const nextTurnLabel = nextStep?.instruction || "Continue";
+	const nextTurnDistance = nextStep?.distanceMeters
+		? nextStep.distanceMeters >= 1000
+			? `${(nextStep.distanceMeters / 1000).toFixed(1)} km`
+			: `${Math.round(nextStep.distanceMeters)} m`
+		: "";
 
 	const styles = React.useMemo(
 		() =>
@@ -627,6 +792,44 @@ export function LiveMapSection({
 					backgroundColor: withAlpha(colors.card, 0.9),
 					borderRadius: 99,
 					padding: 6,
+				},
+				statsPanel: {
+					position: "absolute",
+					right: metrics.sm,
+					bottom: metrics.sm,
+					backgroundColor: withAlpha(colors.card, 0.96),
+					borderRadius: 14,
+					paddingVertical: 10,
+					paddingHorizontal: 12,
+					width: 162,
+					borderWidth: 1,
+					borderColor: colors.border,
+					shadowColor: colors.shadow,
+					shadowOpacity: 0.16,
+					shadowRadius: 10,
+					shadowOffset: { width: 0, height: 6 },
+					elevation: 6,
+				},
+				statsRow: {
+					marginBottom: 8,
+				},
+				statsLabel: {
+					fontSize: typography.sizes.xs,
+					color: colors.textSecondary,
+					fontWeight: "700",
+					letterSpacing: 0.4,
+				},
+				statsValue: {
+					marginTop: 2,
+					fontSize: typography.sizes.sm,
+					color: colors.textPrimary,
+					fontWeight: "700",
+				},
+				statsSub: {
+					marginTop: 2,
+					fontSize: typography.sizes.xs,
+					color: colors.textSecondary,
+					fontWeight: "600",
 				},
 			}),
 		[colors, metrics, rideChipTone, typography],
@@ -762,10 +965,30 @@ export function LiveMapSection({
 			</View>
 			{showSpeedChip && (
 				<View style={styles.speedChip}>
-					<Text style={styles.speedValue}>0</Text>
+					<Text style={styles.speedValue}>{speedLabel}</Text>
 					<Text style={styles.speedUnit}>km/h</Text>
 				</View>
 			)}
+			{rideStarted && !showEmpty ? (
+				<View style={styles.statsPanel}>
+					<View style={styles.statsRow}>
+						<Text style={styles.statsLabel}>ETA</Text>
+						<Text style={styles.statsValue}>{etaLabel}</Text>
+						<Text style={styles.statsSub}>{etaDurationLabel}</Text>
+					</View>
+					<View style={styles.statsRow}>
+						<Text style={styles.statsLabel}>DISTANCE</Text>
+						<Text style={styles.statsValue}>{distanceLabel}</Text>
+					</View>
+					<View>
+						<Text style={styles.statsLabel}>NEXT TURN</Text>
+						<Text style={styles.statsValue}>{nextTurnLabel}</Text>
+						{nextTurnDistance ? (
+							<Text style={styles.statsSub}>{nextTurnDistance}</Text>
+						) : null}
+					</View>
+				</View>
+			) : null}
 		</View>
 	);
 }
