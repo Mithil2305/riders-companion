@@ -79,3 +79,7 @@ Thumbs.db
 # Keep shared workspace recommendations if you add them later
 !.vscode/extensions.json
 !.vscode/settings.json
+
+*.json
+serviceAccountKey.json
+firebase-adminsdk*.json
