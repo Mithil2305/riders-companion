@@ -12,9 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-	useGroupChatScreen,
-} from "../../src/hooks/useGroupChatScreen";
+import { useGroupChatScreen } from "../../src/hooks/useGroupChatScreen";
 import {
 	GroupChatHeader,
 	GroupChatInputBar,
@@ -67,6 +65,7 @@ export default function GroupChatScreen() {
 		rideSourceLabel,
 		rideDestinationLabel,
 		rideStatus,
+		rideRoute,
 		rideMembers,
 		organizerProfile,
 		setDraft,
@@ -80,6 +79,9 @@ export default function GroupChatScreen() {
 		endRide,
 		sendMessage,
 	} = useGroupChatScreen(roomId, roomStatus, initialRoomName);
+	const isRideLive = ["ACTIVE", "STARTED"].includes(
+		String(rideStatus).toUpperCase(),
+	);
 
 	const styles = React.useMemo(
 		() =>
@@ -249,7 +251,8 @@ export default function GroupChatScreen() {
 								leaderRiderId={organizerProfile?.id}
 								recenterSignal={recenterSignal}
 								isRideEnded={isRideEnded}
-								rideStarted={rideStatus === "STARTED"}
+								rideStarted={isRideLive}
+								route={rideRoute}
 								sourceLabel={rideSourceLabel}
 								destinationLabel={rideDestinationLabel}
 							/>
@@ -266,7 +269,11 @@ export default function GroupChatScreen() {
 								}}
 								style={styles.fullscreenButton}
 							>
-								<Ionicons name="expand-outline" size={18} color={colors.textPrimary} />
+								<Ionicons
+									name="expand-outline"
+									size={18}
+									color={colors.textPrimary}
+								/>
 							</Pressable>
 						</View>
 
