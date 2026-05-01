@@ -378,9 +378,11 @@ export function useGroupChatScreen(
 
 			const locations = snapshot.locations
 				.map((entry: any) => normalizeRiderLocation(entry, roomId))
-				.filter(
-					(entry): entry is RiderLocation => entry !== null,
-				) as RiderLocation[];
+				.filter((entry): entry is RiderLocation => entry !== null);
+			setRiderLocations(locations);
+			setLocationsLastUpdatedAt(
+				snapshot.snapshotAt || new Date().toISOString(),
+			);
 			setRideMembers((prev) => {
 				const map = new Map<string, GroupRideMember>();
 				prev.forEach((member) => map.set(member.id, member));
@@ -424,7 +426,7 @@ export function useGroupChatScreen(
 		try {
 			const response = await RideService.getRideSnapshot(roomId);
 			if (response.snapshot) {
-				applySnapshot(response.snapshot);
+				applySnapshot(response.snapshot as unknown as RideSnapshot);
 			}
 		} catch {
 			setMapError("Unable to load ride snapshot. Pull to retry or reconnect.");
