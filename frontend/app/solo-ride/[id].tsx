@@ -35,6 +35,26 @@ const toClockTime = (iso: string) => {
 	return `${hour}:${minute}`;
 };
 
+const toSoloRiderLocation = (input: {
+	riderId: string;
+	name: string;
+	latitude: number;
+	longitude: number;
+	updatedAt?: string;
+}): RiderLocation => ({
+	rideId: "solo-live",
+	riderId: input.riderId,
+	name: input.name,
+	latitude: input.latitude,
+	longitude: input.longitude,
+	speed: null,
+	heading: null,
+	accuracy: null,
+	altitude: null,
+	timestamp: input.updatedAt ?? new Date().toISOString(),
+	updatedAt: input.updatedAt ?? new Date().toISOString(),
+});
+
 export default function SoloRideLiveScreen() {
 	const router = useRouter();
 	const params = useLocalSearchParams();
@@ -100,13 +120,13 @@ export default function SoloRideLiveScreen() {
 		}
 
 		setRiderLocations((prev) =>
-			upsertRiderLocation(prev, {
+			upsertRiderLocation(prev, toSoloRiderLocation({
 				riderId: "self-rider",
 				name: "You",
 				latitude: location.latitude,
 				longitude: location.longitude,
 				updatedAt: new Date().toISOString(),
-			}),
+			})),
 		);
 		setLocationsLastUpdatedAt(new Date().toISOString());
 
@@ -143,7 +163,7 @@ export default function SoloRideLiveScreen() {
 								typeof entry?.latitude === "number" &&
 								typeof entry?.longitude === "number",
 						)
-						.map((entry) => ({
+						.map((entry) => toSoloRiderLocation({
 							riderId: entry.riderId as string,
 							name:
 								typeof entry.name === "string" && entry.name.trim().length > 0
@@ -189,7 +209,7 @@ export default function SoloRideLiveScreen() {
 								typeof entry?.latitude === "number" &&
 								typeof entry?.longitude === "number",
 						)
-						.map((entry) => ({
+						.map((entry) => toSoloRiderLocation({
 							riderId: entry.riderId as string,
 							name:
 								typeof entry.name === "string" && entry.name.trim().length > 0
@@ -235,7 +255,7 @@ export default function SoloRideLiveScreen() {
 				const latitude = payload.latitude;
 				const longitude = payload.longitude;
 				setRiderLocations((prev) =>
-					upsertRiderLocation(prev, {
+					upsertRiderLocation(prev, toSoloRiderLocation({
 						riderId: payload.riderId as string,
 						name:
 							typeof payload.name === "string" && payload.name.trim().length > 0
@@ -247,7 +267,7 @@ export default function SoloRideLiveScreen() {
 							typeof payload.updatedAt === "string"
 								? payload.updatedAt
 								: new Date().toISOString(),
-					}),
+					})),
 				);
 				setLocationsLastUpdatedAt(new Date().toISOString());
 			}
@@ -356,13 +376,13 @@ export default function SoloRideLiveScreen() {
 		}
 
 		return [
-			{
+			toSoloRiderLocation({
 				riderId: "self-rider",
 				name: "You",
 				latitude: location.latitude,
 				longitude: location.longitude,
 				updatedAt: new Date().toISOString(),
-			},
+			}),
 		];
 	}, [location, riderLocations]);
 

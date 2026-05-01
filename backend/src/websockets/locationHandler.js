@@ -23,6 +23,11 @@ const MAX_HISTORY_PER_RIDER = 120;
 const MAX_REASONABLE_SPEED_KMH = 220;
 const ONLINE_THRESHOLD_MS = 30000;
 
+const normalizeRideStatus = (status) => {
+	const normalized = String(status || "").toUpperCase();
+	return normalized === "PLANNING" ? "PENDING" : normalized;
+};
+
 const ensureRoomSet = (rooms, roomId) => {
 	if (!rooms.has(roomId)) {
 		rooms.set(roomId, new Set());
@@ -97,7 +102,7 @@ const validateRideAccess = async ({ riderId, rideId }) => {
 	return {
 		allowed: true,
 		ride,
-		rideStatus: ride.status,
+		rideStatus: normalizeRideStatus(ride.status),
 		participantStatus: participant.status,
 	};
 };
@@ -226,7 +231,7 @@ const buildRideSnapshotPayload = async ({ rideId, state }) => {
 	const riders = riderIds.length
 		? await RiderAccount.findAll({
 				where: { id: { [Op.in]: riderIds } },
-				attributes: ["id", "name", "username"],
+				attributes: ["id", "name", "username", "profile_image_url"],
 			})
 		: [];
 
@@ -274,6 +279,7 @@ const buildRideSnapshotPayload = async ({ rideId, state }) => {
 			riderId: point.rider_id,
 			name: rider?.name || "Rider",
 			username: rider?.username || null,
+			avatar: rider?.profile_image_url || null,
 			latitude: point.latitude,
 			longitude: point.longitude,
 			deviceSpeedKmh: point.device_speed_kmh,
@@ -287,7 +293,7 @@ const buildRideSnapshotPayload = async ({ rideId, state }) => {
 			isLeader: leaderId === point.rider_id,
 			isOnline: isOnlineBySocket || isOnlineByFreshUpdate,
 			participantStatus: participant?.status || null,
-			rideStatus: ride.status,
+			rideStatus: normalizeRideStatus(ride.status),
 		});
 	}
 
@@ -297,6 +303,7 @@ const buildRideSnapshotPayload = async ({ rideId, state }) => {
 			riderId: entry.rider_id,
 			name: rider?.name || "Rider",
 			username: rider?.username || null,
+			avatar: rider?.profile_image_url || null,
 			participantStatus: entry.status,
 			isLeader: leaderId === entry.rider_id,
 			isOnline: onlineSet.has(entry.rider_id),
@@ -305,7 +312,7 @@ const buildRideSnapshotPayload = async ({ rideId, state }) => {
 
 	return {
 		rideId,
-		rideStatus: ride.status,
+		rideStatus: normalizeRideStatus(ride.status),
 		leaderRiderId: leaderId,
 		route: normalizeRouteMeta(ride.route_polygon),
 		participants: participantStates,
@@ -480,6 +487,7 @@ const handleLocationUpdate = async ({
 	}
 
 	if (
+		String(access.rideStatus).toUpperCase() !== "ACTIVE" ||
 		!["STARTED", "CONFIRMED"].includes(
 			String(access.participantStatus).toUpperCase(),
 		)
@@ -488,7 +496,11 @@ const handleLocationUpdate = async ({
 			ws,
 			"RIDE_PARTICIPANT_STATUS_BLOCKED",
 			"Participant is not allowed to publish location in current state",
-			{ rideId, participantStatus: access.participantStatus },
+			{
+				rideId,
+				participantStatus: access.participantStatus,
+				rideStatus: access.rideStatus,
+			},
 		);
 		return true;
 	}

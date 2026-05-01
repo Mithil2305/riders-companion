@@ -12,12 +12,17 @@ const {
 	Community,
 	CommunityMember,
 	Ride,
+	RideParticipant,
 } = require("../models");
 const chatCryptoService = require("../services/chatCryptoService");
 const { createNotifications } = require("../services/notificationService");
+const websocketHub = require("../websockets/hub");
 
 const toDirectRoomId = (leftRiderId, rightRiderId) =>
 	`direct:${[leftRiderId, rightRiderId].sort().join(":")}`;
+
+const isUuid = (value) =>
+	typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value);
 
 const getDirectMessageWhere = (leftRiderId, rightRiderId) => ({
 	[Op.or]: [
@@ -175,6 +180,101 @@ const createStoredMessage = async ({
 		iv: encrypted.iv,
 		attachment_url: attachmentUrl || null,
 	});
+};
+
+const resolveRoomAccess = async ({ riderId, roomId }) => {
+	if (typeof roomId !== "string" || roomId.trim().length === 0) {
+		return {
+			allowed: false,
+			code: "CHAT_ROOM_REQUIRED",
+			message: "roomId is required",
+		};
+	}
+
+	if (roomId.startsWith("direct:")) {
+		const roomMembers = roomId
+			.slice("direct:".length)
+			.split(":")
+			.filter(Boolean);
+
+		if (roomMembers.length !== 2 || !roomMembers.includes(riderId)) {
+			return {
+				allowed: false,
+				code: "CHAT_ROOM_FORBIDDEN",
+				message: "You do not have access to this direct chat",
+			};
+		}
+
+		return {
+			allowed: true,
+			type: "direct",
+		};
+	}
+
+	if (!isUuid(roomId)) {
+		return {
+			allowed: true,
+			type: "generic",
+		};
+	}
+
+	const ride = await Ride.findByPk(roomId, {
+		attributes: ["id"],
+	});
+
+	if (!ride) {
+		return {
+			allowed: true,
+			type: "generic",
+		};
+	}
+
+	const participant = await RideParticipant.findOne({
+		where: {
+			ride_id: ride.id,
+			rider_id: riderId,
+			status: { [Op.notIn]: ["DECLINED"] },
+		},
+		attributes: ["rider_id"],
+	});
+
+	if (!participant) {
+		return {
+			allowed: false,
+			code: "CHAT_ROOM_FORBIDDEN",
+			message: "You are not allowed to access this ride chat",
+		};
+	}
+
+	const participants = await RideParticipant.findAll({
+		where: {
+			ride_id: ride.id,
+			status: { [Op.notIn]: ["DECLINED"] },
+		},
+		attributes: ["rider_id"],
+	});
+
+	return {
+		allowed: true,
+		type: "ride",
+		rideId: ride.id,
+		participantIds: participants
+			.map((entry) => entry.rider_id)
+			.filter((value) => typeof value === "string" && value.length > 0),
+	};
+};
+
+const emitChatMessageToRiders = ({
+	recipientIds,
+	payload,
+}) => {
+	for (const riderId of recipientIds) {
+		if (typeof riderId !== "string" || riderId.length === 0) {
+			continue;
+		}
+
+		websocketHub.sendToRider(riderId, "CHAT_MESSAGE", payload);
+	}
 };
 
 exports.listPersonalConversations = async (req, res) => {
@@ -389,6 +489,11 @@ exports.getRoomMessages = async (req, res) => {
 	try {
 		const roomId = req.params.roomId;
 		const riderId = req.user.id;
+		const access = await resolveRoomAccess({ riderId, roomId });
+
+		if (!access.allowed) {
+			return formatError(res, 403, access.message, access.code);
+		}
 
 		const records = await UserEncryptedChat.findAll({
 			where: { room_id: roomId },
@@ -516,6 +621,21 @@ exports.sendPersonalMessage = async (req, res) => {
 			? `@${sender.username}`
 			: sender?.name || "A rider";
 
+		emitChatMessageToRiders({
+			recipientIds: [receiverId],
+			payload: {
+				id: saved.id,
+				roomId,
+				senderId,
+				receiverId,
+				message: normalizedText,
+				attachmentUrl: attachment?.url || null,
+				createdAt: saved.created_at,
+				senderName: sender?.name || "Rider",
+				senderUsername: sender?.username || null,
+			},
+		});
+
 		await createNotifications({
 			recipientIds: [receiverId],
 			actorId: senderId,
@@ -638,6 +758,12 @@ exports.sendRoomMessage = async (req, res) => {
 	try {
 		const roomId = req.params.roomId;
 		const senderId = req.user.id;
+		const access = await resolveRoomAccess({ riderId: senderId, roomId });
+
+		if (!access.allowed) {
+			return formatError(res, 403, access.message, access.code);
+		}
+
 		const receiverId =
 			typeof req.body.receiverId === "string" ? req.body.receiverId : null;
 		const plainTextInput =
@@ -719,6 +845,34 @@ exports.sendRoomMessage = async (req, res) => {
 					roomId,
 					messageId: saved.id,
 				},
+			});
+		}
+
+		const sender = await RiderAccount.findByPk(senderId, {
+			attributes: ["name", "username"],
+		});
+
+		const messagePayload = {
+			id: saved.id,
+			roomId,
+			senderId,
+			receiverId,
+			message: plainTextInput.trim(),
+			attachmentUrl: attachment?.url || null,
+			createdAt: saved.created_at,
+			senderName: sender?.name || "Rider",
+			senderUsername: sender?.username || null,
+		};
+
+		if (receiverId && receiverId !== senderId) {
+			emitChatMessageToRiders({
+				recipientIds: [receiverId],
+				payload: messagePayload,
+			});
+		} else if (access.type === "ride") {
+			emitChatMessageToRiders({
+				recipientIds: access.participantIds.filter((id) => id !== senderId),
+				payload: messagePayload,
 			});
 		}
 

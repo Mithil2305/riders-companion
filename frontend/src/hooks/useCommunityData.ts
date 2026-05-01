@@ -79,7 +79,7 @@ const toRideItem = (
 	organizerId: ride.organizerId ?? null,
 });
 
-export function useCommunityData() {
+export function useCommunityData(selectedLocation?: string) {
 	const [data, setData] = React.useState<CommunityData>(EMPTY_COMMUNITY_DATA);
 	const [loading, setLoading] = React.useState(true);
 	const [refreshing, setRefreshing] = React.useState(false);
@@ -87,7 +87,7 @@ export function useCommunityData() {
 
 	const loadCommunity = React.useCallback(async () => {
 		try {
-			const payload = await RideService.getCommunityRides();
+			const payload = await RideService.getCommunityRides(selectedLocation);
 			if (!mountedRef.current) {
 				return;
 			}
@@ -119,7 +119,7 @@ export function useCommunityData() {
 				setLoading(false);
 			}
 		}
-	}, []);
+	}, [selectedLocation]);
 
 	React.useEffect(() => {
 		mountedRef.current = true;

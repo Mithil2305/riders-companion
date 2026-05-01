@@ -1,248 +1,333 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import RideService from "../services/RideService";
 import { RideSnapshot, RideLocation } from "../contexts/RideContext";
 import { useLocation } from "./useLocation";
-import { calculateNavigationStats, NavigationStats } from "../utils/navigationStats";
+import { useWebSocket } from "./useWebSocket";
+import {
+	calculateNavigationStats,
+	NavigationStats,
+} from "../utils/navigationStats";
 
 interface UseRideTrackingOptions {
-  rideId: string;
-  enabled?: boolean;
-  pollIntervalMs?: number; // Default: 3000ms (3 seconds)
-  rideStartTime?: number; // Optional: override ride start time
+	rideId: string;
+	enabled?: boolean;
+	pollIntervalMs?: number;
+	rideStartTime?: number;
 }
 
 interface UseRideTrackingResult {
-  snapshot: RideSnapshot | null;
-  locations: RideLocation[];
-  navigationStats: NavigationStats | null;
-  isLoading: boolean;
-  error: string | null;
-  isTracking: boolean;
-  refresh: () => Promise<void>;
+	snapshot: RideSnapshot | null;
+	locations: RideLocation[];
+	navigationStats: NavigationStats | null;
+	isLoading: boolean;
+	error: string | null;
+	isTracking: boolean;
+	refresh: () => Promise<void>;
 }
 
-const API_TIMEOUT_MS = 10000; // 10 second timeout
+const API_TIMEOUT_MS = 10000;
+const FALLBACK_POLL_INTERVAL_MS = 12000;
+const LOCATION_UPLOAD_INTERVAL_MS = 2000;
 
-/**
- * Wrap async function with timeout
- */
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  let timeoutId: NodeJS.Timeout;
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    (timeoutId = setTimeout(
-      () => reject(new Error(`Request timeout after ${timeoutMs}ms`)),
-      timeoutMs
-    ))
-  );
+async function withTimeout<T>(
+	promise: Promise<T>,
+	timeoutMs: number,
+): Promise<T> {
+	let timeoutId: NodeJS.Timeout | null = null;
+	const timeoutPromise = new Promise<never>((_, reject) => {
+		timeoutId = setTimeout(
+			() => reject(new Error(`Request timeout after ${timeoutMs}ms`)),
+			timeoutMs,
+		);
+	});
 
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    clearTimeout(timeoutId);
-  }
+	try {
+		return await Promise.race([promise, timeoutPromise]);
+	} finally {
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+		}
+	}
 }
 
-/**
- * Hook for managing real-time ride tracking
- * - Fetches ride snapshot and locations periodically
- * - Tracks device location and uploads to backend
- * - Calculates navigation stats (speed, distance, ETA, etc.)
- * - Works independently without requiring RideProvider
- */
+const normalizeRideStatus = (status: string | null | undefined) => {
+	const normalized = String(status || "").toUpperCase();
+	return normalized === "PLANNING" ? "PENDING" : normalized;
+};
+
 export function useRideTracking({
-  rideId,
-  enabled = true,
-  pollIntervalMs = 3000,
-  rideStartTime: externalStartTime,
+	rideId,
+	enabled = true,
+	pollIntervalMs = 3000,
+	rideStartTime: externalStartTime,
 }: UseRideTrackingOptions): UseRideTrackingResult {
-  const { location } = useLocation({ autoRequest: true });
+	const { location } = useLocation({ autoRequest: true });
+	const { isConnected, lastMessage, sendMessage: sendWsMessage } = useWebSocket();
 
-  // Validate rideId early
-  const isValidRideId = rideId && rideId.trim().length > 0;
+	const isValidRideId = rideId.trim().length > 0;
 
-  const [snapshot, setSnapshot] = useState<RideSnapshot | null>(null);
-  const [locations, setLocations] = useState<RideLocation[]>([]);
-  const [navigationStats, setNavigationStats] = useState<NavigationStats | null>(null);
-  const [isLoading, setIsLoading] = useState(isValidRideId); // Only load if rideId is valid
-  const [error, setError] = useState<string | null>(
-    isValidRideId ? null : "No ride ID provided"
-  ); // Set error if no rideId
-  const [isTracking, setIsTracking] = useState(false);
+	const [snapshot, setSnapshot] = useState<RideSnapshot | null>(null);
+	const [locations, setLocations] = useState<RideLocation[]>([]);
+	const [navigationStats, setNavigationStats] = useState<NavigationStats | null>(
+		null,
+	);
+	const [isLoading, setIsLoading] = useState(isValidRideId);
+	const [error, setError] = useState<string | null>(
+		isValidRideId ? null : "No ride ID provided",
+	);
+	const [isTracking, setIsTracking] = useState(false);
 
-  // Track ride start time locally
-  const rideStartTimeRef = useRef<number>(externalStartTime || Date.now());
+	const rideStartTimeRef = useRef<number>(externalStartTime || Date.now());
+	const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+	const locationUploadIntervalRef = useRef<NodeJS.Timeout | null>(null);
+	const lastLocationUploadRef = useRef<{
+		latitude: number;
+		longitude: number;
+	} | null>(null);
 
-  const pollIntervalRef = useRef<NodeJS.Timer | null>(null);
-  const locationUploadIntervalRef = useRef<NodeJS.Timer | null>(null);
-  const lastLocationUploadRef = useRef<{ latitude: number; longitude: number } | null>(null);
+	const applySnapshot = useCallback((nextSnapshot: RideSnapshot) => {
+		const normalizedStatus = normalizeRideStatus(nextSnapshot.rideStatus);
+		const normalizedSnapshot: RideSnapshot = {
+			...nextSnapshot,
+			rideStatus: normalizedStatus,
+		};
 
-  /**
-   * Fetch and update ride snapshot and locations
-   */
-  const fetchRideData = useCallback(async () => {
-    if (!isValidRideId) {
-      setIsLoading(false);
-      return;
-    }
+		setSnapshot(normalizedSnapshot);
+		setLocations(normalizedSnapshot.locations);
+		setIsTracking(normalizedStatus === "ACTIVE");
+		setError(null);
+	}, []);
 
-    try {
-      setIsLoading(true);
-      setError(null);
+	const fetchRideData = useCallback(async () => {
+		if (!isValidRideId) {
+			setIsLoading(false);
+			return;
+		}
 
-      const [snapshotData, locationsData] = await Promise.all([
-        withTimeout(RideService.getRideSnapshot(rideId), API_TIMEOUT_MS),
-        withTimeout(RideService.getRideLocations(rideId), API_TIMEOUT_MS),
-      ]);
+		try {
+			setIsLoading(true);
+			setError(null);
 
-      const fullSnapshot: RideSnapshot = {
-        ...snapshotData.snapshot,
-        locations: locationsData.locations,
-      };
+			const [snapshotData, locationsData] = await Promise.all([
+				withTimeout(RideService.getRideSnapshot(rideId), API_TIMEOUT_MS),
+				withTimeout(RideService.getRideLocations(rideId), API_TIMEOUT_MS),
+			]);
 
-      setSnapshot(fullSnapshot);
-      setLocations(locationsData.locations);
-      setIsTracking(fullSnapshot.rideStatus === "active");
+			applySnapshot({
+				...snapshotData.snapshot,
+				locations: locationsData.locations,
+			});
+		} catch (err) {
+			const message =
+				err instanceof Error
+					? err.message
+					: "Failed to fetch ride data. Please check your connection.";
+			setError(message);
+			console.error("Error fetching ride data:", err);
+			setSnapshot(null);
+			setLocations([]);
+			setIsTracking(false);
+		} finally {
+			setIsLoading(false);
+		}
+	}, [applySnapshot, isValidRideId, rideId]);
 
-      // Calculate navigation stats using local startTime and current location
-      if (location) {
-        const stats = calculateNavigationStats(
-          { latitude: location.latitude, longitude: location.longitude },
-          locationsData.locations,
-          fullSnapshot.route,
-          rideStartTimeRef.current
-        );
-        setNavigationStats(stats);
-      }
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to fetch ride data. Please check your connection.";
-      setError(message);
-      console.error("Error fetching ride data:", err);
-      // Still set snapshot to null on error to show error state
-      setSnapshot(null);
-      setLocations([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [rideId, isValidRideId, location]);
+	const uploadLocation = useCallback(async () => {
+		if (!location || !rideId || !isTracking) {
+			return;
+		}
 
-  /**
-   * Upload current device location to backend
-   */
-  const uploadLocation = useCallback(async () => {
-    if (!location || !rideId) return;
+		const currentCoords = {
+			latitude: location.latitude,
+			longitude: location.longitude,
+		};
+		const lastUpload = lastLocationUploadRef.current;
+		const hasSignificantChange =
+			!lastUpload ||
+			Math.abs(currentCoords.latitude - lastUpload.latitude) > 0.00003 ||
+			Math.abs(currentCoords.longitude - lastUpload.longitude) > 0.00003;
 
-    const currentCoords = {
-      latitude: location.latitude,
-      longitude: location.longitude,
-    };
+		if (!hasSignificantChange) {
+			return;
+		}
 
-    // Check if location has changed significantly or enough time has passed
-    const lastUpload = lastLocationUploadRef.current;
-    const hasSignificantChange =
-      !lastUpload ||
-      Math.abs(currentCoords.latitude - lastUpload.latitude) > 0.0001 ||
-      Math.abs(currentCoords.longitude - lastUpload.longitude) > 0.0001;
+		try {
+			const sentViaWebSocket =
+				isConnected &&
+				sendWsMessage("LOCATION_UPDATE", {
+					rideId,
+					latitude: currentCoords.latitude,
+					longitude: currentCoords.longitude,
+					accuracy: location.accuracy,
+					altitude: location.altitude,
+					heading: location.heading,
+					speed: location.speed,
+					timestamp: location.timestamp,
+				});
 
-    if (!hasSignificantChange) {
-      return; // Skip upload if location hasn't changed much
-    }
+			if (!sentViaWebSocket) {
+				await RideService.updateLocation(
+					rideId,
+					currentCoords.latitude,
+					currentCoords.longitude,
+				);
+			}
 
-    try {
-      await RideService.updateLocation(
-        rideId,
-        currentCoords.latitude,
-        currentCoords.longitude
-      );
-      lastLocationUploadRef.current = currentCoords;
-    } catch (err) {
-      console.error("Error uploading location:", err);
-    }
-  }, [location, rideId]);
+			lastLocationUploadRef.current = currentCoords;
+		} catch (err) {
+			console.error("Error uploading location:", err);
+		}
+	}, [isConnected, isTracking, location, rideId, sendWsMessage]);
 
-  /**
-   * Manual refresh of ride data
-   */
-  const refresh = useCallback(async () => {
-    await fetchRideData();
-    await uploadLocation();
-  }, [fetchRideData, uploadLocation]);
+	const refresh = useCallback(async () => {
+		await fetchRideData();
+		await uploadLocation();
+	}, [fetchRideData, uploadLocation]);
 
-  /**
-   * Set up polling interval for ride data
-   */
-  useEffect(() => {
-    if (!enabled || !isValidRideId) {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-      setIsLoading(false);
-      return;
-    }
+	useEffect(() => {
+		if (externalStartTime) {
+			rideStartTimeRef.current = externalStartTime;
+		}
+	}, [externalStartTime]);
 
-    // Initial fetch
-    fetchRideData();
+	useEffect(() => {
+		if (!enabled || !isValidRideId) {
+			if (pollIntervalRef.current) {
+				clearInterval(pollIntervalRef.current);
+				pollIntervalRef.current = null;
+			}
+			setIsLoading(false);
+			return;
+		}
 
-    // Set up polling
-    pollIntervalRef.current = setInterval(() => {
-      fetchRideData();
-    }, pollIntervalMs);
+		void fetchRideData();
 
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-    };
-  }, [enabled, rideId, isValidRideId, pollIntervalMs, fetchRideData]);
+		if (!isConnected) {
+			const intervalMs = Math.max(pollIntervalMs, FALLBACK_POLL_INTERVAL_MS);
+			pollIntervalRef.current = setInterval(() => {
+				void fetchRideData();
+			}, intervalMs);
+		}
 
-  /**
-   * Set up location upload interval
-   */
-  useEffect(() => {
-    if (!enabled || !rideId || !location || !isTracking) {
-      if (locationUploadIntervalRef.current) {
-        clearInterval(locationUploadIntervalRef.current);
-        locationUploadIntervalRef.current = null;
-      }
-      return;
-    }
+		return () => {
+			if (pollIntervalRef.current) {
+				clearInterval(pollIntervalRef.current);
+				pollIntervalRef.current = null;
+			}
+		};
+	}, [enabled, fetchRideData, isConnected, isValidRideId, pollIntervalMs]);
 
-    // Upload immediately
-    uploadLocation();
+	useEffect(() => {
+		if (!enabled || !isValidRideId || !isConnected) {
+			return;
+		}
 
-    // Set up upload interval (more frequent than polling to ensure real-time tracking)
-    locationUploadIntervalRef.current = setInterval(() => {
-      uploadLocation();
-    }, 1000); // Upload every second if location changes
+		sendWsMessage("RIDE_JOIN", { rideId });
+		sendWsMessage("RIDE_SNAPSHOT", { rideId });
 
-    return () => {
-      if (locationUploadIntervalRef.current) {
-        clearInterval(locationUploadIntervalRef.current);
-        locationUploadIntervalRef.current = null;
-      }
-    };
-  }, [enabled, rideId, location, isTracking, uploadLocation]);
+		return () => {
+			sendWsMessage("RIDE_LEAVE", { rideId });
+		};
+	}, [enabled, isConnected, isValidRideId, rideId, sendWsMessage]);
 
-  /**
-   * Update ride start time if external value changes
-   */
-  useEffect(() => {
-    if (externalStartTime) {
-      rideStartTimeRef.current = externalStartTime;
-    }
-  }, [externalStartTime]);
+	useEffect(() => {
+		if (!lastMessage || typeof lastMessage.type !== "string") {
+			return;
+		}
 
-  return {
-    snapshot,
-    locations,
-    navigationStats,
-    isLoading,
-    error,
-    isTracking,
-    refresh,
-  };
+		const payload = (lastMessage.payload || {}) as Record<string, unknown>;
+		if (
+			typeof payload.rideId === "string" &&
+			payload.rideId.length > 0 &&
+			payload.rideId !== rideId
+		) {
+			return;
+		}
+
+		if (
+			lastMessage.type === "RIDE_JOINED" ||
+			lastMessage.type === "RIDE_SNAPSHOT"
+		) {
+			if (payload.snapshot) {
+				applySnapshot(payload.snapshot as RideSnapshot);
+				setIsLoading(false);
+			}
+			return;
+		}
+
+		if (
+			lastMessage.type === "RIDE_SYNC_REQUIRED" ||
+			lastMessage.type === "RIDE_STARTED" ||
+			lastMessage.type === "RIDE_ENDED"
+		) {
+			void fetchRideData();
+			return;
+		}
+
+		if (lastMessage.type === "LOCATION_UPDATE") {
+			const nextLocation = payload as unknown as RideLocation;
+			setLocations((prev) => {
+				const index = prev.findIndex(
+					(entry) => entry.riderId === nextLocation.riderId,
+				);
+
+				if (index === -1) {
+					return [...prev, nextLocation];
+				}
+
+				const next = [...prev];
+				next[index] = nextLocation;
+				return next;
+			});
+		}
+	}, [applySnapshot, fetchRideData, lastMessage, rideId]);
+
+	useEffect(() => {
+		if (!snapshot || !location) {
+			setNavigationStats(null);
+			return;
+		}
+
+		setNavigationStats(
+			calculateNavigationStats(
+				{ latitude: location.latitude, longitude: location.longitude },
+				locations,
+				snapshot.route,
+				rideStartTimeRef.current,
+			),
+		);
+	}, [location, locations, snapshot]);
+
+	useEffect(() => {
+		if (!enabled || !rideId || !location || !isTracking) {
+			if (locationUploadIntervalRef.current) {
+				clearInterval(locationUploadIntervalRef.current);
+				locationUploadIntervalRef.current = null;
+			}
+			return;
+		}
+
+		void uploadLocation();
+
+		locationUploadIntervalRef.current = setInterval(() => {
+			void uploadLocation();
+		}, LOCATION_UPLOAD_INTERVAL_MS);
+
+		return () => {
+			if (locationUploadIntervalRef.current) {
+				clearInterval(locationUploadIntervalRef.current);
+				locationUploadIntervalRef.current = null;
+			}
+		};
+	}, [enabled, isTracking, location, rideId, uploadLocation]);
+
+	return {
+		snapshot,
+		locations,
+		navigationStats,
+		isLoading,
+		error,
+		isTracking,
+		refresh,
+	};
 }

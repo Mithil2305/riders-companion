@@ -30,8 +30,9 @@ export function CommunityScreen() {
 	const params = useLocalSearchParams<{ rideAction?: string }>();
 	const { user: authUser } = useAuth();
 	const { colors, metrics, typography } = useTheme();
+	const [selectedLocation, setSelectedLocation] = React.useState("Chennai");
 	const { activeRide, nearbyRides, myRides, refreshing, refreshCommunity } =
-		useCommunityData();
+		useCommunityData(selectedLocation);
 
 	const [showConfirmation, setShowConfirmation] = React.useState(false);
 
@@ -247,6 +248,8 @@ export function CommunityScreen() {
 
 			<Header
 				onBack={() => router.back()}
+				selectedLocation={selectedLocation}
+				onChangeLocation={setSelectedLocation}
 				onStartRide={() =>
 					router.push({
 						pathname: "/ride-details",

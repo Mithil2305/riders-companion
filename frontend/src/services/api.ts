@@ -117,6 +117,7 @@ type ApiRequestOptions = {
 	body?: unknown;
 	timeoutMs?: number;
 	allowRetryOnTimeout?: boolean;
+	requireAuth?: boolean;
 };
 
 type ApiUploadRequestOptions = {
@@ -129,7 +130,7 @@ type ApiUploadRequestOptions = {
 const getAuthToken = async () => {
 	const user = auth?.currentUser;
 	if (!user) {
-		throw new Error("You need to be logged in to perform this action.");
+		return null;
 	}
 
 	return user.getIdToken();
@@ -140,7 +141,11 @@ export async function apiRequest<T>(
 	options: ApiRequestOptions = {},
 ): Promise<T> {
 	const execute = async (allowRetry: boolean, baseUrl: string): Promise<T> => {
+		const requireAuth = options.requireAuth !== false;
 		const token = await getAuthToken();
+		if (requireAuth && !token) {
+			throw new Error("You need to be logged in to perform this action.");
+		}
 		const controller = new AbortController();
 		const timeoutMs = options.timeoutMs ?? 30000;
 		const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -149,7 +154,7 @@ export async function apiRequest<T>(
 			const response = await fetch(`${baseUrl}${path}`, {
 				method: options.method ?? "GET",
 				headers: {
-					Authorization: `Bearer ${token}`,
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
 					"Content-Type": "application/json",
 				},
 				body: options.body == null ? undefined : JSON.stringify(options.body),
@@ -256,6 +261,9 @@ export async function apiUploadRequest<T>(
 ): Promise<T> {
 	const execute = async (baseUrl: string): Promise<T> => {
 		const token = await getAuthToken();
+		if (!token) {
+			throw new Error("You need to be logged in to perform this action.");
+		}
 
 		return new Promise<T>((resolve, reject) => {
 			const xhr = new XMLHttpRequest();
@@ -323,7 +331,12 @@ export async function apiUploadRequest<T>(
 					return;
 				}
 
-				if (xhr.status < 200 || xhr.status >= 300 || !data.success || data.data == null) {
+				if (
+					xhr.status < 200 ||
+					xhr.status >= 300 ||
+					!data.success ||
+					data.data == null
+				) {
 					reject(new Error(data.message ?? "Request failed"));
 					return;
 				}
