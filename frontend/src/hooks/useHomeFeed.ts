@@ -81,21 +81,31 @@ export function useHomeFeed(): UseHomeFeedResult {
 		() => buildFeedState(cachedFeed),
 		[cachedFeed],
 	);
-	const [loading, setLoading] = React.useState(initialFeedState.posts.length === 0);
+	const [loading, setLoading] = React.useState(
+		initialFeedState.posts.length === 0,
+	);
 	const [refreshing, setRefreshing] = React.useState(false);
-	const [posts, setPosts] = React.useState<FeedPostItem[]>(initialFeedState.posts);
-	const [stories, setStories] = React.useState<Story[]>(initialFeedState.stories);
+	const [posts, setPosts] = React.useState<FeedPostItem[]>(
+		initialFeedState.posts,
+	);
+	const [stories, setStories] = React.useState<Story[]>(
+		initialFeedState.stories,
+	);
 	const [likedPostIds, setLikedPostIds] = React.useState<
 		Record<string, boolean>
 	>(initialFeedState.likedPostIds);
 
 	const loadFeed = React.useCallback(async () => {
-		const data = await FeedService.getFeed();
-		const nextState = buildFeedState(data);
+		try {
+			const data = await FeedService.getFeed();
+			const nextState = buildFeedState(data);
 
-		setPosts(nextState.posts);
-		setStories(nextState.stories);
-		setLikedPostIds(nextState.likedPostIds);
+			setPosts(nextState.posts);
+			setStories(nextState.stories);
+			setLikedPostIds(nextState.likedPostIds);
+		} catch {
+			// Keep existing feed state on failure to avoid crashing the screen.
+		}
 	}, []);
 
 	React.useEffect(() => {
@@ -195,21 +205,24 @@ export function useHomeFeed(): UseHomeFeedResult {
 		[],
 	);
 
-	const updateCommentCount = React.useCallback((postId: string, count: number) => {
-		setPosts((current) =>
-			current.map((post) => {
-				if (post.id !== postId) {
-					return post;
-				}
+	const updateCommentCount = React.useCallback(
+		(postId: string, count: number) => {
+			setPosts((current) =>
+				current.map((post) => {
+					if (post.id !== postId) {
+						return post;
+					}
 
-				if (post.comments === count) {
-					return post;
-				}
+					if (post.comments === count) {
+						return post;
+					}
 
-				return { ...post, comments: count };
-			}),
-		);
-	}, []);
+					return { ...post, comments: count };
+				}),
+			);
+		},
+		[],
+	);
 
 	return {
 		loading,

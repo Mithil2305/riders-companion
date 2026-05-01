@@ -30,11 +30,15 @@ const nextRouteBySection: Record<SwipeSection, string | null> = {
 	settings: null,
 };
 
-export function useTabSwipeNavigation(section: SwipeSection) {
+export function useTabSwipeNavigation(
+	section: SwipeSection,
+	options?: { enabled?: boolean },
+) {
 	const router = useRouter();
 	const translateX = useSharedValue(0);
 	const [locked, setLocked] = React.useState(false);
 	const nextRoute = nextRouteBySection[section];
+	const enabled = options?.enabled ?? true;
 
 	const navigateNext = React.useCallback(() => {
 		if (!nextRoute) {
@@ -52,7 +56,7 @@ export function useTabSwipeNavigation(section: SwipeSection) {
 		() =>
 			PanResponder.create({
 				onMoveShouldSetPanResponder: (evt, gestureState) => {
-					if (locked || !nextRoute) {
+					if (!enabled || locked || !nextRoute) {
 						return false;
 					}
 
@@ -95,7 +99,7 @@ export function useTabSwipeNavigation(section: SwipeSection) {
 					translateX.value = withSpring(0, { damping: 14, stiffness: 230 });
 				},
 			}),
-		[locked, navigateNext, nextRoute, section, translateX],
+		[enabled, locked, navigateNext, nextRoute, section, translateX],
 	);
 
 	const animatedStyle = useAnimatedStyle(() => ({

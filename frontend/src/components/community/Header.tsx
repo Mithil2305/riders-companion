@@ -1,15 +1,28 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+	StyleSheet,
+	Text,
+	TextInput,
+	TouchableOpacity,
+	View,
+} from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { withAlpha } from '../../utils/color';
 
 interface HeaderProps {
   onBack: () => void;
   onStartRide: () => void;
+  selectedLocation: string;
+  onChangeLocation: (value: string) => void;
 }
 
-export function Header({ onBack, onStartRide }: HeaderProps) {
+export function Header({
+	onBack,
+	onStartRide,
+	selectedLocation,
+	onChangeLocation,
+}: HeaderProps) {
   const { colors, metrics, typography } = useTheme();
 
   const styles = React.useMemo(
@@ -39,22 +52,24 @@ export function Header({ onBack, onStartRide }: HeaderProps) {
         },
         subtitlePill: {
           marginTop: metrics.xs,
-          alignSelf: 'flex-start',
           flexDirection: 'row',
           alignItems: 'center',
           backgroundColor: withAlpha(colors.primary, 0.12),
           paddingHorizontal: metrics.sm,
-          paddingVertical: 4,
+          paddingVertical: 2,
           borderRadius: metrics.radius.full,
           borderWidth: 1,
           borderColor: withAlpha(colors.primary, 0.2),
+          minWidth: 170,
         },
-        subtitle: {
+        locationInput: {
+          flex: 1,
           color: colors.primary,
           fontSize: typography.sizes.xs,
           fontWeight: '700',
-          letterSpacing: 1.2,
+          letterSpacing: 0.4,
           marginLeft: 4,
+          paddingVertical: 4,
         },
         cta: {
           height: 40,
@@ -88,7 +103,13 @@ export function Header({ onBack, onStartRide }: HeaderProps) {
         </View>
         <View style={styles.subtitlePill}>
           <Ionicons color={colors.primary} name="location" size={metrics.icon.sm - 2} />
-          <Text style={styles.subtitle}>CHENNAI HUB</Text>
+          <TextInput
+            onChangeText={onChangeLocation}
+            placeholder="Filter by location"
+            placeholderTextColor={withAlpha(colors.primary, 0.6)}
+            style={styles.locationInput}
+            value={selectedLocation}
+          />
         </View>
       </View>
 

@@ -123,9 +123,47 @@ class ProfileService {
 		bikeImageUrl?: string;
 		isPrimary?: boolean;
 	}) {
+		const readBlobAsDataUrl = async (blob: Blob) =>
+			new Promise<string>((resolve, reject) => {
+				const reader = new FileReader();
+				reader.onerror = () => reject(new Error("Failed to convert media."));
+				reader.onloadend = () => {
+					if (typeof reader.result === "string") {
+						resolve(reader.result);
+						return;
+					}
+					reject(new Error("Failed to read selected media."));
+				};
+				reader.readAsDataURL(blob);
+			});
+
+		const buildBikeImagePayload = async (imageUri?: string) => {
+			if (!imageUri) {
+				return {} as const;
+			}
+			if (/^data:/i.test(imageUri)) {
+				return { bikeImageData: imageUri } as const;
+			}
+			if (/^https?:\/\//i.test(imageUri)) {
+				return { bikeImageUrl: imageUri } as const;
+			}
+			const response = await fetch(imageUri);
+			const blob = await response.blob();
+			const dataUrl = await readBlobAsDataUrl(blob);
+			return { bikeImageData: dataUrl } as const;
+		};
+
+		const imagePayload = await buildBikeImagePayload(payload.bikeImageUrl);
+
 		return apiRequest<{ bike: BikePayload }>("/profile/garage/bikes", {
 			method: "POST",
-			body: payload,
+			body: {
+				brand: payload.brand,
+				model: payload.model,
+				year: payload.year,
+				isPrimary: payload.isPrimary,
+				...imagePayload,
+			},
 		});
 	}
 }

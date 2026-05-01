@@ -15,10 +15,6 @@ import {
 	InviteActionState,
 	RideRouteMeta,
 } from "../types/groupChat";
-import {
-	createRideInvitePayload,
-	serializeRideInviteMessage,
-} from "../utils/rideInviteMessage";
 
 const AVATAR_MAP: Record<string, string> = {
 	SARAH: "https://randomuser.me/api/portraits/women/65.jpg",
@@ -28,6 +24,7 @@ const AVATAR_MAP: Record<string, string> = {
 
 const LOCATION_SEND_MIN_INTERVAL_MS = 2200;
 const LOCATION_SEND_MIN_DISTANCE_METERS = 4;
+const RIDE_SYSTEM_PREFIX = "[RIDE_SYSTEM]";
 
 const avatarForName = (name: string): string => {
 	const mapped = AVATAR_MAP[name.toUpperCase()];
@@ -237,6 +234,20 @@ const normalizeRoute = (value: unknown): RideRouteMeta => {
 	};
 };
 
+const parseRideSystemMessage = (value: unknown): string | null => {
+	if (typeof value !== "string") {
+		return null;
+	}
+
+	const trimmed = value.trim();
+	if (!trimmed.startsWith(RIDE_SYSTEM_PREFIX)) {
+		return null;
+	}
+
+	const text = trimmed.slice(RIDE_SYSTEM_PREFIX.length).trim();
+	return text.length > 0 ? text : null;
+};
+
 const mapApiMessageToGroupItem = (
 	entry: Record<string, unknown>,
 	currentUserId?: string,
@@ -262,6 +273,16 @@ const mapApiMessageToGroupItem = (
 		typeof entry.createdAt === "string"
 			? entry.createdAt
 			: new Date().toISOString();
+	const systemMessage = parseRideSystemMessage(text);
+
+	if (systemMessage) {
+		return {
+			id: String(entry.id ?? `system-${Date.now()}-${Math.random()}`),
+			kind: "system",
+			text: systemMessage,
+			time: toClockTime(createdAt),
+		};
+	}
 
 	if (senderId && currentUserId && senderId === currentUserId) {
 		return {
@@ -328,6 +349,7 @@ export function useGroupChatScreen(
 		InviteFriendItem[]
 	>([]);
 	const [isInviteSearching, setIsInviteSearching] = useState(false);
+	const [inviteToast, setInviteToast] = useState<string | null>(null);
 	const [isAdmin, setIsAdmin] = useState(false);
 	const [draft, setDraft] = useState("");
 	const [messages, setMessages] = useState<GroupChatItem[]>([]);
@@ -357,6 +379,7 @@ export function useGroupChatScreen(
 
 	const knownMessageIdsRef = useRef<Set<string>>(new Set());
 	const typingStateRef = useRef(false);
+	const inviteToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const lastLocationSentAtRef = useRef(0);
 	const lastSentCoordRef = useRef<{
 		latitude: number;
@@ -369,9 +392,19 @@ export function useGroupChatScreen(
 	const openInvite = useCallback(() => setInviteVisible(true), []);
 	const closeInvite = useCallback(() => setInviteVisible(false), []);
 
+	useEffect(() => {
+		return () => {
+			if (inviteToastTimeoutRef.current) {
+				clearTimeout(inviteToastTimeoutRef.current);
+			}
+		};
+	}, []);
+
 	const applySnapshot = useCallback(
 		(snapshot: RideSnapshot) => {
-			setRideStatus(String(snapshot.rideStatus || "PENDING").toUpperCase());
+			const nextRideStatus = String(snapshot.rideStatus || "PENDING").toUpperCase();
+			setRideStatus(nextRideStatus);
+			setIsRideEnded(nextRideStatus === "COMPLETED");
 			setRideRoute(normalizeRoute(snapshot.route));
 			setRideSourceLabel(snapshot.route.source || "Current location");
 			setRideDestinationLabel(snapshot.route.destination || "Destination");
@@ -465,6 +498,9 @@ export function useGroupChatScreen(
 					.filter(Boolean) as GroupChatItem[];
 
 				setMessages(mapped);
+				knownMessageIdsRef.current = new Set(
+					mapped.map((item) => item.id).filter((value) => value.length > 0),
+				);
 			})
 			.catch(() => {
 				if (!isMounted) return;
@@ -528,8 +564,8 @@ export function useGroupChatScreen(
 
 				const status = String(response.ride?.status || "").toUpperCase();
 				setRideStatus(status);
+				setIsRideEnded(status === "COMPLETED");
 				if (status === "COMPLETED") {
-					setIsRideEnded(true);
 					setLocationEnabled(false);
 				}
 			})
@@ -633,6 +669,11 @@ export function useGroupChatScreen(
 		setRoomSubtitle(`${onlineRiders} online • ${totalRiders} riders`);
 	}, [connectionState, rideMembers.length, riderLocations, typingRiders]);
 
+	const isRideLive = React.useMemo(
+		() => String(rideStatus).toUpperCase() === "ACTIVE",
+		[rideStatus],
+	);
+
 	// Join room via WebSocket
 	useEffect(() => {
 		if (!isConnected || roomId.length === 0) return;
@@ -648,7 +689,7 @@ export function useGroupChatScreen(
 
 	// Location watching
 	useEffect(() => {
-		if (!isConnected || !locationEnabled || isRideEnded) return;
+		if (!isConnected || !locationEnabled || isRideEnded || !isRideLive) return;
 
 		void getCurrentLocation();
 		void startWatching().catch(() => {
@@ -662,6 +703,7 @@ export function useGroupChatScreen(
 		getCurrentLocation,
 		isConnected,
 		isRideEnded,
+		isRideLive,
 		locationEnabled,
 		startWatching,
 		stopWatching,
@@ -674,7 +716,8 @@ export function useGroupChatScreen(
 			!location ||
 			!isConnected ||
 			roomId.length === 0 ||
-			isRideEnded
+			isRideEnded ||
+			!isRideLive
 		) {
 			return;
 		}
@@ -716,6 +759,7 @@ export function useGroupChatScreen(
 		locationEnabled,
 		roomId,
 		sendWsMessage,
+		isRideLive,
 	]);
 
 	// Handle WebSocket messages
@@ -757,19 +801,8 @@ export function useGroupChatScreen(
 		if (lastMessage.type === "CHAT_MESSAGE") {
 			if (payload.roomId !== roomId) return;
 
-			const senderId = payload.senderId as string | undefined;
-			if (senderId && senderId === user?.id) return;
-
 			const messageId = String(payload.id ?? `in-${Date.now()}`);
 			if (knownMessageIdsRef.current.has(messageId)) return;
-			knownMessageIdsRef.current.add(messageId);
-
-			const senderName =
-				typeof payload.senderName === "string" &&
-				payload.senderName.trim().length > 0
-					? payload.senderName.toUpperCase()
-					: "RIDER";
-
 			const text =
 				typeof payload.message === "string" && payload.message.trim().length > 0
 					? (payload.message as string)
@@ -777,6 +810,53 @@ export function useGroupChatScreen(
 						  payload.encryptedPayload.trim().length > 0
 						? (payload.encryptedPayload as string)
 						: "[encrypted]";
+			const createdAt =
+				typeof payload.createdAt === "string"
+					? (payload.createdAt as string)
+					: new Date().toISOString();
+			const senderId = payload.senderId as string | undefined;
+			const systemMessage = parseRideSystemMessage(text);
+
+			if (systemMessage) {
+				knownMessageIdsRef.current.add(messageId);
+				setMessages((prev) => [
+					...prev,
+					{
+						id: messageId,
+						kind: "system",
+						text: systemMessage,
+						time: toClockTime(createdAt),
+					},
+				]);
+				return;
+			}
+
+			if (senderId && senderId === user?.id) {
+				knownMessageIdsRef.current.add(messageId);
+				setMessages((prev) =>
+					prev.map((message) =>
+						message.kind === "outgoing" &&
+						message.clientMessageId &&
+						message.clientMessageId === payload.clientMessageId
+							? {
+									...message,
+									id: messageId,
+									status: "sent",
+									createdAt,
+									time: toClockTime(createdAt),
+								}
+							: message,
+					),
+				);
+				return;
+			}
+
+			const senderName =
+				typeof payload.senderName === "string" &&
+				payload.senderName.trim().length > 0
+					? payload.senderName.toUpperCase()
+					: "RIDER";
+			knownMessageIdsRef.current.add(messageId);
 
 			setMessages((prev) => [
 				...prev,
@@ -787,15 +867,8 @@ export function useGroupChatScreen(
 					senderName,
 					message: text,
 					avatar: avatarForName(senderName),
-					time: toClockTime(
-						typeof payload.createdAt === "string"
-							? (payload.createdAt as string)
-							: new Date().toISOString(),
-					),
-					createdAt:
-						typeof payload.createdAt === "string"
-							? (payload.createdAt as string)
-							: new Date().toISOString(),
+					time: toClockTime(createdAt),
+					createdAt,
 				},
 			]);
 			return;
@@ -902,8 +975,24 @@ export function useGroupChatScreen(
 					eventType: "RIDE_ENDED" as const,
 				},
 			]);
+			return;
 		}
-	}, [applySnapshot, lastMessage, roomId, user?.id]);
+
+		if (
+			lastMessage.type === "RIDE_SYNC_REQUIRED" ||
+			lastMessage.type === "RIDE_STARTED" ||
+			lastMessage.type === "RIDE_PARTICIPANT_JOINED"
+		) {
+			if (payload.rideId !== roomId) return;
+
+			if (lastMessage.type === "RIDE_STARTED") {
+				setRideStatus("ACTIVE");
+				setIsRideEnded(false);
+			}
+
+			void requestSnapshot();
+		}
+	}, [applySnapshot, lastMessage, requestSnapshot, roomId, user?.id]);
 
 	// Handle connection changes
 	useEffect(() => {
@@ -963,9 +1052,38 @@ export function useGroupChatScreen(
 		});
 
 		if (!sent) {
-			void ChatService.sendMessage(roomId, trimmed).catch(() => {
-				// Keep optimistic message if send retry fails.
-			});
+			void ChatService.sendMessage(roomId, trimmed)
+				.then((response: any) => {
+					const createdAt =
+						typeof response.createdAt === "string"
+							? response.createdAt
+							: now;
+					knownMessageIdsRef.current.add(String(response.id));
+					setMessages((prev) =>
+						prev.map((message) =>
+							message.kind === "outgoing" &&
+							message.clientMessageId === clientMessageId
+								? {
+										...message,
+										id: String(response.id),
+										status: "sent",
+										createdAt,
+										time: toClockTime(createdAt),
+									}
+								: message,
+						),
+					);
+				})
+				.catch(() => {
+					setMessages((prev) =>
+						prev.map((message) =>
+							message.kind === "outgoing" &&
+							message.clientMessageId === clientMessageId
+								? { ...message, status: "failed" as const }
+								: message,
+						),
+					);
+				});
 		}
 
 		typingStateRef.current = false;
@@ -992,6 +1110,34 @@ export function useGroupChatScreen(
 				setMenuVisible(false);
 			});
 	}, [isAdmin, isRideEnded, roomId]);
+
+	const startRide = useCallback(() => {
+		if (!isAdmin || isRideEnded || isRideLive) return;
+
+		void RideService.startRide(roomId)
+			.then(() => {
+				setRideStatus("ACTIVE");
+				setMenuVisible(false);
+				void requestSnapshot();
+			})
+			.catch(() => {
+				setMenuVisible(false);
+			});
+	}, [isAdmin, isRideEnded, isRideLive, requestSnapshot, roomId]);
+
+	const leaveRide = useCallback(async () => {
+		if (isRideEnded) return false;
+
+		try {
+			await RideService.leaveRide(roomId);
+			sendWsMessage("RIDE_LEAVE", { rideId: roomId });
+			setLocationEnabled(false);
+			return true;
+		} catch (error) {
+			console.error("Failed to leave ride:", error);
+			return false;
+		}
+	}, [isRideEnded, roomId, sendWsMessage]);
 
 	const inviteFromMenu = useCallback(() => {
 		if (isRideEnded) {
@@ -1039,31 +1185,33 @@ export function useGroupChatScreen(
 				[friend.id]: "sending",
 			}));
 
-			const invitePayload = createRideInvitePayload({
-				rideId: roomId,
-				roomName: roomTitle,
-				inviterId: user.id,
-				inviterName: user.name || user.username || "Rider",
-			});
-
 			try {
-				await ChatService.sendPersonalMessage(friend.id, {
-					kind: "text",
-					text: serializeRideInviteMessage(invitePayload),
-				});
+				await RideService.inviteRiders(roomId, [friend.id]);
 
 				setInviteStateByFriendId((prev) => ({
 					...prev,
 					[friend.id]: "sent",
 				}));
-			} catch {
+			} catch (error) {
+				console.error("Failed to send ride invite:", error);
 				setInviteStateByFriendId((prev) => ({
 					...prev,
 					[friend.id]: "idle",
 				}));
+				setInviteToast("Failed to send invites. Please try again.");
+				if (inviteToastTimeoutRef.current) {
+					clearTimeout(inviteToastTimeoutRef.current);
+				}
+				inviteToastTimeoutRef.current = setTimeout(() => {
+					setInviteToast(null);
+				}, 3000);
 			}
 		},
-		[isRideEnded, roomId, roomTitle, user?.id, user?.name, user?.username],
+		[
+			isRideEnded,
+			roomId,
+			user?.id,
+		],
 	);
 
 	const leaderLocation = React.useMemo(() => {
@@ -1102,6 +1250,16 @@ export function useGroupChatScreen(
 		);
 	}, [inviteCandidates, rideMembers]);
 
+	const toggleTrackRider = React.useCallback((riderId: string) => {
+		setRideMembers((prev) =>
+			prev.map((member) =>
+				member.id === riderId
+					? { ...member, isFollowing: !member.isFollowing }
+					: member,
+			),
+		);
+	}, []);
+
 	return {
 		// UI state
 		menuVisible,
@@ -1128,6 +1286,7 @@ export function useGroupChatScreen(
 		rideMembers,
 		organizerProfile,
 		leaderLocation,
+		isRideLive,
 
 		// Map state
 		mapLoading,
@@ -1155,10 +1314,14 @@ export function useGroupChatScreen(
 		inviteSearchQuery,
 		inviteSearchResults,
 		isInviteSearching,
+		inviteToast,
 		searchInviteCandidates,
 		sendRideInvite,
+		startRide,
 		endRide,
+		leaveRide,
 		sendMessage,
+		toggleTrackRider,
 		retrySnapshot: requestSnapshot,
 	};
 }

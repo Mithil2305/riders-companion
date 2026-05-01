@@ -6,6 +6,7 @@ import {
 	Platform,
 	Pressable,
 	StyleSheet,
+	Text,
 	View,
 	type LayoutChangeEvent,
 } from "react-native";
@@ -35,7 +36,7 @@ export default function GroupChatScreen() {
 		typeof params.status === "string" ? params.status : undefined;
 	const initialRoomName =
 		typeof params.name === "string" ? params.name : undefined;
-	const { colors } = useTheme();
+	const { colors, typography } = useTheme();
 	const [rideDetailsVisible, setRideDetailsVisible] = React.useState(false);
 	const [recenterSignal, setRecenterSignal] = React.useState(0);
 	const [contentHeight, setContentHeight] = React.useState(0);
@@ -64,10 +65,11 @@ export default function GroupChatScreen() {
 		searchInviteCandidates,
 		rideSourceLabel,
 		rideDestinationLabel,
-		rideStatus,
 		rideRoute,
 		rideMembers,
 		organizerProfile,
+		inviteToast,
+		isRideLive,
 		setDraft,
 		setLocationEnabled,
 		openMenu,
@@ -76,12 +78,11 @@ export default function GroupChatScreen() {
 		inviteFromMenu,
 		sendRideInvite,
 		toggleTrackRider,
+		startRide,
 		endRide,
+		leaveRide,
 		sendMessage,
 	} = useGroupChatScreen(roomId, roomStatus, initialRoomName);
-	const isRideLive = ["ACTIVE", "STARTED"].includes(
-		String(rideStatus).toUpperCase(),
-	);
 
 	const styles = React.useMemo(
 		() =>
@@ -148,8 +149,29 @@ export default function GroupChatScreen() {
 					borderTopWidth: 1,
 					borderTopColor: colors.border,
 				},
+				toastWrap: {
+					position: "absolute",
+					left: 24,
+					right: 24,
+					bottom: 28,
+					borderRadius: 14,
+					paddingVertical: 10,
+					paddingHorizontal: 14,
+					backgroundColor: withAlpha(colors.textPrimary, 0.9),
+					shadowColor: colors.shadow,
+					shadowOpacity: 0.2,
+					shadowRadius: 10,
+					shadowOffset: { width: 0, height: 6 },
+					elevation: 6,
+				},
+				toastText: {
+					color: colors.textInverse,
+					fontSize: typography.sizes.sm,
+					fontWeight: "600",
+					textAlign: "center",
+				},
 			}),
-		[colors],
+		[colors, typography],
 	);
 
 	const onLayoutSplit = React.useCallback(
@@ -262,6 +284,8 @@ export default function GroupChatScreen() {
 									router.push({
 										pathname: "/navigation",
 										params: {
+											rideId: roomId,
+											canEndRide: isAdmin ? "true" : "false",
 											sourceLabel: rideSourceLabel ?? "",
 											destinationLabel: rideDestinationLabel ?? "",
 										},
@@ -307,14 +331,23 @@ export default function GroupChatScreen() {
 			</KeyboardAvoidingView>
 
 			<GroupChatMenuSheet
+				canStartRide={isAdmin && !isRideEnded && !isRideLive}
 				isAdmin={isAdmin}
 				isRideEnded={isRideEnded}
 				onClose={closeMenu}
+				onStartRide={startRide}
 				onRideDetails={() => {
 					closeMenu();
 					setRideDetailsVisible(true);
 				}}
 				onEndRide={endRide}
+				onLeaveRide={async () => {
+					closeMenu();
+					const left = await leaveRide();
+					if (left) {
+						router.back();
+					}
+				}}
 				onInvite={inviteFromMenu}
 				visible={menuVisible}
 			/>
@@ -343,6 +376,12 @@ export default function GroupChatScreen() {
 				searchResults={inviteSearchResults}
 				isSearching={isInviteSearching}
 			/>
+
+			{inviteToast ? (
+				<View pointerEvents="none" style={styles.toastWrap}>
+					<Text style={styles.toastText}>{inviteToast}</Text>
+				</View>
+			) : null}
 		</SafeAreaView>
 	);
 }
