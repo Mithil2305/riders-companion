@@ -9,15 +9,9 @@ if (!databaseUrl) {
 const sequelize = new Sequelize(databaseUrl, {
 	dialect: "postgres",
 	logging: false,
-	dialectOptions:
-		process.env.NODE_ENV === "production"
-			? {
-					ssl: {
-						require: true,
-						rejectUnauthorized: false,
-					},
-				}
-			: {},
+	dialectOptions: {
+		ssl: false,
+	},
 });
 
 module.exports = sequelize;
