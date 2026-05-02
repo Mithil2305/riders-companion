@@ -1,6 +1,7 @@
 import React from "react";
 import RideService from "../services/RideService";
 import type { CommunityData, RideItem } from "../types/community";
+import type { CommunityRide } from "../services/RideService";
 
 const EMPTY_COMMUNITY_DATA: CommunityData = {
 	activeRide: null,
@@ -36,24 +37,7 @@ const toTagChips = (details: {
 };
 
 const toRideItem = (
-	ride: {
-		id: string;
-		status: string;
-		joinedCount: number;
-		invitedCount: number;
-		organizerId?: string | null;
-		details: {
-			rideType?: "solo" | "group";
-			source?: string;
-			destination?: string;
-			startDate?: string;
-			budget?: number;
-			includesFood?: boolean;
-			includesFuel?: boolean;
-			stayArranged?: boolean;
-		};
-		isOrganizer?: boolean;
-	},
+	ride: CommunityRide,
 	mode: "nearby" | "myRides",
 ): RideItem => ({
 	id: ride.id,
@@ -79,9 +63,47 @@ const toRideItem = (
 	organizerId: ride.organizerId ?? null,
 });
 
+const buildCommunityState = (
+	payload: {
+		activeRide: CommunityRide | null;
+		nearbyRides: CommunityRide[];
+		myRides: CommunityRide[];
+	} | null,
+	previous: CommunityData = EMPTY_COMMUNITY_DATA,
+): CommunityData => {
+	if (!payload) {
+		return previous;
+	}
+
+	return {
+		...previous,
+		activeRide: payload.activeRide
+			? {
+					id: payload.activeRide.id,
+					badge: payload.activeRide.status,
+					title: `${payload.activeRide.details.source || "Source"} -> ${payload.activeRide.details.destination || "Destination"}`,
+					subtitle: "Live group ride",
+					actionIcon: "navigate",
+					avatars: previous.activeRide?.avatars || [],
+					extraCount: payload.activeRide.joinedCount,
+				}
+			: null,
+		nearbyRides: payload.nearbyRides.map((ride) => toRideItem(ride, "nearby")),
+		myRides: payload.myRides.map((ride) => toRideItem(ride, "myRides")),
+	};
+};
+
 export function useCommunityData(selectedLocation?: string) {
-	const [data, setData] = React.useState<CommunityData>(EMPTY_COMMUNITY_DATA);
-	const [loading, setLoading] = React.useState(true);
+	const cachedCommunity = React.useMemo(
+		() => RideService.peekCommunityRidesCache(selectedLocation),
+		[selectedLocation],
+	);
+	const initialState = React.useMemo(
+		() => buildCommunityState(cachedCommunity, EMPTY_COMMUNITY_DATA),
+		[cachedCommunity],
+	);
+	const [data, setData] = React.useState<CommunityData>(initialState);
+	const [loading, setLoading] = React.useState(!cachedCommunity);
 	const [refreshing, setRefreshing] = React.useState(false);
 	const mountedRef = React.useRef(true);
 
@@ -92,24 +114,7 @@ export function useCommunityData(selectedLocation?: string) {
 				return;
 			}
 
-			setData((prev) => ({
-				...prev,
-				activeRide: payload.activeRide
-					? {
-							id: payload.activeRide.id,
-							badge: payload.activeRide.status,
-							title: `${payload.activeRide.details.source || "Source"} -> ${payload.activeRide.details.destination || "Destination"}`,
-							subtitle: "Live group ride",
-							actionIcon: "navigate",
-							avatars: prev.activeRide?.avatars || [],
-							extraCount: payload.activeRide.joinedCount,
-						}
-					: null,
-				nearbyRides: payload.nearbyRides.map((ride) =>
-					toRideItem(ride, "nearby"),
-				),
-				myRides: payload.myRides.map((ride) => toRideItem(ride, "myRides")),
-			}));
+			setData((prev) => buildCommunityState(payload, prev));
 		} catch {
 			if (mountedRef.current) {
 				setData(EMPTY_COMMUNITY_DATA);

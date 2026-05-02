@@ -139,6 +139,8 @@ export function useNotificationsData(): UseNotificationsDataResult {
 	const markAsRead = React.useCallback((id: string) => {
 		void apiRequest(`/notifications/${id}/read`, {
 			method: "PATCH",
+		}).catch(() => {
+			// Ignore failures so we do not surface unhandled promise errors.
 		});
 
 		setNotifications((prev) =>
