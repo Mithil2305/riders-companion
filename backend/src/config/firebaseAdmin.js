@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 
 const serviceAccountPath = path.resolve(
 	__dirname,
-	"../../riders-companion-8e4f8-firebase-adminsdk-fbsvc-44a40f169f.json",
+	"../../firebase.json",
 );
 
 if (!fs.existsSync(serviceAccountPath)) {
