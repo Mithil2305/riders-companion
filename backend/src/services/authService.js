@@ -106,6 +106,18 @@ exports.signup = async ({ idToken, name, username, mobileNumber }) => {
 		);
 	}
 
+	const existingByEmail = await RiderAccount.findOne({
+		where: { email: decodedToken.email },
+	});
+
+	if (existingByEmail) {
+		throw new AuthServiceError(
+			409,
+			"Email already registered",
+			"AUTH_EMAIL_EXISTS",
+		);
+	}
+
 	const user = await RiderAccount.create({
 		firebase_uid: decodedToken.uid,
 		email: decodedToken.email,
