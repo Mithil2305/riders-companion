@@ -18,6 +18,9 @@ import { useTheme } from "../src/hooks/useTheme";
 import { FIXED_PALETTE } from "../src/theme/colors";
 import FeedService from "../src/services/FeedService";
 import ClipService from "../src/services/ClipService";
+import ChatService from "../src/services/ChatService";
+import RideService from "../src/services/RideService";
+import ProfileService from "../src/services/ProfileService";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Ignore if splash is already controlled by Expo runtime.
@@ -59,6 +62,7 @@ function RootNavigator() {
 		(player) => {
 			player.loop = false;
 			player.muted = true;
+			player.keepScreenOnWhilePlaying = false;
 		},
 	);
 
@@ -123,6 +127,9 @@ function RootNavigator() {
 		void Promise.allSettled([
 			FeedService.preloadFeed(),
 			ClipService.preloadClips(),
+			ChatService.preloadChatOverview(),
+			RideService.preloadCommunityRides(),
+			ProfileService.preloadMyProfile(),
 		]);
 	}, [isAuthenticated]);
 
