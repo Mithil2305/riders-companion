@@ -14,6 +14,7 @@ import { PlaybackSettingsProvider } from "../src/contexts/PlaybackSettingsContex
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
 import { UploadProvider } from "../src/contexts/UploadContext";
 import { RideProvider } from "../src/contexts/RideContext";
+import { ToastProvider } from "../src/contexts/ToastContext";
 import { useTheme } from "../src/hooks/useTheme";
 import { FIXED_PALETTE } from "../src/theme/colors";
 import FeedService from "../src/services/FeedService";
@@ -35,7 +36,9 @@ export default function RootLayout() {
 						<AuthProvider>
 							<UploadProvider>
 								<RideProvider>
-									<RootNavigator />
+									<ToastProvider>
+										<RootNavigator />
+									</ToastProvider>
 								</RideProvider>
 							</UploadProvider>
 						</AuthProvider>

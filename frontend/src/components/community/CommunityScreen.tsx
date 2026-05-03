@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../contexts/ToastContext";
 import { useTheme } from "../../hooks/useTheme";
 import { useCommunityData } from "../../hooks/useCommunityData";
 import type { RideItem } from "../../types/community";
@@ -29,10 +30,12 @@ export function CommunityScreen() {
 	const router = useRouter();
 	const params = useLocalSearchParams<{ rideAction?: string }>();
 	const { user: authUser } = useAuth();
+	const { showSuccess, showError, showInfo } = useToast();
 	const { colors, metrics, typography } = useTheme();
 	const [selectedLocation, setSelectedLocation] = React.useState("Chennai");
 	const { activeRide, nearbyRides, myRides, refreshing, refreshCommunity } =
 		useCommunityData(selectedLocation);
+	const [joiningRideId, setJoiningRideId] = React.useState<string | null>(null);
 
 	const [showConfirmation, setShowConfirmation] = React.useState(false);
 
@@ -175,12 +178,26 @@ export function CommunityScreen() {
 										key={ride.id}
 										mode="nearby"
 										onPrimaryAction={async (rideId) => {
+											// Prevent duplicate clicks
+											if (joiningRideId === rideId) return;
+
+											setJoiningRideId(rideId);
 											try {
-												await RideService.joinRide(rideId);
-											} catch {
-												// Keep UI stable; hook refresh picks updates on next load.
+												const result = await RideService.joinRide(rideId);
+												if (result?.joined) {
+													showSuccess("Joined ride. Have a safe journey.");
+													refreshCommunity();
+												} else {
+													showInfo("Already joined this ride.");
+												}
+											} catch (error) {
+												const message = error instanceof Error ? error.message : "Failed to join ride";
+												showError(message);
+											} finally {
+												setJoiningRideId(null);
 											}
 										}}
+										isJoining={joiningRideId === ride.id}
 									/>
 								))}
 							</View>
@@ -228,6 +245,11 @@ export function CommunityScreen() {
 			handleEdit,
 			handleDelete,
 			authUser?.id,
+			joiningRideId,
+			refreshCommunity,
+			showError,
+			showInfo,
+			showSuccess,
 		],
 	);
 

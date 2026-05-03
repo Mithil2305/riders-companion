@@ -376,6 +376,9 @@ export function useGroupChatScreen(
 	const [mapLoading, setMapLoading] = useState(true);
 	const [mapError, setMapError] = useState<string | null>(null);
 	const [typingRiders, setTypingRiders] = useState<string[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
+	const [isError, setIsError] = useState(false);
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
 	const knownMessageIdsRef = useRef<Set<string>>(new Set());
 	const typingStateRef = useRef(false);
@@ -474,6 +477,11 @@ export function useGroupChatScreen(
 			typeof initialRoomName === "string" && initialRoomName.trim().length > 0
 				? initialRoomName
 				: null;
+
+		// Reset loading and error states
+		setIsLoading(true);
+		setIsError(false);
+		setErrorMessage(null);
 
 		setMessages([]);
 		setRiderLocations([]);
@@ -638,10 +646,29 @@ export function useGroupChatScreen(
 				}
 			});
 
-		void requestSnapshot();
+		// Request snapshot and handle loading completion
+		void requestSnapshot()
+			.then(() => {
+				if (!isMounted) return;
+				setIsLoading(false);
+			})
+			.catch((error) => {
+				if (!isMounted) return;
+				console.error("[useGroupChatScreen] Failed to load snapshot:", error);
+				setIsLoading(false);
+				// Don't set as critical error - chat can still work without map
+			});
+
+		// Set a timeout to ensure loading state doesn't get stuck
+		const loadingTimeout = setTimeout(() => {
+			if (isMounted) {
+				setIsLoading(false);
+			}
+		}, 10000); // 10 second timeout
 
 		return () => {
 			isMounted = false;
+			clearTimeout(loadingTimeout);
 		};
 	}, [initialRoomName, roomId, requestSnapshot, user?.id]);
 
@@ -1299,6 +1326,11 @@ export function useGroupChatScreen(
 		// Connection state
 		isConnected,
 		connectionState,
+
+		// Loading and error states
+		isLoading,
+		isError,
+		errorMessage,
 
 		// Handlers
 		setDraft: setDraftWithTyping,

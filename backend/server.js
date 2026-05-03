@@ -6,6 +6,7 @@ const apiRoutes = require("./src/routes");
 const setupWebSockets = require("./src/websockets/wss");
 const { assertCryptoReady } = require("./src/services/chatCryptoService");
 const { syncDatabaseSchema } = require("./src/utils/databaseSync");
+const { errorHandler, notFoundHandler } = require("./src/middlewares/errorHandler");
 
 const app = express();
 const server = http.createServer(app);
@@ -34,6 +35,12 @@ app.use((error, _req, res, next) => {
 
 	return next(error);
 });
+
+// Handle 404 for undefined routes
+app.use(notFoundHandler);
+
+// Global error handler - must be last
+app.use(errorHandler);
 
 try {
 	assertCryptoReady();

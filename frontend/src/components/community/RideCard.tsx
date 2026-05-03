@@ -18,6 +18,7 @@ interface RideCardProps {
 	onEdit?: (item: RideItem) => void;
 	onDelete?: (id: string) => void;
 	canManageRide?: boolean;
+	isJoining?: boolean;
 }
 
 function formatDateHumanReadable(dateStr: string): string {
@@ -44,11 +45,12 @@ export function RideCard({
 	onEdit,
 	onDelete,
 	canManageRide = false,
+	isJoining = false,
 }: RideCardProps) {
 	const { colors, metrics, typography } = useTheme();
 	const isMyRide = mode === "myRides";
 	const isCompleted = isMyRide && item.status === "completed";
-	const isActionDisabled = isCompleted;
+	const isActionDisabled = isCompleted || isJoining;
 
 	// Parse route into source and destination if formatted as "A -> B"
 	const routeParts = item.route.split("->").map((r) => r.trim());
@@ -236,7 +238,9 @@ export function RideCard({
 		? isCompleted
 			? "Ended"
 			: "Open Group"
-		: "Join";
+		: isJoining
+			? "Joining..."
+			: "Join";
 
 	return (
 		<View style={styles.card}>

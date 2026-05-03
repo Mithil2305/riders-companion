@@ -327,6 +327,23 @@ function LocationPin({
 	);
 }
 
+// ── Validation helpers ──────────────────────────────────────────────────────
+const isValidCoordinate = (lat: number | null | undefined, lng: number | null | undefined): boolean => {
+	if (lat == null || lng == null) return false;
+	if (typeof lat !== 'number' || typeof lng !== 'number') return false;
+	if (Number.isNaN(lat) || Number.isNaN(lng)) return false;
+	if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+	// Valid latitude range: -90 to 90
+	if (lat < -90 || lat > 90) return false;
+	// Valid longitude range: -180 to 180
+	if (lng < -180 || lng > 180) return false;
+	return true;
+};
+
+const filterValidRiders = (riders: RiderLocation[]): RiderLocation[] => {
+	return riders.filter(r => isValidCoordinate(r.latitude, r.longitude));
+};
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export function LiveMapSection({
 	riders,
@@ -340,6 +357,9 @@ export function LiveMapSection({
 }: LiveMapSectionProps) {
 	const { colors, metrics, typography } = useTheme();
 	const mapRef = React.useRef<MapView>(null);
+
+	// Filter out riders with invalid coordinates to prevent map crashes
+	const validRiders = React.useMemo(() => filterValidRiders(riders), [riders]);
 	const markerPulse = React.useRef(new Animated.Value(0.72)).current;
 	const [sourceCoord, setSourceCoord] = React.useState<LatLng | null>(
 		route?.sourceCoordinates ?? null,
@@ -371,12 +391,12 @@ export function LiveMapSection({
 	}>({ origin: null, destination: null, fetchedAt: 0 });
 	const ridersSorted = React.useMemo(
 		() =>
-			[...riders].sort((a, b) =>
+			[...validRiders].sort((a, b) =>
 				a.updatedAt === b.updatedAt
 					? a.riderId.localeCompare(b.riderId)
 					: a.updatedAt.localeCompare(b.updatedAt),
 			),
-		[riders],
+		[validRiders],
 	);
 
 	const leaderRider = React.useMemo(
@@ -840,7 +860,7 @@ export function LiveMapSection({
 		: rideStarted
 			? "RIDE LIVE"
 			: "ROUTE PREVIEW";
-	const showEmpty = rideStarted && ridersSorted.length === 0;
+	const showEmpty = rideStarted && riders.length > 0 && validRiders.length === 0;
 	const showSpeedChip = rideStarted || isRideEnded;
 
 	return (
@@ -911,7 +931,7 @@ export function LiveMapSection({
 				)}
 				{/* LIVE: rider markers with pulse */}
 				{rideStarted &&
-					ridersSorted.map((rider) => (
+					validRiders.map((rider) => (
 						<Marker
 							key={rider.riderId}
 							coordinate={{

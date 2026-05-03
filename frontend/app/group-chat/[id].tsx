@@ -1,5 +1,6 @@
-import React from "react";
+import React, { Suspense } from "react";
 import {
+	ActivityIndicator,
 	Animated,
 	KeyboardAvoidingView,
 	PanResponder,
@@ -27,16 +28,24 @@ import {
 } from "../../src/components/chat/group";
 import { useTheme } from "../../src/hooks/useTheme";
 import { withAlpha } from "../../src/utils/color";
+import { ChatErrorBoundary } from "../../src/components/ErrorBoundary";
 
-export default function GroupChatScreen() {
+// Safe wrapper for the actual screen content
+function GroupChatScreenContent() {
 	const router = useRouter();
 	const params = useLocalSearchParams();
-	const roomId = typeof params.id === "string" ? params.id : "1";
+	const roomId = typeof params.id === "string" ? params.id : "";
 	const roomStatus =
 		typeof params.status === "string" ? params.status : undefined;
 	const initialRoomName =
 		typeof params.name === "string" ? params.name : undefined;
 	const { colors, typography } = useTheme();
+
+	// CRITICAL: Validate roomId before proceeding
+	if (!roomId || roomId.trim().length === 0) {
+		return <InvalidRoomState message="Invalid room ID. Please try again." />;
+	}
+
 	const [rideDetailsVisible, setRideDetailsVisible] = React.useState(false);
 	const [recenterSignal, setRecenterSignal] = React.useState(0);
 	const [contentHeight, setContentHeight] = React.useState(0);
@@ -46,6 +55,7 @@ export default function GroupChatScreen() {
 	});
 	const sheetTop = React.useRef(new Animated.Value(360)).current;
 	const dragStartTop = React.useRef(360);
+
 	const {
 		menuVisible,
 		inviteVisible,
@@ -82,7 +92,28 @@ export default function GroupChatScreen() {
 		endRide,
 		leaveRide,
 		sendMessage,
+		isLoading,
+		isError,
+		errorMessage,
 	} = useGroupChatScreen(roomId, roomStatus, initialRoomName);
+
+	// Show loading state while initializing
+	if (isLoading) {
+		return <LoadingState message="Loading chat..." />;
+	}
+
+	// Show error state if something went wrong
+	if (isError) {
+		return <ErrorState message={errorMessage || "Failed to load chat"} onRetry={() => router.replace(`/group-chat/${roomId}`)} />;
+	}
+
+	// Defensive: Validate critical data before rendering
+	const safeRoomTitle = roomTitle?.trim?.() || "Ride Chat";
+	const safeRoomSubtitle = roomSubtitle?.trim?.() || "";
+	const safeMessages = Array.isArray(messages) ? messages : [];
+	const safeRiderLocations = Array.isArray(riderLocations) ? riderLocations : [];
+	const safeRideMembers = Array.isArray(rideMembers) ? rideMembers : [];
+	const safeInviteFriends = Array.isArray(inviteFriends) ? inviteFriends : [];
 
 	const styles = React.useMemo(
 		() =>
@@ -253,8 +284,8 @@ export default function GroupChatScreen() {
 					onBack={() => router.back()}
 					onOpenMenu={openMenu}
 					rideStatus={isRideEnded ? "ended" : "active"}
-					subtitle={roomSubtitle}
-					title={roomTitle}
+					subtitle={safeRoomSubtitle}
+					title={safeRoomTitle}
 				/>
 
 				{!isRideEnded ? (
@@ -269,7 +300,7 @@ export default function GroupChatScreen() {
 					<View onLayout={onLayoutSplit} style={styles.splitWrap}>
 						<View style={styles.mapHalf}>
 							<LiveMapSection
-								riders={riderLocations}
+								riders={safeRiderLocations}
 								leaderRiderId={organizerProfile?.id}
 								recenterSignal={recenterSignal}
 								isRideEnded={isRideEnded}
@@ -306,7 +337,7 @@ export default function GroupChatScreen() {
 								<View style={styles.handleBar} />
 							</View>
 							<View style={styles.chatHalf}>
-								<GroupChatList data={messages} />
+								<GroupChatList data={safeMessages} />
 							</View>
 							<GroupChatInputBar
 								onChange={setDraft}
@@ -316,7 +347,7 @@ export default function GroupChatScreen() {
 						</Animated.View>
 					</View>
 				) : (
-					<GroupChatList data={messages} />
+					<GroupChatList data={safeMessages} />
 				)}
 
 				{isRideEnded ? (
@@ -353,7 +384,7 @@ export default function GroupChatScreen() {
 			/>
 
 			<GroupRideDetailsModal
-				groupName={roomTitle}
+				groupName={safeRoomTitle}
 				onClose={() => setRideDetailsVisible(false)}
 				onToggleTrack={toggleTrackRider}
 				onOpenProfile={(riderId) => {
@@ -361,12 +392,12 @@ export default function GroupChatScreen() {
 					router.push(`/rider/${riderId}`);
 				}}
 				organizer={organizerProfile}
-				riders={rideMembers.filter((member) => !member.isOrganizer)}
+				riders={safeRideMembers.filter((member) => !member.isOrganizer)}
 				visible={rideDetailsVisible}
 			/>
 
 			<InviteFriendsModal
-				friends={inviteFriends}
+				friends={safeInviteFriends}
 				onClose={closeInvite}
 				onInvite={sendRideInvite}
 				inviteStateByFriendId={inviteStateByFriendId}
@@ -383,5 +414,106 @@ export default function GroupChatScreen() {
 				</View>
 			) : null}
 		</SafeAreaView>
+	);
+}
+
+// Loading state component
+function LoadingState({ message }: { message: string }) {
+	const { colors, typography } = useTheme();
+	return (
+		<SafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+			<ActivityIndicator size="large" color={colors.primary} />
+			<Text style={[styles.messageText, { color: colors.textSecondary, fontSize: typography.sizes.md, marginTop: 16 }]}>
+				{message}
+			</Text>
+		</SafeAreaView>
+	);
+}
+
+// Error state component
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+	const { colors, typography } = useTheme();
+	const router = useRouter();
+	return (
+		<SafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+			<Ionicons name="alert-circle-outline" size={64} color={colors.error || "#EF4444"} />
+			<Text style={[styles.messageText, { color: colors.textPrimary, fontSize: typography.sizes.lg, marginTop: 16, fontWeight: "600" }]}>
+				Something went wrong
+			</Text>
+			<Text style={[styles.messageText, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: 8, textAlign: "center", paddingHorizontal: 32 }]}>
+				{message}
+			</Text>
+			<Pressable
+				onPress={onRetry}
+				style={[styles.retryButton, { backgroundColor: colors.primary, marginTop: 24 }]}
+			>
+				<Text style={[styles.retryText, { color: colors.textInverse, fontSize: typography.sizes.md, fontWeight: "600" }]}>
+					Try Again
+				</Text>
+			</Pressable>
+			<Pressable
+				onPress={() => router.back()}
+				style={{ marginTop: 16 }}
+			>
+				<Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
+					Go Back
+				</Text>
+			</Pressable>
+		</SafeAreaView>
+	);
+}
+
+// Invalid room state
+function InvalidRoomState({ message }: { message: string }) {
+	const { colors, typography } = useTheme();
+	const router = useRouter();
+	return (
+		<SafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+			<Ionicons name="chatbubble-ellipses-outline" size={64} color={colors.textTertiary} />
+			<Text style={[styles.messageText, { color: colors.textPrimary, fontSize: typography.sizes.lg, marginTop: 16, fontWeight: "600" }]}>
+				Chat Not Available
+			</Text>
+			<Text style={[styles.messageText, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: 8, textAlign: "center", paddingHorizontal: 32 }]}>
+				{message}
+			</Text>
+			<Pressable
+				onPress={() => router.back()}
+				style={[styles.retryButton, { backgroundColor: colors.primary, marginTop: 24 }]}
+			>
+				<Text style={[styles.retryText, { color: colors.textInverse, fontSize: typography.sizes.md, fontWeight: "600" }]}>
+					Go Back
+				</Text>
+			</Pressable>
+		</SafeAreaView>
+	);
+}
+
+const styles = StyleSheet.create({
+	centerContainer: {
+		flex: 1,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	messageText: {
+		textAlign: "center",
+	},
+	retryButton: {
+		paddingHorizontal: 24,
+		paddingVertical: 12,
+		borderRadius: 24,
+	},
+	retryText: {
+		textAlign: "center",
+	},
+});
+
+// Main export with error boundary
+export default function GroupChatScreen() {
+	return (
+		<ChatErrorBoundary>
+			<Suspense fallback={<LoadingState message="Loading..." />}>
+				<GroupChatScreenContent />
+			</Suspense>
+		</ChatErrorBoundary>
 	);
 }
