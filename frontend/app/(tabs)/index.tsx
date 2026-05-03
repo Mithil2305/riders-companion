@@ -36,11 +36,22 @@ export default function HomeScreen() {
 		useTabSwipeNavigation("home");
 	const scrollY = useSharedValue(0);
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+	const [selectedPostId, setSelectedPostId] = React.useState<string | null>(null);
+	const [isCommentSheetVisible, setIsCommentSheetVisible] = React.useState(false);
+=======
+>>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	const [selectedPostId, setSelectedPostId] = React.useState<string | null>(
 		null,
 	);
 	const [isCommentSheetVisible, setIsCommentSheetVisible] =
 		React.useState(false);
+<<<<<<< HEAD
+=======
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
+>>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	const [isShareSheetVisible, setIsShareSheetVisible] = React.useState(false);
 
 	const openCommentSheet = React.useCallback((postId: string) => {
@@ -88,6 +99,12 @@ export default function HomeScreen() {
 				scrollY={scrollY}
 			/>
 		),
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+		[openCommentSheet, openProfile, openShareSheet, likedPostIds, scrollY, toggleLike],
+=======
+>>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 		[
 			openCommentSheet,
 			openProfile,
@@ -96,6 +113,10 @@ export default function HomeScreen() {
 			scrollY,
 			toggleLike,
 		],
+<<<<<<< HEAD
+=======
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
+>>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	);
 
 	const styles = React.useMemo(

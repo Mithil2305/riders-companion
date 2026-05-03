@@ -45,6 +45,7 @@ const EMPTY_USER: ProfileUser = {
 
 export function useProfileDashboardData(): UseProfileDashboardDataResult {
 	const { lastCompletedUploadAt } = useUploadManager();
+<<<<<<< HEAD
 	const cachedProfile = React.useMemo(
 		() => ProfileService.peekMyProfileCache(),
 		[],
@@ -84,6 +85,54 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 	const [user, setUser] = React.useState<ProfileUser>(initialUser);
 	const [badges] = React.useState<Badge[]>([]);
 	const [bikes, setBikes] = React.useState<GarageBike[]>(initialBikes);
+=======
+<<<<<<< HEAD
+	const [loading, setLoading] = React.useState(true);
+	const [user, setUser] = React.useState<ProfileUser>(EMPTY_USER);
+	const [badges] = React.useState<Badge[]>([]);
+	const [bikes, setBikes] = React.useState<GarageBike[]>([]);
+=======
+	const cachedProfile = React.useMemo(
+		() => ProfileService.peekMyProfileCache(),
+		[],
+	);
+	const initialUser: ProfileUser = React.useMemo(() => {
+		if (!cachedProfile) {
+			return EMPTY_USER;
+		}
+
+		const profile = cachedProfile.profile;
+		return {
+			name: profile.name,
+			username: profile.username,
+			bio: profile.bio ?? "",
+			miles: Number(profile.totalMiles ?? 0),
+			avgSpeed: 0,
+			rides: 0,
+			avatar: profile.profileImageUrl ?? FALLBACK_AVATAR,
+			coverImage:
+				profile.bannerImageUrl ?? profile.profileImageUrl ?? FALLBACK_AVATAR,
+		};
+	}, [cachedProfile]);
+	const initialBikes: GarageBike[] = React.useMemo(() => {
+		if (!cachedProfile) {
+			return [];
+		}
+
+		return cachedProfile.bikes.map((bike) => ({
+			id: bike.id,
+			brand: bike.brand,
+			model: bike.model,
+			year: bike.year,
+			image: bike.bikeImageUrl ?? FALLBACK_AVATAR,
+		}));
+	}, [cachedProfile]);
+	const [loading, setLoading] = React.useState(!cachedProfile);
+	const [user, setUser] = React.useState<ProfileUser>(initialUser);
+	const [badges] = React.useState<Badge[]>([]);
+	const [bikes, setBikes] = React.useState<GarageBike[]>(initialBikes);
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
+>>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	const [moments, setMoments] = React.useState<FeedPostPayload[]>([]);
 	const [momentsCount, setMomentsCount] = React.useState(0);
 	const [clips, setClips] = React.useState<ProfileClipItem[]>([]);
