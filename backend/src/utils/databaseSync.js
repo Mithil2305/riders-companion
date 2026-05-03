@@ -56,9 +56,11 @@ async function ensureRideLocationIndexes(sequelize) {
 async function syncDatabaseSchema(sequelize) {
 	const alter = shouldAlterSchema();
 
+	// First sync so that tables like 'ride' exist before we try to ALTER them
+	await sequelize.sync({ alter });
+
 	await ensureRideCreatorColumn(sequelize);
 	await ensureGroupInvitationRideColumn(sequelize);
-	await sequelize.sync({ alter });
 	await ensureRideLocationIndexes(sequelize);
 
 	return { alter };
