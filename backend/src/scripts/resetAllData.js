@@ -59,6 +59,7 @@ async function clearR2BucketMedia() {
 	let totalDeleted = 0;
 
 	do {
+<<<<<<< HEAD
 		const listResponse = await client.send(
 			new ListObjectsV2Command({
 				Bucket: R2_BUCKET,
@@ -82,6 +83,58 @@ async function clearR2BucketMedia() {
 				}),
 			);
 			totalDeleted += keys.length;
+=======
+		// attempt a normal listing; if parsing fails (malformed XML), retry with
+		// EncodingType=url which often avoids XML entity issues for strange keys
+		let listResponse;
+		let usedUrlEncoding = false;
+		try {
+			listResponse = await client.send(
+				new ListObjectsV2Command({
+					Bucket: R2_BUCKET,
+					ContinuationToken: continuationToken,
+					MaxKeys: 1000,
+				}),
+			);
+		} catch (err) {
+			console.warn(
+				`[media] ListObjectsV2 failed, retrying with EncodingType=url: ${err && err.message}`,
+			);
+			listResponse = await client.send(
+				new ListObjectsV2Command({
+					Bucket: R2_BUCKET,
+					ContinuationToken: continuationToken,
+					MaxKeys: 1000,
+					EncodingType: "url",
+				}),
+			);
+			usedUrlEncoding = true;
+		}
+
+		const keys = (listResponse.Contents || [])
+			.map((item) => item.Key)
+			.filter(Boolean)
+			.map((k) => (usedUrlEncoding ? decodeURIComponent(k) : k));
+
+		if (keys.length > 0) {
+			// DeleteObjects supports up to 1000 objects per request
+			try {
+				await client.send(
+					new DeleteObjectsCommand({
+						Bucket: R2_BUCKET,
+						Delete: {
+							Objects: keys.map((key) => ({ Key: key })),
+							Quiet: true,
+						},
+					}),
+				);
+				totalDeleted += keys.length;
+			} catch (delErr) {
+				console.warn(
+					`[media] Failed to delete some objects: ${delErr && delErr.message}`,
+				);
+			}
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 		}
 
 		continuationToken = listResponse.IsTruncated
@@ -195,8 +248,24 @@ async function run() {
 		"Starting full reset: media + Firebase users + database tables...",
 	);
 
+<<<<<<< HEAD
 	await clearR2BucketMedia();
 	await clearLocalMediaDirectories();
+=======
+	// media deletion may fail due to odd object keys or remote issues; make it
+	// non-fatal so the database truncation still happens.
+	try {
+		if (!process.argv.includes("--skip-media")) {
+			await clearR2BucketMedia();
+			await clearLocalMediaDirectories();
+		} else {
+			console.log("[media] Skipping media cleanup (--skip-media provided).");
+		}
+	} catch (err) {
+		console.warn(`[media] Cleanup error (continuing): ${err && err.message}`);
+	}
+
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	await clearAllFirebaseUsers();
 	await truncateAllPublicTables();
 

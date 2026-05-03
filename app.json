@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d7514a66-ad7c-468a-a866-acb16b4ee458"
+      }
+    },
+    "android": {
+      "package": "com.mmu32.riderscompanionmonorepo"
+    }
+  }
+}
