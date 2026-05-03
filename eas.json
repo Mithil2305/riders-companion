@@ -1,0 +1,33 @@
+{
+  "cli": {
+    "version": ">= 16.19.2",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://45.82.244.247:3000"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://45.82.244.247:3000"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://45.82.244.247:3000"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

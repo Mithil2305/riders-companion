@@ -1,11 +1,52 @@
+<<<<<<< HEAD
+=======
+const { Op } = require("sequelize");
+const { Community, CommunityMember } = require("../models");
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 const { formatError } = require("../utils/errorFormatter");
 const {
 	mediaUploadError,
 	uploadMediaFromBody,
 } = require("../utils/mediaUpload");
 
+<<<<<<< HEAD
 exports.listCommunities = async (_req, res) => {
 	return res.status(200).json({ success: true, data: { communities: [] } });
+=======
+exports.listCommunities = async (req, res) => {
+	try {
+		const memberships = await CommunityMember.findAll({
+			where: { rider_id: req.user.id },
+			attributes: ["community_id"],
+		});
+
+		const memberIds = memberships.map((item) => item.community_id);
+		const communities = await Community.findAll({
+			where: {
+				[Op.or]: [{ id: { [Op.in]: memberIds } }, { creator_id: req.user.id }],
+			},
+			attributes: ["id", "name"],
+			order: [["created_at", "DESC"]],
+		});
+
+		return res.status(200).json({
+			success: true,
+			data: {
+				communities: communities.map((community) => ({
+					id: community.id,
+					name: community.name,
+				})),
+			},
+		});
+	} catch {
+		return formatError(
+			res,
+			500,
+			"Failed to load communities",
+			"COMMUNITY_LIST_ERR",
+		);
+	}
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 };
 
 exports.createCommunity = async (req, res) => {

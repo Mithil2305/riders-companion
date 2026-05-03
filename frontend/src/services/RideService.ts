@@ -105,6 +105,21 @@ type CommunityRidesResponse = {
 	myRides: CommunityRide[];
 };
 
+<<<<<<< HEAD
+=======
+const COMMUNITY_CACHE_TTL_MS = 20_000;
+const communityCache = new Map<
+	string,
+	{ data: CommunityRidesResponse; fetchedAt: number }
+>();
+const communityInFlight = new Map<string, Promise<CommunityRidesResponse>>();
+
+const normalizeCommunityKey = (location?: string) =>
+	location && location.trim().length > 0
+		? location.trim().toLowerCase()
+		: "default";
+
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 type RideCreateResponse = {
 	ride: {
 		id: string;
@@ -180,11 +195,56 @@ class RideService {
 	}
 
 	async getCommunityRides(location?: string) {
+<<<<<<< HEAD
+=======
+		const key = normalizeCommunityKey(location);
+		const now = Date.now();
+		const cached = communityCache.get(key);
+		if (cached && now - cached.fetchedAt < COMMUNITY_CACHE_TTL_MS) {
+			return cached.data;
+		}
+
+		const inflight = communityInFlight.get(key);
+		if (inflight) {
+			return inflight;
+		}
+
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 		const query =
 			typeof location === "string" && location.trim().length > 0
 				? `?location=${encodeURIComponent(location.trim())}`
 				: "";
+<<<<<<< HEAD
 		return apiRequest<CommunityRidesResponse>(`/rides/community${query}`);
+=======
+		const request = apiRequest<CommunityRidesResponse>(
+			`/rides/community${query}`,
+		)
+			.then((data) => {
+				communityCache.set(key, { data, fetchedAt: Date.now() });
+				return data;
+			})
+			.finally(() => {
+				communityInFlight.delete(key);
+			});
+
+		communityInFlight.set(key, request);
+		return request;
+	}
+
+	peekCommunityRidesCache(location?: string) {
+		const key = normalizeCommunityKey(location);
+		const cached = communityCache.get(key);
+		return cached?.data ?? null;
+	}
+
+	async preloadCommunityRides(location?: string) {
+		try {
+			await this.getCommunityRides(location);
+		} catch {
+			// Best-effort warmup.
+		}
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	}
 
 	async joinRide(rideId: string) {

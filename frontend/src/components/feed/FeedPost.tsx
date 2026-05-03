@@ -23,6 +23,10 @@ import Animated, {
 import { useTheme } from "../../hooks/useTheme";
 import { StreamingVideo } from "../common";
 import { FeedPostItem } from "../../types/feed";
+<<<<<<< HEAD
+=======
+import { useRelativeTime } from "../../hooks/useRelativeTime";
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 
 interface FeedPostProps {
 	item: FeedPostItem;
@@ -50,11 +54,21 @@ function FeedPostComponent({
 	const { colors, metrics, typography, resolvedMode } = useTheme();
 	const likeCount = item.likes;
 	const isVideoPost = item.mediaType === "VIDEO";
+<<<<<<< HEAD
+=======
+	const relativeTime = useRelativeTime(item.createdAt);
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	const [imageLoading, setImageLoading] = React.useState(
 		item.mediaType !== "VIDEO",
 	);
 	const [imageAspectRatio, setImageAspectRatio] = React.useState(
+<<<<<<< HEAD
 		item.aspectRatio && Number.isFinite(item.aspectRatio) && item.aspectRatio > 0
+=======
+		item.aspectRatio &&
+			Number.isFinite(item.aspectRatio) &&
+			item.aspectRatio > 0
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 			? item.aspectRatio
 			: 1,
 	);
@@ -160,6 +174,12 @@ function FeedPostComponent({
 					alignItems: "center",
 					gap: metrics.sm,
 				},
+<<<<<<< HEAD
+=======
+				userMeta: {
+					justifyContent: "center",
+				},
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 				avatar: {
 					width: 34,
 					height: 34,
@@ -245,11 +265,17 @@ function FeedPostComponent({
 		? { height: metrics.screenWidth * 0.9 }
 		: { aspectRatio: imageAspectRatio };
 
+<<<<<<< HEAD
 	const defaultFistBumpIcon: ImageSourcePropType =
 		require("../../../assets/icons/fist-bump-white.png");
 
 	const activeFistBumpIcon: ImageSourcePropType =
 		require("../../../assets/icons/fist-bump-color.png");
+=======
+	const defaultFistBumpIcon: ImageSourcePropType = require("../../../assets/icons/fist-bump-white.png");
+
+	const activeFistBumpIcon: ImageSourcePropType = require("../../../assets/icons/fist-bump-color.png");
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 
 	const runBumpPulse = React.useCallback(() => {
 		setShowBumpPulse(true);
@@ -291,8 +317,15 @@ function FeedPostComponent({
 						<Image source={{ uri: item.avatar }} style={styles.avatar} />
 					</Pressable>
 					<Pressable disabled={!item.riderId} onPress={openProfile}>
+<<<<<<< HEAD
 						<Text style={styles.username}>{item.user}</Text>
 						<Text style={styles.time}>{item.time}</Text>
+=======
+						<View style={styles.userMeta}>
+							<Text style={styles.username}>{item.user}</Text>
+							<Text style={styles.time}>{relativeTime}</Text>
+						</View>
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 					</Pressable>
 				</View>
 			</View>
@@ -308,7 +341,13 @@ function FeedPostComponent({
 				style={[styles.mediaWrap, mediaWrapStyle]}
 			>
 				{isVideoPost ? (
+<<<<<<< HEAD
 					<Animated.View style={[styles.media, parallaxStyle, imageAnimatedStyle]}>
+=======
+					<Animated.View
+						style={[styles.media, parallaxStyle, imageAnimatedStyle]}
+					>
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 						<StreamingVideo
 							contentFit="cover"
 							muted
@@ -415,9 +454,13 @@ function FeedPostComponent({
 						);
 					}}
 				>
+<<<<<<< HEAD
 					<Text style={[styles.likes]}>
 						{likeCount} bumps
 					</Text>
+=======
+					<Text style={[styles.likes]}>{likeCount} bumps</Text>
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 				</AnimatedPressable>
 				<Text numberOfLines={2} style={styles.caption}>
 					<Text style={styles.captionUser}>{item.user} </Text>

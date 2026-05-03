@@ -16,6 +16,10 @@ export interface FeedPostItem {
 	caption: string;
 	likes: number;
 	comments: number;
+<<<<<<< HEAD
 	time: string;
+=======
+	createdAt: string;
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	likedByMe?: boolean;
 }

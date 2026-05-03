@@ -37,7 +37,11 @@ export default function TabLayout() {
 				name="explore"
 				options={{
 					tabBarIcon: ({ color, size }) => (
+<<<<<<< HEAD
 						<Ionicons name="compass" size={size} color={color} />
+=======
+						<Ionicons name="search" size={size} color={color} />
+>>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 					),
 				}}
 			/>
