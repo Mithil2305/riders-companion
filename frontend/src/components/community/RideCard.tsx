@@ -24,23 +24,6 @@ function formatDateHumanReadable(dateStr: string): string {
 	try {
 		const d = new Date(dateStr);
 		if (isNaN(d.getTime())) return dateStr;
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-		const options: Intl.DateTimeFormatOptions = {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		};
-		return d
-			.toLocaleDateString("en-US", options)
-			.replace(",", "")
-			.replace(" PM", " PM")
-			.replace(" AM", " AM");
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 		const day = String(d.getDate()).padStart(2, "0");
 		const month = String(d.getMonth() + 1).padStart(2, "0");
 		const year = d.getFullYear();
@@ -49,10 +32,6 @@ function formatDateHumanReadable(dateStr: string): string {
 		const period = hours24 >= 12 ? "pm" : "am";
 		const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
 		return `${day}-${month}-${year} - ${hours12}:${minutes}${period}`;
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	} catch {
 		return dateStr;
 	}
@@ -75,17 +54,7 @@ export function RideCard({
 	const routeParts = item.route.split("->").map((r) => r.trim());
 	const source = routeParts[0];
 	const destination = routeParts.length > 1 ? routeParts[1] : null;
-<<<<<<< HEAD
 	const dateFormatted = formatDateHumanReadable(item.startsAt);
-=======
-<<<<<<< HEAD
-	const dateFormatted = item.startsAt.includes("T")
-		? formatDateHumanReadable(item.startsAt)
-		: item.startsAt;
-=======
-	const dateFormatted = formatDateHumanReadable(item.startsAt);
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 
 	const styles = React.useMemo(
 		() =>

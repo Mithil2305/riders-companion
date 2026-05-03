@@ -106,11 +106,6 @@ exports.signup = async ({ idToken, name, username, mobileNumber }) => {
 		);
 	}
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	const existingByEmail = await RiderAccount.findOne({
 		where: { email: decodedToken.email },
 	});
@@ -123,10 +118,6 @@ exports.signup = async ({ idToken, name, username, mobileNumber }) => {
 		);
 	}
 
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	const user = await RiderAccount.create({
 		firebase_uid: decodedToken.uid,
 		email: decodedToken.email,

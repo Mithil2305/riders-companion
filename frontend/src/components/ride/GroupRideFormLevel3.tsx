@@ -1,12 +1,4 @@
-<<<<<<< HEAD
 import React, { useEffect, useMemo, useState } from "react";
-=======
-<<<<<<< HEAD
-import React, { useEffect, useMemo, useState } from 'react';
-=======
-import React, { useEffect, useMemo, useState } from "react";
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 import {
 	ActivityIndicator,
 	FlatList,
@@ -16,25 +8,11 @@ import {
 	Text,
 	TextInput,
 	View,
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../hooks/useTheme';
-import ProfileService from '../../services/ProfileService';
-import TrackerService from '../../services/TrackerService';
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
 import ProfileService from "../../services/ProfileService";
 import TrackerService from "../../services/TrackerService";
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 
 export interface CoRider {
 	id: string;
@@ -48,21 +26,11 @@ export interface CoRider {
 interface GroupRideFormLevel3Props {
 	startingPoint: string;
 	endingPoint: string;
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-	onSubmit: (startingPoint: string, endingPoint: string, selectedRiders: CoRider[]) => void;
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	onSubmit: (
 		startingPoint: string,
 		endingPoint: string,
 		selectedRiders: CoRider[],
 	) => void;
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	isLoading?: boolean;
 }
 
@@ -73,39 +41,17 @@ export function GroupRideFormLevel3({
 	isLoading = false,
 }: GroupRideFormLevel3Props) {
 	const { colors, typography, metrics } = useTheme();
-<<<<<<< HEAD
 	const [searchQuery, setSearchQuery] = useState("");
-=======
-<<<<<<< HEAD
-	const [searchQuery, setSearchQuery] = useState('');
-=======
-	const [searchQuery, setSearchQuery] = useState("");
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	const [baseRiders, setBaseRiders] = useState<CoRider[]>([]);
 	const [coRidersList, setCoRidersList] = useState<CoRider[]>([]);
 	const [selectedRiders, setSelectedRiders] = useState<CoRider[]>([]);
 	const [isLoadingRiders, setIsLoadingRiders] = useState(true);
 	const [isSearchingGlobal, setIsSearchingGlobal] = useState(false);
 
-<<<<<<< HEAD
 	const FALLBACK_AVATAR = "https://i.pravatar.cc/150?img=11";
 
 	const toTrackerRider = (value: unknown): CoRider | null => {
 		if (!value || typeof value !== "object") {
-=======
-<<<<<<< HEAD
-	const FALLBACK_AVATAR = 'https://i.pravatar.cc/150?img=11';
-
-	const toTrackerRider = (value: unknown): CoRider | null => {
-		if (!value || typeof value !== 'object') {
-=======
-	const FALLBACK_AVATAR = "https://i.pravatar.cc/150?img=11";
-
-	const toTrackerRider = (value: unknown): CoRider | null => {
-		if (!value || typeof value !== "object") {
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			return null;
 		}
 
@@ -116,42 +62,18 @@ export function GroupRideFormLevel3({
 			isFollowing?: unknown;
 		};
 
-<<<<<<< HEAD
 		if (typeof item.id !== "string" || item.id.trim().length === 0) {
-=======
-<<<<<<< HEAD
-		if (typeof item.id !== 'string' || item.id.trim().length === 0) {
-=======
-		if (typeof item.id !== "string" || item.id.trim().length === 0) {
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			return null;
 		}
 
 		return {
 			id: item.id,
 			name:
-<<<<<<< HEAD
-				typeof item.name === "string" && item.name.trim().length > 0
-=======
-<<<<<<< HEAD
-				typeof item.name === 'string' && item.name.trim().length > 0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
-					? item.name
-					: "Rider",
-			avatar:
-<<<<<<< HEAD
-				typeof item.avatar === "string" && item.avatar.trim().length > 0
-=======
-				typeof item.avatar === 'string' && item.avatar.trim().length > 0
-=======
 				typeof item.name === "string" && item.name.trim().length > 0
 					? item.name
 					: "Rider",
 			avatar:
 				typeof item.avatar === "string" && item.avatar.trim().length > 0
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 					? item.avatar
 					: FALLBACK_AVATAR,
 			isFollowing: Boolean(item.isFollowing),
@@ -252,15 +174,7 @@ export function GroupRideFormLevel3({
 					const existing = merged.get(user.id);
 					merged.set(user.id, {
 						id: user.id,
-<<<<<<< HEAD
 						name: user.name || user.username || "Rider",
-=======
-<<<<<<< HEAD
-						name: user.name || user.username || 'Rider',
-=======
-						name: user.name || user.username || "Rider",
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 						username: user.username,
 						avatar:
 							user.profileImageUrl && user.profileImageUrl.trim().length > 0
@@ -272,19 +186,9 @@ export function GroupRideFormLevel3({
 				});
 
 				setCoRidersList(
-<<<<<<< HEAD
 					Array.from(merged.values()).sort((a, b) =>
 						a.name.localeCompare(b.name),
 					),
-=======
-<<<<<<< HEAD
-					Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name)),
-=======
-					Array.from(merged.values()).sort((a, b) =>
-						a.name.localeCompare(b.name),
-					),
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 				);
 			} catch {
 				if (mounted) {
@@ -307,15 +211,7 @@ export function GroupRideFormLevel3({
 	const filteredRiders = useMemo(
 		() =>
 			coRidersList.filter((rider) =>
-<<<<<<< HEAD
 				`${rider.name} ${rider.username || ""}`
-=======
-<<<<<<< HEAD
-				`${rider.name} ${rider.username || ''}`
-=======
-				`${rider.name} ${rider.username || ""}`
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 					.toLowerCase()
 					.includes(searchQuery.toLowerCase()),
 			),
@@ -348,21 +244,9 @@ export function GroupRideFormLevel3({
 			paddingBottom: metrics.lg,
 		},
 		titleRow: {
-<<<<<<< HEAD
 			flexDirection: "row",
 			alignItems: "center",
 			justifyContent: "space-between",
-=======
-<<<<<<< HEAD
-			flexDirection: 'row',
-			alignItems: 'center',
-			justifyContent: 'space-between',
-=======
-			flexDirection: "row",
-			alignItems: "center",
-			justifyContent: "space-between",
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			marginTop: 6,
 			marginBottom: 16,
 		},
@@ -390,18 +274,8 @@ export function GroupRideFormLevel3({
 			paddingBottom: 8,
 		},
 		riderItem: {
-<<<<<<< HEAD
 			flexDirection: "row",
 			alignItems: "center",
-=======
-<<<<<<< HEAD
-			flexDirection: 'row',
-			alignItems: 'center',
-=======
-			flexDirection: "row",
-			alignItems: "center",
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			height: 64,
 			paddingHorizontal: 16,
 			marginBottom: 12,
@@ -430,15 +304,7 @@ export function GroupRideFormLevel3({
 			color: colors.primaryDark,
 		},
 		badgeRow: {
-<<<<<<< HEAD
 			flexDirection: "row",
-=======
-<<<<<<< HEAD
-			flexDirection: 'row',
-=======
-			flexDirection: "row",
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			marginTop: 4,
 			gap: 6,
 		},
@@ -455,15 +321,7 @@ export function GroupRideFormLevel3({
 		},
 		emptyState: {
 			paddingVertical: 24,
-<<<<<<< HEAD
 			alignItems: "center",
-=======
-<<<<<<< HEAD
-			alignItems: 'center',
-=======
-			alignItems: "center",
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 		},
 		emptyStateText: {
 			fontSize: typography.sizes.base,
@@ -471,15 +329,7 @@ export function GroupRideFormLevel3({
 		},
 		loadingRow: {
 			paddingVertical: 24,
-<<<<<<< HEAD
 			alignItems: "center",
-=======
-<<<<<<< HEAD
-			alignItems: 'center',
-=======
-			alignItems: "center",
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 		},
 		searchHint: {
 			fontSize: typography.sizes.xs,
@@ -501,19 +351,7 @@ export function GroupRideFormLevel3({
 						disabled={!isValid || isLoading}
 						hitSlop={8}
 					>
-<<<<<<< HEAD
 						<Ionicons name="arrow-forward" size={30} color={colors.primary} />
-=======
-<<<<<<< HEAD
-						<Ionicons
-							name="arrow-forward"
-							size={30}
-							color={colors.primary}
-						/>
-=======
-						<Ionicons name="arrow-forward" size={30} color={colors.primary} />
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 					</Pressable>
 				</View>
 
@@ -526,15 +364,6 @@ export function GroupRideFormLevel3({
 						onChangeText={setSearchQuery}
 						editable={!isLoading}
 					/>
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-					<Text style={styles.searchHint}>
-						Tracking = you follow them, Tracker = they follow you
-					</Text>
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 				</View>
 
 				{isLoadingRiders || isSearchingGlobal ? (
@@ -557,20 +386,10 @@ export function GroupRideFormLevel3({
 									onPress={() => toggleRiderSelection(item)}
 									hitSlop={8}
 								>
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-									<Image source={{ uri: item.avatar }} style={styles.riderAvatar} />
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 									<Image
 										source={{ uri: item.avatar }}
 										style={styles.riderAvatar}
 									/>
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 									<View style={styles.riderInfo}>
 										<Text
 											style={[
@@ -581,36 +400,11 @@ export function GroupRideFormLevel3({
 											{item.name}
 										</Text>
 										{item.username ? (
-<<<<<<< HEAD
 											<Text style={styles.emptyStateText}>
 												@{item.username}
 											</Text>
 										) : null}
 										<View style={styles.badgeRow} />
-=======
-<<<<<<< HEAD
-											<Text style={styles.emptyStateText}>@{item.username}</Text>
-										) : null}
-										<View style={styles.badgeRow}>
-											{item.isTracking ? (
-												<View style={styles.badge}>
-													<Text style={styles.badgeText}>Tracking</Text>
-												</View>
-											) : null}
-											{item.isFollowing ? (
-												<View style={styles.badge}>
-													<Text style={styles.badgeText}>Tracker</Text>
-												</View>
-											) : null}
-										</View>
-=======
-											<Text style={styles.emptyStateText}>
-												@{item.username}
-											</Text>
-										) : null}
-										<View style={styles.badgeRow} />
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 									</View>
 								</Pressable>
 							);

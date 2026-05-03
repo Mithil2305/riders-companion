@@ -1,26 +1,11 @@
-<<<<<<< HEAD
 const { Op } = require("sequelize");
 const { Community, CommunityMember } = require("../models");
-=======
-<<<<<<< HEAD
-=======
-const { Op } = require("sequelize");
-const { Community, CommunityMember } = require("../models");
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 const { formatError } = require("../utils/errorFormatter");
 const {
 	mediaUploadError,
 	uploadMediaFromBody,
 } = require("../utils/mediaUpload");
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-exports.listCommunities = async (_req, res) => {
-	return res.status(200).json({ success: true, data: { communities: [] } });
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 exports.listCommunities = async (req, res) => {
 	try {
 		const memberships = await CommunityMember.findAll({
@@ -54,10 +39,6 @@ exports.listCommunities = async (req, res) => {
 			"COMMUNITY_LIST_ERR",
 		);
 	}
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 };
 
 exports.createCommunity = async (req, res) => {

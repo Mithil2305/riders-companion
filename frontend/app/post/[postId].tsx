@@ -23,33 +23,6 @@ import type { FeedPostItem } from "../../src/types/feed";
 const FALLBACK_AVATAR =
 	"https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80";
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-const formatRelativeTime = (isoDate: string) => {
-	const created = new Date(isoDate).getTime();
-	if (Number.isNaN(created)) {
-		return "now";
-	}
-
-	const diffMs = Date.now() - created;
-	const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
-	if (diffMinutes < 60) {
-		return `${diffMinutes}m ago`;
-	}
-
-	const diffHours = Math.floor(diffMinutes / 60);
-	if (diffHours < 24) {
-		return `${diffHours}h ago`;
-	}
-
-	const diffDays = Math.floor(diffHours / 24);
-	return `${diffDays}d ago`;
-};
-
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 function isSameAuthor(candidate: FeedPostPayload, selected: FeedPostPayload) {
 	if (candidate.id === selected.id) {
 		return false;
@@ -70,19 +43,9 @@ function toFeedPostItem(post: FeedPostPayload): FeedPostItem {
 	return {
 		id: post.id,
 		riderId: post.rider?.id,
-<<<<<<< HEAD
 		user: post.rider?.username
 			? `@${post.rider.username}`
 			: (post.rider?.name ?? "rider"),
-=======
-<<<<<<< HEAD
-		user: post.rider?.username ? `@${post.rider.username}` : post.rider?.name ?? "rider",
-=======
-		user: post.rider?.username
-			? `@${post.rider.username}`
-			: (post.rider?.name ?? "rider"),
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 		avatar: post.rider?.profileImageUrl ?? FALLBACK_AVATAR,
 		image: post.mediaUrl ?? "",
 		mediaType: post.mediaType,
@@ -93,15 +56,7 @@ function toFeedPostItem(post: FeedPostPayload): FeedPostItem {
 		caption: post.caption ?? "",
 		likes: post.likesCount ?? 0,
 		comments: post.commentsCount ?? 0,
-<<<<<<< HEAD
 		createdAt: post.createdAt,
-=======
-<<<<<<< HEAD
-		time: formatRelativeTime(post.createdAt),
-=======
-		createdAt: post.createdAt,
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 		likedByMe: post.likedByMe,
 	};
 }
@@ -116,7 +71,6 @@ export default function PostDetailsPage() {
 	const [deleting, setDeleting] = React.useState(false);
 	const [posts, setPosts] = React.useState<FeedPostPayload[]>([]);
 	const [myRiderId, setMyRiderId] = React.useState<string | null>(null);
-<<<<<<< HEAD
 	const [likedPostIds, setLikedPostIds] = React.useState<
 		Record<string, boolean>
 	>({});
@@ -132,32 +86,6 @@ export default function PostDetailsPage() {
 	const [selectedActionPostId, setSelectedActionPostId] = React.useState<
 		string | null
 	>(null);
-=======
-<<<<<<< HEAD
-	const [likedPostIds, setLikedPostIds] = React.useState<Record<string, boolean>>({});
-	const [likeCounts, setLikeCounts] = React.useState<Record<string, number>>({});
-	const [commentCounts, setCommentCounts] = React.useState<Record<string, number>>({});
-	const [isCommentSheetVisible, setIsCommentSheetVisible] = React.useState(false);
-	const [isShareSheetVisible, setIsShareSheetVisible] = React.useState(false);
-	const [selectedActionPostId, setSelectedActionPostId] = React.useState<string | null>(null);
-=======
-	const [likedPostIds, setLikedPostIds] = React.useState<
-		Record<string, boolean>
-	>({});
-	const [likeCounts, setLikeCounts] = React.useState<Record<string, number>>(
-		{},
-	);
-	const [commentCounts, setCommentCounts] = React.useState<
-		Record<string, number>
-	>({});
-	const [isCommentSheetVisible, setIsCommentSheetVisible] =
-		React.useState(false);
-	const [isShareSheetVisible, setIsShareSheetVisible] = React.useState(false);
-	const [selectedActionPostId, setSelectedActionPostId] = React.useState<
-		string | null
-	>(null);
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 
 	const scrollY = useSharedValue(0);
 
@@ -190,17 +118,8 @@ export default function PostDetailsPage() {
 
 				const primaryPost = postData.post;
 				const sameAuthorPosts = feedData.posts.filter(
-<<<<<<< HEAD
 					(candidate) =>
 						Boolean(candidate.mediaUrl) && isSameAuthor(candidate, primaryPost),
-=======
-<<<<<<< HEAD
-					(candidate) => Boolean(candidate.mediaUrl) && isSameAuthor(candidate, primaryPost),
-=======
-					(candidate) =>
-						Boolean(candidate.mediaUrl) && isSameAuthor(candidate, primaryPost),
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 				);
 
 				const allPosts = [primaryPost, ...sameAuthorPosts];
@@ -248,19 +167,9 @@ export default function PostDetailsPage() {
 			setLikedPostIds((prev) => ({ ...prev, [targetPostId]: !currentlyLiked }));
 			setLikeCounts((prev) => ({
 				...prev,
-<<<<<<< HEAD
 				[targetPostId]: currentlyLiked
 					? Math.max(0, currentCount - 1)
 					: currentCount + 1,
-=======
-<<<<<<< HEAD
-				[targetPostId]: currentlyLiked ? Math.max(0, currentCount - 1) : currentCount + 1,
-=======
-				[targetPostId]: currentlyLiked
-					? Math.max(0, currentCount - 1)
-					: currentCount + 1,
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			}));
 			try {
 				if (currentlyLiked) {
@@ -269,20 +178,10 @@ export default function PostDetailsPage() {
 					await FeedService.likePost(targetPostId);
 				}
 			} catch {
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-				setLikedPostIds((prev) => ({ ...prev, [targetPostId]: currentlyLiked }));
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 				setLikedPostIds((prev) => ({
 					...prev,
 					[targetPostId]: currentlyLiked,
 				}));
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 				setLikeCounts((prev) => ({ ...prev, [targetPostId]: currentCount }));
 			}
 		},
@@ -434,20 +333,10 @@ export default function PostDetailsPage() {
 
 	if (loading) {
 		return (
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-			<SafeAreaView edges={["left", "right", "top", "bottom"]} style={styles.container}>
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			<SafeAreaView
 				edges={["left", "right", "top", "bottom"]}
 				style={styles.container}
 			>
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 				<View style={styles.header}>
 					<Pressable onPress={() => router.back()}>
 						<Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
@@ -464,20 +353,10 @@ export default function PostDetailsPage() {
 
 	if (!selectedPost || !selectedPost.mediaUrl) {
 		return (
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-			<SafeAreaView edges={["left", "right", "top", "bottom"]} style={styles.container}>
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			<SafeAreaView
 				edges={["left", "right", "top", "bottom"]}
 				style={styles.container}
 			>
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 				<View style={styles.header}>
 					<Pressable onPress={() => router.back()}>
 						<Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
@@ -501,20 +380,10 @@ export default function PostDetailsPage() {
 	};
 
 	return (
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-		<SafeAreaView edges={["left", "right", "top", "bottom"]} style={styles.container}>
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 		<SafeAreaView
 			edges={["left", "right", "top", "bottom"]}
 			style={styles.container}
 		>
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			<View style={styles.header}>
 				<Pressable onPress={() => router.back()}>
 					<Ionicons color={colors.textPrimary} name="arrow-back" size={24} />
@@ -523,20 +392,10 @@ export default function PostDetailsPage() {
 				<View style={styles.spacer} />
 			</View>
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-			<ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			<ScrollView
 				contentContainerStyle={styles.scrollContent}
 				showsVerticalScrollIndicator={false}
 			>
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 				<FeedPost
 					index={0}
 					item={selectedFeedItemWithCounts}
@@ -550,20 +409,10 @@ export default function PostDetailsPage() {
 
 				{isOwner ? (
 					<View style={styles.ownerActions}>
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-						<Pressable onPress={onPressEdit} style={[styles.ownerBtn, styles.editBtn]}>
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 						<Pressable
 							onPress={onPressEdit}
 							style={[styles.ownerBtn, styles.editBtn]}
 						>
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 							<Text style={styles.ownerBtnText}>Edit Post</Text>
 						</Pressable>
 						<Pressable
@@ -608,19 +457,9 @@ export default function PostDetailsPage() {
 										item={feedItemWithCounts}
 										liked={feedItemWithCounts.likedByMe ?? false}
 										onAddComment={openCommentSheet}
-<<<<<<< HEAD
 										onOpenProfile={(riderId) =>
 											router.push(`/rider/${riderId}`)
 										}
-=======
-<<<<<<< HEAD
-										onOpenProfile={(riderId) => router.push(`/rider/${riderId}`)}
-=======
-										onOpenProfile={(riderId) =>
-											router.push(`/rider/${riderId}`)
-										}
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 										onShare={openShareSheet}
 										onToggleLike={handleToggleLike}
 										scrollY={scrollY}

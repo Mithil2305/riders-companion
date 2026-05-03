@@ -3,14 +3,7 @@ import {
 	ActivityIndicator,
 	Alert,
 	Image,
-<<<<<<< HEAD
 	Linking,
-=======
-<<<<<<< HEAD
-=======
-	Linking,
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	Modal,
 	Pressable,
 	ScrollView,
@@ -22,20 +15,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-import { SettingsDrawer } from "../src/components/settings";
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 import {
 	SafeAreaView,
 	useSafeAreaInsets,
 } from "react-native-safe-area-context";
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 import ProfileService from "../src/services/ProfileService";
 import AuthService from "../src/services/AuthService";
 import { usePlaybackSettings } from "../src/hooks/usePlaybackSettings";
@@ -81,17 +64,8 @@ const blobToDataUrl = async (uri: string) => {
 export default function SettingsScreen() {
 	const router = useRouter();
 	const { colors, metrics, typography } = useTheme();
-<<<<<<< HEAD
 	const insets = useSafeAreaInsets();
 	const { dataSaverEnabled } = usePlaybackSettings();
-=======
-<<<<<<< HEAD
-	const { dataSaverEnabled, setDataSaverEnabled } = usePlaybackSettings();
-=======
-	const insets = useSafeAreaInsets();
-	const { dataSaverEnabled } = usePlaybackSettings();
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	const [loading, setLoading] = React.useState(true);
 	const [saving, setSaving] = React.useState(false);
 	const [isEditorOpen, setIsEditorOpen] = React.useState(false);
@@ -226,7 +200,6 @@ export default function SettingsScreen() {
 		}
 	}, [router]);
 
-<<<<<<< HEAD
 	const openHelp = React.useCallback(() => {
 		void Linking.openURL("https://riderscompanion.com/delete-account.html");
 	}, []);
@@ -246,32 +219,6 @@ export default function SettingsScreen() {
 	const styles = React.useMemo(
 		() =>
 			StyleSheet.create({
-=======
-<<<<<<< HEAD
-	const styles = React.useMemo(
-		() =>
-			StyleSheet.create({
-=======
-	const openHelp = React.useCallback(() => {
-		void Linking.openURL("https://riderscompanion.com/delete-account.html");
-	}, []);
-
-	const openPrivacy = React.useCallback(() => {
-		void Linking.openURL("https://riderscompanion.com/privacy.html");
-	}, []);
-
-	const openAppearance = React.useCallback(() => {
-		router.push("/settings/appearance");
-	}, [router]);
-
-	const openDataSaver = React.useCallback(() => {
-		router.push("/settings/data-saver");
-	}, [router]);
-
-	const styles = React.useMemo(
-		() =>
-			StyleSheet.create({
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 				container: {
 					flex: 1,
 					backgroundColor: colors.background,
@@ -403,10 +350,6 @@ export default function SettingsScreen() {
 					fontSize: typography.sizes.base,
 					fontWeight: "700",
 				},
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 				editorBackdrop: {
 					flex: 1,
 					backgroundColor: colors.overlay,
@@ -420,15 +363,7 @@ export default function SettingsScreen() {
 					padding: metrics.md,
 					gap: metrics.md,
 				},
-<<<<<<< HEAD
 				editorHeader: {
-=======
-<<<<<<< HEAD
-				header: {
-=======
-				editorHeader: {
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 					flexDirection: "row",
 					alignItems: "center",
 					justifyContent: "space-between",
@@ -501,26 +436,11 @@ export default function SettingsScreen() {
 					fontWeight: "700",
 				},
 			}),
-<<<<<<< HEAD
 		[colors, insets.bottom, metrics, typography],
-=======
-<<<<<<< HEAD
-		[colors, metrics, typography],
-=======
-		[colors, insets.bottom, metrics, typography],
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	);
 
 	if (loading || !draft) {
 		return (
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-			<View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-				<ActivityIndicator color={colors.primary} size="small" />
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			<View style={styles.container}>
 				<SafeAreaView
 					edges={["top", "left", "right", "bottom"]}
@@ -543,44 +463,14 @@ export default function SettingsScreen() {
 						<ActivityIndicator color={colors.primary} size="small" />
 					</View>
 				</SafeAreaView>
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			</View>
 		);
 	}
 
 	const displayName = draft.name.trim().length > 0 ? draft.name : "Rider";
-<<<<<<< HEAD
 
 	return (
 		<>
-=======
-<<<<<<< HEAD
-	const avatarLetter = (displayName[0] || "R").toUpperCase();
-
-	return (
-		<>
-			<SettingsDrawer
-				onClose={() => router.back()}
-				onHelpPress={() => Alert.alert("Help", "Support chat is coming soon.")}
-				onNotificationsPress={() => router.push("/notifications")}
-				onPrivacyPress={() =>
-					Alert.alert("Privacy", "Advanced privacy controls are coming soon.")
-				}
-				onProfilePress={() => setIsEditorOpen(true)}
-				onSignOutPress={() => void handleSignOut()}
-				dataSaverEnabled={dataSaverEnabled}
-				onToggleDataSaver={() => void setDataSaverEnabled(!dataSaverEnabled)}
-				username={displayName}
-				avatarLetter={avatarLetter}
-			/>
-=======
-
-	return (
-		<>
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 			<View style={styles.container}>
 				<SafeAreaView
 					edges={["top", "left", "right", "bottom"]}
@@ -792,10 +682,6 @@ export default function SettingsScreen() {
 					</ScrollView>
 				</SafeAreaView>
 			</View>
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 
 			<Modal
 				visible={isEditorOpen}
@@ -805,15 +691,7 @@ export default function SettingsScreen() {
 			>
 				<View style={styles.editorBackdrop}>
 					<View style={styles.editorCard}>
-<<<<<<< HEAD
 						<View style={styles.editorHeader}>
-=======
-<<<<<<< HEAD
-						<View style={styles.header}>
-=======
-						<View style={styles.editorHeader}>
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 							<Text style={styles.title}>Edit Profile</Text>
 							<Pressable onPress={() => setIsEditorOpen(false)}>
 								<Ionicons color={colors.textPrimary} name="close" size={22} />

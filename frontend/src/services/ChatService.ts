@@ -57,60 +57,6 @@ type PersonalSendInput = {
 	imageUrl?: string;
 };
 
-<<<<<<< HEAD
-const CHAT_CACHE_TTL_MS = 20_000;
-
-let roomsCache: { data: ChatRoomListResponse; fetchedAt: number } | null = null;
-let roomsInFlight: Promise<ChatRoomListResponse> | null = null;
-
-let personalCache: {
-	data: PersonalConversationPreviewResponse;
-	fetchedAt: number;
-} | null = null;
-let personalInFlight: Promise<PersonalConversationPreviewResponse> | null =
-	null;
-
-let blockedCache: { data: BlockedUsersResponse; fetchedAt: number } | null =
-	null;
-let blockedInFlight: Promise<BlockedUsersResponse> | null = null;
-
-const roomMessagesCache = new Map<
-	string,
-	{ data: ChatMessagesResponse; fetchedAt: number }
->();
-const roomMessagesInFlight = new Map<string, Promise<ChatMessagesResponse>>();
-
-=======
-<<<<<<< HEAD
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
-class ChatService {
-	async getRooms() {
-		const now = Date.now();
-		if (roomsCache && now - roomsCache.fetchedAt < CHAT_CACHE_TTL_MS) {
-			return roomsCache.data;
-		}
-
-		if (roomsInFlight) {
-			return roomsInFlight;
-		}
-
-		roomsInFlight = apiRequest<ChatRoomListResponse>("/community")
-			.then((data) => {
-				roomsCache = { data, fetchedAt: Date.now() };
-				return data;
-			})
-			.finally(() => {
-				roomsInFlight = null;
-			});
-
-		return roomsInFlight;
-	}
-
-	async getRoomMessages(roomId: string) {
-<<<<<<< HEAD
-=======
-		return apiRequest<ChatMessagesResponse>(`/chat/rooms/${roomId}/messages`);
-=======
 const CHAT_CACHE_TTL_MS = 20_000;
 
 let roomsCache: { data: ChatRoomListResponse; fetchedAt: number } | null = null;
@@ -157,7 +103,6 @@ class ChatService {
 	}
 
 	async getRoomMessages(roomId: string) {
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 		const now = Date.now();
 		const cached = roomMessagesCache.get(roomId);
 		if (cached && now - cached.fetchedAt < CHAT_CACHE_TTL_MS) {
@@ -185,10 +130,6 @@ class ChatService {
 
 		roomMessagesInFlight.set(roomId, request);
 		return request;
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	}
 
 	async createRoom(name: string, _participants: string[] = []) {
@@ -215,7 +156,6 @@ class ChatService {
 	}
 
 	async getPersonalConversations(): Promise<PersonalConversationPreviewResponse> {
-<<<<<<< HEAD
 		const now = Date.now();
 		if (personalCache && now - personalCache.fetchedAt < CHAT_CACHE_TTL_MS) {
 			return personalCache.data;
@@ -240,39 +180,6 @@ class ChatService {
 	}
 
 	async getBlockedUsers(): Promise<BlockedUsersResponse> {
-=======
-<<<<<<< HEAD
-		return apiRequest<PersonalConversationPreviewResponse>("/chat/personal");
-	}
-
-	async getBlockedUsers(): Promise<BlockedUsersResponse> {
-		return apiRequest<BlockedUsersResponse>("/chat/personal/blocked");
-=======
-		const now = Date.now();
-		if (personalCache && now - personalCache.fetchedAt < CHAT_CACHE_TTL_MS) {
-			return personalCache.data;
-		}
-
-		if (personalInFlight) {
-			return personalInFlight;
-		}
-
-		personalInFlight = apiRequest<PersonalConversationPreviewResponse>(
-			"/chat/personal",
-		)
-			.then((data) => {
-				personalCache = { data, fetchedAt: Date.now() };
-				return data;
-			})
-			.finally(() => {
-				personalInFlight = null;
-			});
-
-		return personalInFlight;
-	}
-
-	async getBlockedUsers(): Promise<BlockedUsersResponse> {
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 		const now = Date.now();
 		if (blockedCache && now - blockedCache.fetchedAt < CHAT_CACHE_TTL_MS) {
 			return blockedCache.data;
@@ -292,10 +199,6 @@ class ChatService {
 			});
 
 		return blockedInFlight;
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 	}
 
 	async getPersonalConversation(
@@ -386,11 +289,6 @@ class ChatService {
 			body: { invitedRiderIds, rideId },
 		});
 	}
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 
 	async preloadChatOverview() {
 		try {
@@ -413,10 +311,6 @@ class ChatService {
 			// Best-effort warmup.
 		}
 	}
-<<<<<<< HEAD
-=======
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
->>>>>>> f6515781ad9de8db79994bdc067ba0a02e47799f
 }
 
 export default new ChatService();
