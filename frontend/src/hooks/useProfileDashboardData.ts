@@ -45,12 +45,6 @@ const EMPTY_USER: ProfileUser = {
 
 export function useProfileDashboardData(): UseProfileDashboardDataResult {
 	const { lastCompletedUploadAt } = useUploadManager();
-<<<<<<< HEAD
-	const [loading, setLoading] = React.useState(true);
-	const [user, setUser] = React.useState<ProfileUser>(EMPTY_USER);
-	const [badges] = React.useState<Badge[]>([]);
-	const [bikes, setBikes] = React.useState<GarageBike[]>([]);
-=======
 	const cachedProfile = React.useMemo(
 		() => ProfileService.peekMyProfileCache(),
 		[],
@@ -90,7 +84,6 @@ export function useProfileDashboardData(): UseProfileDashboardDataResult {
 	const [user, setUser] = React.useState<ProfileUser>(initialUser);
 	const [badges] = React.useState<Badge[]>([]);
 	const [bikes, setBikes] = React.useState<GarageBike[]>(initialBikes);
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	const [moments, setMoments] = React.useState<FeedPostPayload[]>([]);
 	const [momentsCount, setMomentsCount] = React.useState(0);
 	const [clips, setClips] = React.useState<ProfileClipItem[]>([]);

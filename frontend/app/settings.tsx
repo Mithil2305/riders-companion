@@ -3,10 +3,7 @@ import {
 	ActivityIndicator,
 	Alert,
 	Image,
-<<<<<<< HEAD
-=======
 	Linking,
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	Modal,
 	Pressable,
 	ScrollView,
@@ -18,14 +15,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-<<<<<<< HEAD
-import { SettingsDrawer } from "../src/components/settings";
-=======
 import {
 	SafeAreaView,
 	useSafeAreaInsets,
 } from "react-native-safe-area-context";
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 import ProfileService from "../src/services/ProfileService";
 import AuthService from "../src/services/AuthService";
 import { usePlaybackSettings } from "../src/hooks/usePlaybackSettings";
@@ -71,12 +64,8 @@ const blobToDataUrl = async (uri: string) => {
 export default function SettingsScreen() {
 	const router = useRouter();
 	const { colors, metrics, typography } = useTheme();
-<<<<<<< HEAD
-	const { dataSaverEnabled, setDataSaverEnabled } = usePlaybackSettings();
-=======
 	const insets = useSafeAreaInsets();
 	const { dataSaverEnabled } = usePlaybackSettings();
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	const [loading, setLoading] = React.useState(true);
 	const [saving, setSaving] = React.useState(false);
 	const [isEditorOpen, setIsEditorOpen] = React.useState(false);
@@ -211,11 +200,6 @@ export default function SettingsScreen() {
 		}
 	}, [router]);
 
-<<<<<<< HEAD
-	const styles = React.useMemo(
-		() =>
-			StyleSheet.create({
-=======
 	const openHelp = React.useCallback(() => {
 		void Linking.openURL("https://riderscompanion.com/delete-account.html");
 	}, []);
@@ -366,7 +350,6 @@ export default function SettingsScreen() {
 					fontSize: typography.sizes.base,
 					fontWeight: "700",
 				},
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 				editorBackdrop: {
 					flex: 1,
 					backgroundColor: colors.overlay,
@@ -380,11 +363,7 @@ export default function SettingsScreen() {
 					padding: metrics.md,
 					gap: metrics.md,
 				},
-<<<<<<< HEAD
-				header: {
-=======
 				editorHeader: {
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 					flexDirection: "row",
 					alignItems: "center",
 					justifyContent: "space-between",
@@ -457,19 +436,11 @@ export default function SettingsScreen() {
 					fontWeight: "700",
 				},
 			}),
-<<<<<<< HEAD
-		[colors, metrics, typography],
-=======
 		[colors, insets.bottom, metrics, typography],
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	);
 
 	if (loading || !draft) {
 		return (
-<<<<<<< HEAD
-			<View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-				<ActivityIndicator color={colors.primary} size="small" />
-=======
 			<View style={styles.container}>
 				<SafeAreaView
 					edges={["top", "left", "right", "bottom"]}
@@ -492,32 +463,11 @@ export default function SettingsScreen() {
 						<ActivityIndicator color={colors.primary} size="small" />
 					</View>
 				</SafeAreaView>
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 			</View>
 		);
 	}
 
 	const displayName = draft.name.trim().length > 0 ? draft.name : "Rider";
-<<<<<<< HEAD
-	const avatarLetter = (displayName[0] || "R").toUpperCase();
-
-	return (
-		<>
-			<SettingsDrawer
-				onClose={() => router.back()}
-				onHelpPress={() => Alert.alert("Help", "Support chat is coming soon.")}
-				onNotificationsPress={() => router.push("/notifications")}
-				onPrivacyPress={() =>
-					Alert.alert("Privacy", "Advanced privacy controls are coming soon.")
-				}
-				onProfilePress={() => setIsEditorOpen(true)}
-				onSignOutPress={() => void handleSignOut()}
-				dataSaverEnabled={dataSaverEnabled}
-				onToggleDataSaver={() => void setDataSaverEnabled(!dataSaverEnabled)}
-				username={displayName}
-				avatarLetter={avatarLetter}
-			/>
-=======
 
 	return (
 		<>
@@ -732,7 +682,6 @@ export default function SettingsScreen() {
 					</ScrollView>
 				</SafeAreaView>
 			</View>
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 
 			<Modal
 				visible={isEditorOpen}
@@ -742,11 +691,7 @@ export default function SettingsScreen() {
 			>
 				<View style={styles.editorBackdrop}>
 					<View style={styles.editorCard}>
-<<<<<<< HEAD
-						<View style={styles.header}>
-=======
 						<View style={styles.editorHeader}>
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 							<Text style={styles.title}>Edit Profile</Text>
 							<Pressable onPress={() => setIsEditorOpen(false)}>
 								<Ionicons color={colors.textPrimary} name="close" size={22} />

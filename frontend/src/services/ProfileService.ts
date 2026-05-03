@@ -40,8 +40,6 @@ type BikePayload = {
 };
 
 const SEARCH_CACHE_TTL_MS = 15_000;
-<<<<<<< HEAD
-=======
 const MY_PROFILE_CACHE_TTL_MS = 20_000;
 
 let myProfileCache: {
@@ -52,7 +50,6 @@ let myProfileInFlight: Promise<{
 	profile: ProfilePayload;
 	bikes: BikePayload[];
 }> | null = null;
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 
 type SearchResponse = { users: PublicProfilePayload[] };
 
@@ -64,11 +61,6 @@ const riderSearchInFlight = new Map<string, Promise<SearchResponse>>();
 
 class ProfileService {
 	async getMyProfile() {
-<<<<<<< HEAD
-		return apiRequest<{ profile: ProfilePayload; bikes: BikePayload[] }>(
-			"/profile/me",
-		);
-=======
 		const now = Date.now();
 		if (
 			myProfileCache &&
@@ -111,7 +103,6 @@ class ProfileService {
 		} catch {
 			// Best-effort warmup.
 		}
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	}
 
 	async getRiderProfile(riderId: string) {
@@ -168,10 +159,7 @@ class ProfileService {
 		bannerImageData?: string;
 		bannerImageMimeType?: string;
 	}) {
-<<<<<<< HEAD
-=======
 		this.clearMyProfileCache();
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 		return apiRequest<{ profile: ProfilePayload }>("/profile/me", {
 			method: "PATCH",
 			body: payload,
@@ -185,10 +173,7 @@ class ProfileService {
 		bikeImageUrl?: string;
 		isPrimary?: boolean;
 	}) {
-<<<<<<< HEAD
-=======
 		this.clearMyProfileCache();
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 		const readBlobAsDataUrl = async (blob: Blob) =>
 			new Promise<string>((resolve, reject) => {
 				const reader = new FileReader();

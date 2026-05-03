@@ -57,15 +57,6 @@ type PersonalSendInput = {
 	imageUrl?: string;
 };
 
-<<<<<<< HEAD
-class ChatService {
-	async getRooms() {
-		return apiRequest<ChatRoomListResponse>("/community");
-	}
-
-	async getRoomMessages(roomId: string) {
-		return apiRequest<ChatMessagesResponse>(`/chat/rooms/${roomId}/messages`);
-=======
 const CHAT_CACHE_TTL_MS = 20_000;
 
 let roomsCache: { data: ChatRoomListResponse; fetchedAt: number } | null = null;
@@ -139,7 +130,6 @@ class ChatService {
 
 		roomMessagesInFlight.set(roomId, request);
 		return request;
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	}
 
 	async createRoom(name: string, _participants: string[] = []) {
@@ -166,13 +156,6 @@ class ChatService {
 	}
 
 	async getPersonalConversations(): Promise<PersonalConversationPreviewResponse> {
-<<<<<<< HEAD
-		return apiRequest<PersonalConversationPreviewResponse>("/chat/personal");
-	}
-
-	async getBlockedUsers(): Promise<BlockedUsersResponse> {
-		return apiRequest<BlockedUsersResponse>("/chat/personal/blocked");
-=======
 		const now = Date.now();
 		if (personalCache && now - personalCache.fetchedAt < CHAT_CACHE_TTL_MS) {
 			return personalCache.data;
@@ -216,7 +199,6 @@ class ChatService {
 			});
 
 		return blockedInFlight;
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	}
 
 	async getPersonalConversation(
@@ -307,8 +289,6 @@ class ChatService {
 			body: { invitedRiderIds, rideId },
 		});
 	}
-<<<<<<< HEAD
-=======
 
 	async preloadChatOverview() {
 		try {
@@ -331,7 +311,6 @@ class ChatService {
 			// Best-effort warmup.
 		}
 	}
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 }
 
 export default new ChatService();

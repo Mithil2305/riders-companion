@@ -105,8 +105,6 @@ type CommunityRidesResponse = {
 	myRides: CommunityRide[];
 };
 
-<<<<<<< HEAD
-=======
 const COMMUNITY_CACHE_TTL_MS = 20_000;
 const communityCache = new Map<
 	string,
@@ -119,7 +117,6 @@ const normalizeCommunityKey = (location?: string) =>
 		? location.trim().toLowerCase()
 		: "default";
 
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 type RideCreateResponse = {
 	ride: {
 		id: string;
@@ -195,8 +192,6 @@ class RideService {
 	}
 
 	async getCommunityRides(location?: string) {
-<<<<<<< HEAD
-=======
 		const key = normalizeCommunityKey(location);
 		const now = Date.now();
 		const cached = communityCache.get(key);
@@ -209,14 +204,10 @@ class RideService {
 			return inflight;
 		}
 
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 		const query =
 			typeof location === "string" && location.trim().length > 0
 				? `?location=${encodeURIComponent(location.trim())}`
 				: "";
-<<<<<<< HEAD
-		return apiRequest<CommunityRidesResponse>(`/rides/community${query}`);
-=======
 		const request = apiRequest<CommunityRidesResponse>(
 			`/rides/community${query}`,
 		)
@@ -244,7 +235,6 @@ class RideService {
 		} catch {
 			// Best-effort warmup.
 		}
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	}
 
 	async joinRide(rideId: string) {

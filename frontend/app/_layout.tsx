@@ -18,12 +18,9 @@ import { useTheme } from "../src/hooks/useTheme";
 import { FIXED_PALETTE } from "../src/theme/colors";
 import FeedService from "../src/services/FeedService";
 import ClipService from "../src/services/ClipService";
-<<<<<<< HEAD
-=======
 import ChatService from "../src/services/ChatService";
 import RideService from "../src/services/RideService";
 import ProfileService from "../src/services/ProfileService";
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 
 SplashScreen.preventAutoHideAsync().catch(() => {
 	// Ignore if splash is already controlled by Expo runtime.
@@ -53,23 +50,13 @@ function RootNavigator() {
 	const { colors, resolvedMode } = useTheme();
 	const { isAuthenticated } = useAuth();
 	const [showVideoSplash, setShowVideoSplash] = useState(true);
-<<<<<<< HEAD
-	
-=======
 
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	// Animation Refs
 	const boomScale = useRef(new Animated.Value(1.24)).current;
 	const boomOpacity = useRef(new Animated.Value(0.9)).current;
 	const appEntryY = useRef(new Animated.Value(110)).current;
 	const appEntryOpacity = useRef(new Animated.Value(0)).current;
 	const hasStartedAppEntry = useRef(false);
-<<<<<<< HEAD
-	const splashVideoPlayer = useVideoPlayer(require("../assets/logo.mp4"), (player) => {
-		player.loop = false;
-		player.muted = true;
-	});
-=======
 	const splashVideoPlayer = useVideoPlayer(
 		require("../assets/logo.mp4"),
 		(player) => {
@@ -78,7 +65,6 @@ function RootNavigator() {
 			player.keepScreenOnWhilePlaying = false;
 		},
 	);
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 
 	const hideNativeSplash = useCallback(async () => {
 		try {
@@ -122,23 +108,15 @@ function RootNavigator() {
 
 		let cancelled = false;
 		const setupPushNotifications = async () => {
-<<<<<<< HEAD
-			const { initializePushNotifications } = await import("../src/services/PushNotificationService");
-=======
 			const { initializePushNotifications } =
 				await import("../src/services/PushNotificationService");
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 			if (!cancelled) await initializePushNotifications();
 		};
 
 		void setupPushNotifications();
-<<<<<<< HEAD
-		return () => { cancelled = true; };
-=======
 		return () => {
 			cancelled = true;
 		};
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	}, [isAuthenticated]);
 
 	useEffect(() => {
@@ -149,12 +127,9 @@ function RootNavigator() {
 		void Promise.allSettled([
 			FeedService.preloadFeed(),
 			ClipService.preloadClips(),
-<<<<<<< HEAD
-=======
 			ChatService.preloadChatOverview(),
 			RideService.preloadCommunityRides(),
 			ProfileService.preloadMyProfile(),
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 		]);
 	}, [isAuthenticated]);
 
@@ -229,14 +204,10 @@ function RootNavigator() {
 					<Stack.Screen name="(tabs)" />
 					<Stack.Screen
 						name="create"
-<<<<<<< HEAD
-						options={{ animation: "slide_from_bottom", presentation: "fullScreenModal" }}
-=======
 						options={{
 							animation: "slide_from_bottom",
 							presentation: "fullScreenModal",
 						}}
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 					/>
 					<Stack.Screen name="auth" options={{ animation: "fade" }} />
 					<Stack.Screen name="setup/profile" />
@@ -249,15 +220,10 @@ function RootNavigator() {
 					<Stack.Screen name="ride-details" />
 					<Stack.Screen
 						name="settings"
-<<<<<<< HEAD
-						options={{ presentation: "transparentModal", animation: "none" }}
-					/>
-=======
 						options={{ animation: "slide_from_right" }}
 					/>
 					<Stack.Screen name="settings/appearance" />
 					<Stack.Screen name="settings/data-saver" />
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 					<Stack.Screen name="tracking" />
 					<Stack.Screen name="community" />
 					<Stack.Screen name="notifications" />
