@@ -1,35 +1,21 @@
 {
 	"cli": {
 		"version": ">= 16.19.2",
-<<<<<<< HEAD
-		"appVersionSource": "remote"
-=======
 		"appVersionSource": "remote",
 		"requireCommit": false
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 	},
 	"build": {
 		"development": {
 			"developmentClient": true,
-<<<<<<< HEAD
-			"distribution": "internal"
-=======
 			"distribution": "internal",
 			"env": {
 				"EXPO_PUBLIC_API_URL": "http://45.82.244.247:3000"
 			}
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 		},
 		"preview": {
 			"distribution": "internal",
 			"android": {
 				"buildType": "apk"
-<<<<<<< HEAD
-			}
-		},
-		"production": {
-			"autoIncrement": true
-=======
 			},
 			"env": {
 				"EXPO_PUBLIC_API_URL": "http://45.82.244.247:3000"
@@ -40,7 +26,6 @@
 			"env": {
 				"EXPO_PUBLIC_API_URL": "http://45.82.244.247:3000"
 			}
->>>>>>> cb3f167d96cf0daedb34e800dcf9590b155e87c0
 		}
 	},
 	"submit": {
