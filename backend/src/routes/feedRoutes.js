@@ -4,7 +4,80 @@ const requireAuth = require("../middlewares/requireAuth");
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Feed
+ *   description: Social feed posts and interactions
+ */
+
+/**
+ * @swagger
+ * /feed:
+ *   get:
+ *     summary: Get home feed posts
+ *     tags: [Feed]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Number of posts per page
+ *     responses:
+ *       200:
+ *         description: List of posts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *       401:
+ *         description: Unauthorized
+ */
 router.get("/", requireAuth, feedController.getHomeFeed);
+/**
+ * @swagger
+ * /feed:
+ *   post:
+ *     summary: Create a new post
+ *     tags: [Feed]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *               mediaUrl:
+ *                 type: string
+ *               mediaType:
+ *                 type: string
+ *                 enum: [image, video, none]
+ *     responses:
+ *       201:
+ *         description: Post created successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.post("/", requireAuth, feedController.createPost);
 router.get("/:postId", requireAuth, feedController.getPostById);
 router.patch("/:postId", requireAuth, feedController.updatePost);

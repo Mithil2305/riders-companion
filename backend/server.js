@@ -1,12 +1,14 @@
 require("dotenv").config();
 const http = require("http");
 const express = require("express");
+const swaggerUi = require("swagger-ui-express");
 const { sequelize } = require("./src/models");
 const apiRoutes = require("./src/routes");
 const setupWebSockets = require("./src/websockets/wss");
 const { assertCryptoReady } = require("./src/services/chatCryptoService");
 const { syncDatabaseSchema } = require("./src/utils/databaseSync");
 const { errorHandler, notFoundHandler } = require("./src/middlewares/errorHandler");
+const swaggerSpecs = require("./src/config/swagger");
 
 const app = express();
 const server = http.createServer(app);
@@ -15,6 +17,14 @@ const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || "700mb";
 
 app.use(express.json({ limit: requestBodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
+
+// Swagger documentation
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
+	explorer: true,
+	customCss: ".swagger-ui .topbar { display: none }",
+	customSiteTitle: "Riders Companion API Docs",
+}));
+
 app.use("/api", apiRoutes);
 
 app.use((error, _req, res, next) => {

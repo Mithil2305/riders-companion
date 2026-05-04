@@ -5,6 +5,13 @@ const { formatError } = require("../utils/errorFormatter");
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Rides
+ *   description: Motorcycle ride management and tracking
+ */
+
 const isUuid = (value) =>
 	typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value);
 
@@ -16,8 +23,48 @@ router.param("rideId", (req, res, next, rideId) => {
 	return next();
 });
 
+/**
+ * @swagger
+ * /rides/friends:
+ *   get:
+ *     summary: Get friends' rides
+ *     tags: [Rides]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of friends' rides
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Ride'
+ *       401:
+ *         description: Unauthorized
+ */
 router.get("/friends", requireAuth, rideController.listFriends);
 router.get("/community", requireAuth, rideController.getCommunityRides);
+/**
+ * @swagger
+ * /rides:
+ *   post:
+ *     summary: Create a new ride
+ *     tags: [Rides]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Ride'
+ *     responses:
+ *       201:
+ *         description: Ride created successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.post("/", requireAuth, rideController.createRide);
 router.patch("/:rideId", requireAuth, rideController.updateRide);
 router.delete("/:rideId", requireAuth, rideController.deleteRide);
