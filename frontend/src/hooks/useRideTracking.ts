@@ -80,6 +80,7 @@ export function useRideTracking({
 		isValidRideId ? null : "No ride ID provided",
 	);
 	const [isTracking, setIsTracking] = useState(false);
+	const [isRideMissing, setIsRideMissing] = useState(false);
 
 	const rideStartTimeRef = useRef<number>(externalStartTime || Date.now());
 	const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -88,6 +89,7 @@ export function useRideTracking({
 		latitude: number;
 		longitude: number;
 	} | null>(null);
+	const missingRideLoggedRef = useRef(false);
 
 	const applySnapshot = useCallback((nextSnapshot: RideSnapshot) => {
 		const normalizedStatus = normalizeRideStatus(nextSnapshot.rideStatus);
@@ -126,8 +128,17 @@ export function useRideTracking({
 				err instanceof Error
 					? err.message
 					: "Failed to fetch ride data. Please check your connection.";
+			const isNotFound = /ride not found/i.test(message);
 			setError(message);
-			console.error("Error fetching ride data:", err);
+			if (isNotFound) {
+				setIsRideMissing(true);
+				if (!missingRideLoggedRef.current) {
+					missingRideLoggedRef.current = true;
+					console.warn("Ride not found for tracking:", rideId);
+				}
+			} else {
+				console.error("Error fetching ride data:", err);
+			}
 			setSnapshot(null);
 			setLocations([]);
 			setIsTracking(false);
@@ -195,7 +206,7 @@ export function useRideTracking({
 	}, [externalStartTime]);
 
 	useEffect(() => {
-		if (!enabled || !isValidRideId) {
+		if (!enabled || !isValidRideId || isRideMissing) {
 			if (pollIntervalRef.current) {
 				clearInterval(pollIntervalRef.current);
 				pollIntervalRef.current = null;
@@ -219,10 +230,17 @@ export function useRideTracking({
 				pollIntervalRef.current = null;
 			}
 		};
-	}, [enabled, fetchRideData, isConnected, isValidRideId, pollIntervalMs]);
+	}, [
+		enabled,
+		fetchRideData,
+		isConnected,
+		isRideMissing,
+		isValidRideId,
+		pollIntervalMs,
+	]);
 
 	useEffect(() => {
-		if (!enabled || !isValidRideId || !isConnected) {
+		if (!enabled || !isValidRideId || !isConnected || isRideMissing) {
 			return;
 		}
 
@@ -232,7 +250,14 @@ export function useRideTracking({
 		return () => {
 			sendWsMessage("RIDE_LEAVE", { rideId });
 		};
-	}, [enabled, isConnected, isValidRideId, rideId, sendWsMessage]);
+	}, [
+		enabled,
+		isConnected,
+		isRideMissing,
+		isValidRideId,
+		rideId,
+		sendWsMessage,
+	]);
 
 	useEffect(() => {
 		if (!lastMessage || typeof lastMessage.type !== "string") {

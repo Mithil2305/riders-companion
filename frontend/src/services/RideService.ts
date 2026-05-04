@@ -13,6 +13,9 @@ export type RideFormPayload = {
 	rideTitle?: string;
 	source: string;
 	destination: string;
+	sourceCoordinates?: { latitude: number; longitude: number } | null;
+	destinationCoordinates?: { latitude: number; longitude: number } | null;
+	routePolyline?: Array<{ latitude: number; longitude: number }>;
 	pickupLocation?: string;
 	dropLocation?: string;
 	startDate: string;

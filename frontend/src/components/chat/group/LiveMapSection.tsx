@@ -84,6 +84,14 @@ function decodePolyline(encoded: string): LatLng[] {
 
 const stripHtml = (value: string) => value.replace(/<[^>]*>/g, "").trim();
 
+const coordKey = (coord: LatLng | null | undefined) =>
+	coord ? `${coord.latitude}:${coord.longitude}` : "";
+
+const polylineKey = (points: LatLng[] | null | undefined) =>
+	Array.isArray(points) && points.length > 0
+		? points.map((point) => `${point.latitude}:${point.longitude}`).join("|")
+		: "";
+
 const formatDuration = (seconds?: number | null) => {
 	if (!seconds || seconds <= 0) return "--";
 	const totalMinutes = Math.max(1, Math.round(seconds / 60));
@@ -399,6 +407,22 @@ export function LiveMapSection({
 	const [routePoints, setRoutePoints] = React.useState<LatLng[]>(
 		route?.routePolyline ?? [],
 	);
+	const sourceKey = React.useMemo(
+		() => coordKey(route?.sourceCoordinates ?? null),
+		[route?.sourceCoordinates],
+	);
+	const destKey = React.useMemo(
+		() => coordKey(route?.destinationCoordinates ?? null),
+		[route?.destinationCoordinates],
+	);
+	const routePolylineKey = React.useMemo(
+		() => polylineKey(route?.routePolyline ?? null),
+		[route?.routePolyline],
+	);
+	const hasBackendCoords = Boolean(
+		route?.sourceCoordinates && route?.destinationCoordinates,
+	);
+	const hasBackendPolyline = (route?.routePolyline?.length ?? 0) > 0;
 	const [liveRoutePoints, setLiveRoutePoints] = React.useState<LatLng[]>([]);
 	const [directionsMeta, setDirectionsMeta] = React.useState<{
 		distanceKm: number;
@@ -440,10 +464,10 @@ export function LiveMapSection({
 		setSourceCoord(route?.sourceCoordinates ?? null);
 		setDestCoord(route?.destinationCoordinates ?? null);
 		setRoutePoints(route?.routePolyline ?? []);
-	}, [route]);
+	}, [destKey, routePolylineKey, sourceKey]);
 
 	React.useEffect(() => {
-		if (route?.sourceCoordinates && route?.destinationCoordinates) {
+		if (hasBackendCoords) {
 			setLoading(false);
 			return;
 		}
@@ -472,10 +496,10 @@ export function LiveMapSection({
 		return () => {
 			cancelled = true;
 		};
-	}, [destinationLabel, route, sourceLabel]);
+	}, [destinationLabel, hasBackendCoords, sourceLabel, sourceKey, destKey]);
 
 	React.useEffect(() => {
-		if ((route?.routePolyline?.length ?? 0) > 0) {
+		if (hasBackendPolyline) {
 			setLoading(false);
 			return;
 		}
@@ -495,7 +519,7 @@ export function LiveMapSection({
 		return () => {
 			cancelled = true;
 		};
-	}, [destCoord, route, sourceCoord]);
+	}, [destCoord, hasBackendPolyline, sourceCoord]);
 
 	React.useEffect(() => {
 		if (!rideStarted) {

@@ -181,3 +181,5 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 		</View>
 	);
 }
+
+export const MemoGroupMessageBubble = React.memo(GroupMessageBubble);

@@ -2,7 +2,7 @@ import React from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { useTheme } from "../../../hooks/useTheme";
 import { GroupChatItem } from "../../../types/groupChat";
-import { GroupMessageBubble } from "./GroupMessageBubble";
+import { MemoGroupMessageBubble } from "./GroupMessageBubble";
 
 interface GroupChatListProps {
 	data: GroupChatItem[];
@@ -11,6 +11,7 @@ interface GroupChatListProps {
 export function GroupChatList({ data }: GroupChatListProps) {
 	const { colors, metrics } = useTheme();
 	const listRef = React.useRef<FlatList<GroupChatItem>>(null);
+	const lastCountRef = React.useRef(0);
 
 	const styles = React.useMemo(
 		() =>
@@ -29,19 +30,33 @@ export function GroupChatList({ data }: GroupChatListProps) {
 	);
 
 	React.useEffect(() => {
+		if (data.length === lastCountRef.current) {
+			return;
+		}
+
+		lastCountRef.current = data.length;
 		requestAnimationFrame(() => {
 			listRef.current?.scrollToEnd({ animated: true });
 		});
-	}, [data]);
+	}, [data.length]);
+
+	const renderItem = React.useCallback(
+		({ item }: { item: GroupChatItem }) => (
+			<MemoGroupMessageBubble item={item} />
+		),
+		[],
+	);
+
+	const keyExtractor = React.useCallback((item: GroupChatItem) => item.id, []);
 
 	return (
 		<FlatList
 			contentContainerStyle={styles.content}
 			data={data}
 			ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
-			keyExtractor={(item) => item.id}
+			keyExtractor={keyExtractor}
 			ref={listRef}
-			renderItem={({ item }) => <GroupMessageBubble item={item} />}
+			renderItem={renderItem}
 			showsVerticalScrollIndicator={false}
 			style={styles.list}
 		/>

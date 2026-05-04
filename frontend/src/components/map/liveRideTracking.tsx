@@ -77,6 +77,55 @@ const formatEta = (seconds: number | null | undefined) => {
 	return `${hour}:${minute}`;
 };
 
+const toManeuverIcon = (maneuver?: string) => {
+	const key = String(maneuver || "").toLowerCase();
+	if (key.includes("uturn")) return "arrow-undo";
+	if (key.includes("roundabout")) return "sync";
+	if (key.includes("merge")) return "git-merge";
+	if (key.includes("fork")) return "git-branch";
+	if (key.includes("ramp")) return "trail-sign";
+	if (key.includes("keep-right")) return "return-up-forward";
+	if (key.includes("keep-left")) return "return-up-back";
+	if (key.includes("sharp-right")) return "return-up-forward";
+	if (key.includes("sharp-left")) return "return-up-back";
+	if (key.includes("right")) return "arrow-forward";
+	if (key.includes("left")) return "arrow-back";
+	return "navigate";
+};
+
+const buildLaneGuidance = (maneuver?: string) => {
+	const key = String(maneuver || "").toLowerCase();
+	if (!key) {
+		return ["S", "S", "S"].map((label, index) => ({
+			id: `lane-${label}-${index}`,
+			label,
+			active: index === 1,
+		}));
+	}
+	if (key.includes("uturn")) {
+		return [{ id: "lane-u", label: "U", active: true }];
+	}
+	if (key.includes("left")) {
+		return [
+			{ id: "lane-l", label: "L", active: true },
+			{ id: "lane-s", label: "S", active: false },
+			{ id: "lane-r", label: "R", active: false },
+		];
+	}
+	if (key.includes("right")) {
+		return [
+			{ id: "lane-l", label: "L", active: false },
+			{ id: "lane-s", label: "S", active: false },
+			{ id: "lane-r", label: "R", active: true },
+		];
+	}
+	return [
+		{ id: "lane-l", label: "L", active: false },
+		{ id: "lane-s", label: "S", active: true },
+		{ id: "lane-r", label: "R", active: false },
+	];
+};
+
 export default function LiveRideTracker({
 	rideId,
 	canEndRide = false,
@@ -184,6 +233,20 @@ export default function LiveRideTracker({
 					gap: metrics.sm,
 					marginBottom: metrics.md,
 				},
+				turnIconWrap: {
+					width: 40,
+					height: 40,
+					borderRadius: 14,
+					backgroundColor: withAlpha(colors.primary, 0.12),
+					alignItems: "center" as const,
+					justifyContent: "center" as const,
+					borderWidth: 1,
+					borderColor: withAlpha(colors.primary, 0.4),
+				},
+				turnDetails: {
+					flex: 1,
+					gap: 4,
+				},
 				turnLabel: {
 					color: palette.textSecondary,
 					fontSize: typography.sizes.xs,
@@ -192,10 +255,37 @@ export default function LiveRideTracker({
 					letterSpacing: 0.6,
 				},
 				turnValue: {
-					flex: 1,
 					color: palette.textPrimary,
 					fontSize: typography.sizes.sm,
 					fontWeight: "600" as const,
+				},
+				laneRow: {
+					flexDirection: "row" as const,
+					gap: 6,
+					alignItems: "center" as const,
+				},
+				lanePill: {
+					height: 22,
+					paddingHorizontal: 8,
+					borderRadius: 999,
+					backgroundColor: withAlpha(colors.textSecondary, 0.12),
+					borderWidth: 1,
+					borderColor: withAlpha(colors.textSecondary, 0.2),
+					alignItems: "center" as const,
+					justifyContent: "center" as const,
+				},
+				lanePillActive: {
+					backgroundColor: withAlpha(colors.primary, 0.2),
+					borderColor: withAlpha(colors.primary, 0.45),
+				},
+				laneText: {
+					color: palette.textSecondary,
+					fontSize: typography.sizes.xs,
+					fontWeight: "600" as const,
+				},
+				laneTextActive: {
+					color: colors.primary,
+					fontWeight: "700" as const,
 				},
 				metricItem: {
 					flex: 1,
@@ -257,6 +347,16 @@ export default function LiveRideTracker({
 					backgroundColor: colors.primary,
 					alignItems: "center" as const,
 					justifyContent: "center" as const,
+				},
+				arrowMarker: {
+					width: 30,
+					height: 30,
+					borderRadius: 15,
+					backgroundColor: colors.primary,
+					alignItems: "center" as const,
+					justifyContent: "center" as const,
+					borderWidth: 2,
+					borderColor: colors.textInverse,
 				},
 				markerAvatar: {
 					width: 22,
@@ -356,7 +456,7 @@ export default function LiveRideTracker({
 	const destinationLabel = snapshot?.route.destination || "Destination";
 
 	const displayRoute =
-		directionsRoute.length >= 2 ? directionsRoute : routePolyline;
+		routePolyline.length >= 2 ? routePolyline : directionsRoute;
 	const remainingKm =
 		directionsMeta?.distanceKm ?? navigationStats?.distanceRemainingKm ?? 0;
 	const totalKm = Math.max(
@@ -376,6 +476,8 @@ export default function LiveRideTracker({
 			? `${(nextStep.distanceMeters / 1000).toFixed(1)} km`
 			: `${Math.round(nextStep.distanceMeters)} m`
 		: "";
+	const nextTurnIcon = toManeuverIcon(nextStep?.maneuver);
+	const laneGuidance = buildLaneGuidance(nextStep?.maneuver);
 
 	// Get the rider's avatar (destination rider if in group ride)
 	const destinationRider = participants.find((p) => p.isLeader);
@@ -383,16 +485,28 @@ export default function LiveRideTracker({
 
 	React.useEffect(() => {
 		const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-		if (!apiKey || !userLocation || !destCoord) {
+		if (!apiKey || !destCoord) {
 			setDirectionsRoute([]);
 			setDirectionsMeta(null);
 			return;
 		}
 
-		const origin = {
-			latitude: userLocation.latitude,
-			longitude: userLocation.longitude,
-		};
+		const origin = sourceCoord
+			? {
+					latitude: sourceCoord.latitude,
+					longitude: sourceCoord.longitude,
+				}
+			: userLocation
+				? {
+						latitude: userLocation.latitude,
+						longitude: userLocation.longitude,
+					}
+				: null;
+		if (!origin) {
+			setDirectionsRoute([]);
+			setDirectionsMeta(null);
+			return;
+		}
 		const now = Date.now();
 		const last = lastDirectionsRef.current;
 		const movedMeters = last.origin
@@ -487,7 +601,7 @@ export default function LiveRideTracker({
 		return () => {
 			cancelled = true;
 		};
-	}, [destCoord, userLocation]);
+	}, [destCoord, sourceCoord, userLocation]);
 
 	// Auto-center on user location
 	React.useEffect(() => {
@@ -509,28 +623,36 @@ export default function LiveRideTracker({
 		if (Date.now() < followPauseUntilRef.current) return;
 		if (Date.now() - lastFollowAtRef.current < 1200) return;
 
-		mapRef.current.animateToRegion(
+		mapRef.current.animateCamera(
 			{
-				latitude: userLocation.latitude,
-				longitude: userLocation.longitude,
-				latitudeDelta: 0.015,
-				longitudeDelta: 0.015,
+				center: {
+					latitude: userLocation.latitude,
+					longitude: userLocation.longitude,
+				},
+				pitch: 45,
+				zoom: 16,
+				heading:
+					typeof userLocation.heading === "number" ? userLocation.heading : 0,
 			},
-			450,
+			{ duration: 450 },
 		);
 		lastFollowAtRef.current = Date.now();
 	}, [userLocation]);
 
 	const handleRecenter = React.useCallback(() => {
 		if (!mapRef.current || !userLocation) return;
-		mapRef.current.animateToRegion(
+		mapRef.current.animateCamera(
 			{
-				latitude: userLocation.latitude,
-				longitude: userLocation.longitude,
-				latitudeDelta: 0.02,
-				longitudeDelta: 0.02,
+				center: {
+					latitude: userLocation.latitude,
+					longitude: userLocation.longitude,
+				},
+				pitch: 45,
+				zoom: 16,
+				heading:
+					typeof userLocation.heading === "number" ? userLocation.heading : 0,
 			},
-			500,
+			{ duration: 500 },
 		);
 	}, [userLocation]);
 
@@ -663,6 +785,27 @@ export default function LiveRideTracker({
 					</Marker>
 				)}
 
+				{/* Current rider heading arrow */}
+				{userLocation && (
+					<Marker
+						coordinate={{
+							latitude: userLocation.latitude,
+							longitude: userLocation.longitude,
+						}}
+						anchor={{ x: 0.5, y: 0.5 }}
+						tracksViewChanges={false}
+						rotation={
+							typeof userLocation.heading === "number"
+								? userLocation.heading
+								: 0
+						}
+					>
+						<View style={styles.arrowMarker}>
+							<Ionicons name="navigate" size={16} color={colors.textInverse} />
+						</View>
+					</Marker>
+				)}
+
 				{/* Other participants markers */}
 				{locations.map((location) => (
 					<Marker
@@ -673,16 +816,12 @@ export default function LiveRideTracker({
 						}}
 						anchor={{ x: 0.5, y: 0.5 }}
 						tracksViewChanges={false}
+						rotation={
+							typeof location.heading === "number" ? location.heading : 0
+						}
 					>
-						<View style={styles.participantMarker}>
-							{location.avatar ? (
-								<Image
-									source={{ uri: location.avatar }}
-									style={styles.participantAvatar}
-								/>
-							) : (
-								<Ionicons name="person" size={14} color={colors.textInverse} />
-							)}
+						<View style={styles.arrowMarker}>
+							<Ionicons name="navigate" size={16} color={colors.textInverse} />
 						</View>
 					</Marker>
 				))}
@@ -712,10 +851,35 @@ export default function LiveRideTracker({
 			{/* Bottom stats panel */}
 			<View style={styles.bottomPanel}>
 				<View style={styles.turnRow}>
-					<Text style={styles.turnLabel}>Next</Text>
-					<Text numberOfLines={1} style={styles.turnValue}>
-						{nextTurnText}
-					</Text>
+					<View style={styles.turnIconWrap}>
+						<Ionicons name={nextTurnIcon} size={18} color={colors.primary} />
+					</View>
+					<View style={styles.turnDetails}>
+						<Text style={styles.turnLabel}>Next</Text>
+						<Text numberOfLines={1} style={styles.turnValue}>
+							{nextTurnText}
+						</Text>
+						<View style={styles.laneRow}>
+							{laneGuidance.map((lane) => (
+								<View
+									key={lane.id}
+									style={[
+										styles.lanePill,
+										lane.active && styles.lanePillActive,
+									]}
+								>
+									<Text
+										style={[
+											styles.laneText,
+											lane.active && styles.laneTextActive,
+										]}
+									>
+										{lane.label}
+									</Text>
+								</View>
+							))}
+						</View>
+					</View>
 					{nextTurnDistance.length > 0 ? (
 						<Text style={styles.turnLabel}>{nextTurnDistance}</Text>
 					) : null}

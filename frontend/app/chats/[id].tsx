@@ -20,7 +20,7 @@ import { isUuid } from "../../src/utils/isUuid";
 
 export default function ChatRoomScreen() {
 	const router = useRouter();
-	const { colors } = useTheme();
+	const { colors, typography } = useTheme();
 	const params = useLocalSearchParams<{
 		id?: string;
 		name?: string;

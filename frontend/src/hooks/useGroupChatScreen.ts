@@ -420,6 +420,7 @@ export function useGroupChatScreen(
 	const isValidRoomId = isUuid(roomId);
 
 	const knownMessageIdsRef = useRef<Set<string>>(new Set());
+	const riderProfilesByIdRef = useRef(riderProfilesById);
 	const typingStateRef = useRef(false);
 	const inviteToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const lastLocationSentAtRef = useRef(0);
@@ -428,6 +429,10 @@ export function useGroupChatScreen(
 		longitude: number;
 	} | null>(null);
 	const previousConnectionRef = useRef(false);
+
+	useEffect(() => {
+		riderProfilesByIdRef.current = riderProfilesById;
+	}, [riderProfilesById]);
 
 	const closeMenu = useCallback(() => setMenuVisible(false), []);
 	const openMenu = useCallback(() => setMenuVisible(true), []);
@@ -991,8 +996,8 @@ export function useGroupChatScreen(
 			}
 
 			const knownSender =
-				senderId && riderProfilesById.has(senderId)
-					? riderProfilesById.get(senderId)
+				senderId && riderProfilesByIdRef.current.has(senderId)
+					? riderProfilesByIdRef.current.get(senderId)
 					: null;
 			const senderName =
 				typeof payload.senderName === "string" &&
@@ -1137,14 +1142,7 @@ export function useGroupChatScreen(
 
 			void requestSnapshot();
 		}
-	}, [
-		applySnapshot,
-		lastMessage,
-		requestSnapshot,
-		roomId,
-		riderProfilesById,
-		user?.id,
-	]);
+	}, [applySnapshot, lastMessage, requestSnapshot, roomId, user?.id]);
 
 	// Handle connection changes
 	useEffect(() => {

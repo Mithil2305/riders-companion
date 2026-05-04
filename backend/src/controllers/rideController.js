@@ -491,6 +491,9 @@ exports.createRide = async (req, res) => {
 			rideTitle,
 			source,
 			destination,
+			sourceCoordinates,
+			destinationCoordinates,
+			routePolyline,
 			pickupLocation,
 			dropLocation,
 			startDate,
@@ -553,12 +556,44 @@ exports.createRide = async (req, res) => {
 			communityId,
 		);
 
+		const normalizedSourceCoords =
+			sourceCoordinates &&
+			isFiniteNumber(sourceCoordinates.latitude) &&
+			isFiniteNumber(sourceCoordinates.longitude)
+				? {
+						latitude: sourceCoordinates.latitude,
+						longitude: sourceCoordinates.longitude,
+					}
+				: null;
+
+		const normalizedDestCoords =
+			destinationCoordinates &&
+			isFiniteNumber(destinationCoordinates.latitude) &&
+			isFiniteNumber(destinationCoordinates.longitude)
+				? {
+						latitude: destinationCoordinates.latitude,
+						longitude: destinationCoordinates.longitude,
+					}
+				: null;
+
+		const normalizedPolyline = Array.isArray(routePolyline)
+			? routePolyline.filter(
+					(point) =>
+						point &&
+						isFiniteNumber(point.latitude) &&
+						isFiniteNumber(point.longitude),
+				)
+			: [];
+
 		const details = {
 			rideType,
 			privacy: privacy || (rideType === "solo" ? "solo" : "mixed"),
 			rideTitle: rideTitle || "",
 			source,
 			destination,
+			sourceCoordinates: normalizedSourceCoords,
+			destinationCoordinates: normalizedDestCoords,
+			routePolyline: normalizedPolyline,
 			pickupLocation: pickupLocation || source,
 			dropLocation: dropLocation || destination,
 			startDate,
@@ -1700,6 +1735,9 @@ exports.updateRide = async (req, res) => {
 			rideTitle,
 			source,
 			destination,
+			sourceCoordinates,
+			destinationCoordinates,
+			routePolyline,
 			pickupLocation,
 			dropLocation,
 			startDate,
@@ -1739,6 +1777,35 @@ exports.updateRide = async (req, res) => {
 			);
 		}
 
+		const updatedSourceCoords =
+			sourceCoordinates &&
+			isFiniteNumber(sourceCoordinates.latitude) &&
+			isFiniteNumber(sourceCoordinates.longitude)
+				? {
+						latitude: sourceCoordinates.latitude,
+						longitude: sourceCoordinates.longitude,
+					}
+				: ride.route_polygon.sourceCoordinates || null;
+
+		const updatedDestCoords =
+			destinationCoordinates &&
+			isFiniteNumber(destinationCoordinates.latitude) &&
+			isFiniteNumber(destinationCoordinates.longitude)
+				? {
+						latitude: destinationCoordinates.latitude,
+						longitude: destinationCoordinates.longitude,
+					}
+				: ride.route_polygon.destinationCoordinates || null;
+
+		const updatedPolyline = Array.isArray(routePolyline)
+			? routePolyline.filter(
+					(point) =>
+						point &&
+						isFiniteNumber(point.latitude) &&
+						isFiniteNumber(point.longitude),
+				)
+			: ride.route_polygon.routePolyline || [];
+
 		const details = {
 			rideType: rideType || ride.route_polygon.rideType,
 			privacy:
@@ -1749,6 +1816,9 @@ exports.updateRide = async (req, res) => {
 					: ride.route_polygon.rideTitle || "",
 			source,
 			destination,
+			sourceCoordinates: updatedSourceCoords,
+			destinationCoordinates: updatedDestCoords,
+			routePolyline: updatedPolyline,
 			pickupLocation: pickupLocation || source,
 			dropLocation: dropLocation || destination,
 			startDate,

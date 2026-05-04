@@ -108,6 +108,16 @@ export default function RideScreen() {
 				rideTitle: "",
 				source: startingPoint,
 				destination: endingPoint,
+				sourceCoordinates: soloStartingLocation
+					? {
+							latitude: soloStartingLocation.latitude,
+							longitude: soloStartingLocation.longitude,
+						}
+					: null,
+				destinationCoordinates: {
+					latitude: location.latitude,
+					longitude: location.longitude,
+				},
 				pickupLocation: startingPoint,
 				dropLocation: endingPoint,
 				startDate,
@@ -172,6 +182,18 @@ export default function RideScreen() {
 				rideTitle: groupName,
 				source: startingPoint,
 				destination: endingPoint,
+				sourceCoordinates: groupStartingLocation
+					? {
+							latitude: groupStartingLocation.latitude,
+							longitude: groupStartingLocation.longitude,
+						}
+					: null,
+				destinationCoordinates: groupEndingLocation
+					? {
+							latitude: groupEndingLocation.latitude,
+							longitude: groupEndingLocation.longitude,
+						}
+					: null,
 				pickupLocation: startingPoint,
 				dropLocation: endingPoint,
 				startDate: startDate.toISOString(),
