@@ -7,6 +7,7 @@ import {
 	calculateNavigationStats,
 	NavigationStats,
 } from "../utils/navigationStats";
+import { isUuid } from "../utils/isUuid";
 
 interface UseRideTrackingOptions {
 	rideId: string;
@@ -62,15 +63,18 @@ export function useRideTracking({
 	rideStartTime: externalStartTime,
 }: UseRideTrackingOptions): UseRideTrackingResult {
 	const { location } = useLocation({ autoRequest: true });
-	const { isConnected, lastMessage, sendMessage: sendWsMessage } = useWebSocket();
+	const {
+		isConnected,
+		lastMessage,
+		sendMessage: sendWsMessage,
+	} = useWebSocket();
 
-	const isValidRideId = rideId.trim().length > 0;
+	const isValidRideId = isUuid(rideId);
 
 	const [snapshot, setSnapshot] = useState<RideSnapshot | null>(null);
 	const [locations, setLocations] = useState<RideLocation[]>([]);
-	const [navigationStats, setNavigationStats] = useState<NavigationStats | null>(
-		null,
-	);
+	const [navigationStats, setNavigationStats] =
+		useState<NavigationStats | null>(null);
 	const [isLoading, setIsLoading] = useState(isValidRideId);
 	const [error, setError] = useState<string | null>(
 		isValidRideId ? null : "No ride ID provided",

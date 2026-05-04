@@ -15,6 +15,7 @@ import {
 	InviteActionState,
 	RideRouteMeta,
 } from "../types/groupChat";
+import { isUuid } from "../utils/isUuid";
 
 const AVATAR_MAP: Record<string, string> = {
 	SARAH: "https://randomuser.me/api/portraits/women/65.jpg",
@@ -416,6 +417,7 @@ export function useGroupChatScreen(
 	const [isLoading, setIsLoading] = useState(true);
 	const [isError, setIsError] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const isValidRoomId = isUuid(roomId);
 
 	const knownMessageIdsRef = useRef<Set<string>>(new Set());
 	const typingStateRef = useRef(false);
@@ -519,6 +521,12 @@ export function useGroupChatScreen(
 	);
 
 	const requestSnapshot = useCallback(async () => {
+		if (!isValidRoomId) {
+			setMapLoading(false);
+			setMapError("Invalid ride ID.");
+			return;
+		}
+
 		setMapLoading(true);
 		setMapError(null);
 
@@ -531,7 +539,7 @@ export function useGroupChatScreen(
 			setMapError("Unable to load ride snapshot. Pull to retry or reconnect.");
 			setMapLoading(false);
 		}
-	}, [applySnapshot, roomId]);
+	}, [applySnapshot, isValidRoomId, roomId]);
 
 	// Initialize room data
 	useEffect(() => {
@@ -540,6 +548,16 @@ export function useGroupChatScreen(
 			typeof initialRoomName === "string" && initialRoomName.trim().length > 0
 				? initialRoomName
 				: null;
+
+		if (!isValidRoomId) {
+			setIsLoading(false);
+			setIsError(true);
+			setErrorMessage("Invalid ride ID.");
+			setRoomTitle(sanitizedInitialRoomName ?? "Ride Room");
+			return () => {
+				isMounted = false;
+			};
+		}
 
 		// Reset loading and error states
 		setIsLoading(true);
@@ -763,7 +781,7 @@ export function useGroupChatScreen(
 			isMounted = false;
 			clearTimeout(loadingTimeout);
 		};
-	}, [initialRoomName, roomId, requestSnapshot, user?.id]);
+	}, [initialRoomName, isValidRoomId, roomId, requestSnapshot, user?.id]);
 
 	// Update room subtitle based on connection and riders
 	useEffect(() => {
@@ -796,7 +814,7 @@ export function useGroupChatScreen(
 
 	// Join room via WebSocket
 	useEffect(() => {
-		if (!isConnected || roomId.length === 0) return;
+		if (!isConnected || !isValidRoomId) return;
 
 		sendWsMessage("CHAT_JOIN_ROOM", { roomId });
 		sendWsMessage("RIDE_JOIN", { rideId: roomId });
@@ -805,7 +823,7 @@ export function useGroupChatScreen(
 		return () => {
 			sendWsMessage("CHAT_LEAVE_ROOM", { roomId });
 		};
-	}, [isConnected, roomId, sendWsMessage]);
+	}, [isConnected, isValidRoomId, roomId, sendWsMessage]);
 
 	// Location watching
 	useEffect(() => {
@@ -835,7 +853,7 @@ export function useGroupChatScreen(
 			!locationEnabled ||
 			!location ||
 			!isConnected ||
-			roomId.length === 0 ||
+			!isValidRoomId ||
 			isRideEnded ||
 			!isRideLive
 		) {
@@ -874,6 +892,7 @@ export function useGroupChatScreen(
 		}
 	}, [
 		isConnected,
+		isValidRoomId,
 		isRideEnded,
 		location,
 		locationEnabled,

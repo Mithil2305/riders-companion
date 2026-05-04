@@ -22,6 +22,7 @@ import { useLocation } from "../../hooks/useLocation";
 import { useRideTracking } from "../../hooks/useRideTracking";
 import { withAlpha } from "../../utils/color";
 import { decodePolyline } from "../../utils/navigationStats";
+import { isUuid } from "../../utils/isUuid";
 
 interface LiveRideTrackerProps {
 	rideId: string;
@@ -543,7 +544,7 @@ export default function LiveRideTracker({
 		);
 	}
 
-	const isValidRideId = Boolean(rideId && rideId.trim().length > 0);
+	const isValidRideId = isUuid(rideId);
 
 	// Show error state only when a rideId was requested and snapshot isn't available
 	if (error && !snapshot && isValidRideId) {

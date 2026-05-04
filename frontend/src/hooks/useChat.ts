@@ -19,6 +19,7 @@ import {
 } from "../utils/rideInviteMessage";
 import { parseSharedContentMessage } from "../utils/sharedContentMessage";
 import { useAuth } from "../contexts/AuthContext";
+import { isUuid } from "../utils/isUuid";
 
 const FALLBACK_META: PersonalChatMeta = {
 	roomId: "",
@@ -95,6 +96,7 @@ const toListItems = (
 
 export function useChat(roomId: string) {
 	const { user } = useAuth();
+	const isValidRoomId = isUuid(roomId);
 	const [meta, setMeta] = React.useState<PersonalChatMeta>(() => ({
 		...FALLBACK_META,
 		roomId,
@@ -168,10 +170,16 @@ export function useChat(roomId: string) {
 	);
 
 	const loadConversation = React.useCallback(async () => {
+		if (!isValidRoomId) {
+			setMeta({ ...FALLBACK_META, roomId });
+			setMessages([]);
+			return;
+		}
+
 		const response = await ChatService.getPersonalConversation(roomId);
 		setMeta(response.meta);
 		setMessages(response.messages.map(mapMessage));
-	}, [mapMessage, roomId]);
+	}, [isValidRoomId, mapMessage, roomId]);
 
 	React.useEffect(() => {
 		let isMounted = true;
@@ -266,11 +274,24 @@ export function useChat(roomId: string) {
 			payload.notification?.type === "MESSAGE_RECEIVED" &&
 			payload.notification.metadata?.riderId === roomId
 		) {
-			void loadConversation();
+			if (isValidRoomId) {
+				void loadConversation();
+			}
 		}
-	}, [lastMessage, loadConversation, mapMessage, roomId, user?.id]);
+	}, [
+		isValidRoomId,
+		lastMessage,
+		loadConversation,
+		mapMessage,
+		roomId,
+		user?.id,
+	]);
 
 	const sendMessage = React.useCallback(async () => {
+		if (!isValidRoomId) {
+			return;
+		}
+
 		const trimmed = draft.trim();
 		if (!trimmed || meta.isBlocked) {
 			return;
@@ -314,10 +335,14 @@ export function useChat(roomId: string) {
 				),
 			);
 		}
-	}, [draft, mapMessage, meta.isBlocked, roomId, toTimeLabel]);
+	}, [draft, isValidRoomId, mapMessage, meta.isBlocked, roomId, toTimeLabel]);
 
 	const sendImage = React.useCallback(
 		async (uri: string) => {
+			if (!isValidRoomId) {
+				return;
+			}
+
 			if (meta.isBlocked) {
 				return;
 			}
@@ -362,7 +387,7 @@ export function useChat(roomId: string) {
 				);
 			}
 		},
-		[mapMessage, meta.isBlocked, roomId, toTimeLabel],
+		[isValidRoomId, mapMessage, meta.isBlocked, roomId, toTimeLabel],
 	);
 
 	const respondToRideInvite = React.useCallback(
@@ -370,6 +395,10 @@ export function useChat(roomId: string) {
 			inviteMessageId: string,
 			action: "join" | "reject",
 		): Promise<RideInvitePayload | null> => {
+			if (!isValidRoomId) {
+				return null;
+			}
+
 			if (meta.isBlocked) {
 				return null;
 			}
@@ -431,10 +460,14 @@ export function useChat(roomId: string) {
 				return null;
 			}
 		},
-		[meta.isBlocked, messages, roomId],
+		[isValidRoomId, meta.isBlocked, messages, roomId],
 	);
 
 	const toggleBlockUser = React.useCallback(async () => {
+		if (!isValidRoomId) {
+			return;
+		}
+
 		if (meta.blockedByViewer) {
 			await ChatService.unblockPersonalUser(roomId);
 			setMeta((prev) => ({
@@ -452,7 +485,7 @@ export function useChat(roomId: string) {
 		}
 
 		setIsMenuVisible(false);
-	}, [meta.blockedByViewer, roomId]);
+	}, [isValidRoomId, meta.blockedByViewer, roomId]);
 
 	const runMenuAction = React.useCallback(
 		async (action: PersonalChatMenuAction) => {

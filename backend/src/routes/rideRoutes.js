@@ -1,8 +1,20 @@
 const express = require("express");
 const rideController = require("../controllers/rideController");
 const requireAuth = require("../middlewares/requireAuth");
+const { formatError } = require("../utils/errorFormatter");
 
 const router = express.Router();
+
+const isUuid = (value) =>
+	typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value);
+
+router.param("rideId", (req, res, next, rideId) => {
+	if (!isUuid(rideId)) {
+		return formatError(res, 400, "Invalid rideId", "RIDE_INVALID_ID");
+	}
+
+	return next();
+});
 
 router.get("/friends", requireAuth, rideController.listFriends);
 router.get("/community", requireAuth, rideController.getCommunityRides);

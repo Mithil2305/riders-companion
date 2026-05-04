@@ -29,6 +29,7 @@ import {
 import { useTheme } from "../../src/hooks/useTheme";
 import { withAlpha } from "../../src/utils/color";
 import { ChatErrorBoundary } from "../../src/components/ErrorBoundary";
+import { isUuid } from "../../src/utils/isUuid";
 
 // Safe wrapper for the actual screen content
 function GroupChatScreenContent() {
@@ -41,7 +42,7 @@ function GroupChatScreenContent() {
 		typeof params.name === "string" ? params.name : undefined;
 	const { colors, typography } = useTheme();
 
-	const isRoomIdValid = roomId.trim().length > 0;
+	const isRoomIdValid = isUuid(roomId);
 
 	// CRITICAL: All hooks must be called before any conditional returns
 	const [rideDetailsVisible, setRideDetailsVisible] = React.useState(false);
@@ -99,7 +100,9 @@ function GroupChatScreenContent() {
 	const safeRoomTitle = roomTitle?.trim?.() || "Ride Chat";
 	const safeRoomSubtitle = roomSubtitle?.trim?.() || "";
 	const safeMessages = Array.isArray(messages) ? messages : [];
-	const safeRiderLocations = Array.isArray(riderLocations) ? riderLocations : [];
+	const safeRiderLocations = Array.isArray(riderLocations)
+		? riderLocations
+		: [];
 	const safeRideMembers = Array.isArray(rideMembers) ? rideMembers : [];
 	const safeInviteFriends = Array.isArray(inviteFriends) ? inviteFriends : [];
 
@@ -271,7 +274,12 @@ function GroupChatScreenContent() {
 	}
 
 	if (isError) {
-		return <ErrorState message={errorMessage || "Failed to load chat"} onRetry={() => router.replace(`/group-chat/${roomId}`)} />;
+		return (
+			<ErrorState
+				message={errorMessage || "Failed to load chat"}
+				onRetry={() => router.replace(`/group-chat/${roomId}`)}
+			/>
+		);
 	}
 
 	return (
@@ -422,9 +430,20 @@ function GroupChatScreenContent() {
 function LoadingState({ message }: { message: string }) {
 	const { colors, typography } = useTheme();
 	return (
-		<SafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+		<SafeAreaView
+			style={[styles.centerContainer, { backgroundColor: colors.background }]}
+		>
 			<ActivityIndicator size="large" color={colors.primary} />
-			<Text style={[styles.messageText, { color: colors.textSecondary, fontSize: typography.sizes.base, marginTop: 16 }]}>
+			<Text
+				style={[
+					styles.messageText,
+					{
+						color: colors.textSecondary,
+						fontSize: typography.sizes.base,
+						marginTop: 16,
+					},
+				]}
+			>
 				{message}
 			</Text>
 		</SafeAreaView>
@@ -432,31 +451,75 @@ function LoadingState({ message }: { message: string }) {
 }
 
 // Error state component
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+function ErrorState({
+	message,
+	onRetry,
+}: {
+	message: string;
+	onRetry: () => void;
+}) {
 	const { colors, typography } = useTheme();
 	const router = useRouter();
 	return (
-		<SafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-			<Ionicons name="alert-circle-outline" size={64} color={colors.error || "#EF4444"} />
-			<Text style={[styles.messageText, { color: colors.textPrimary, fontSize: typography.sizes.lg, marginTop: 16, fontWeight: "600" }]}>
+		<SafeAreaView
+			style={[styles.centerContainer, { backgroundColor: colors.background }]}
+		>
+			<Ionicons
+				name="alert-circle-outline"
+				size={64}
+				color={colors.error || "#EF4444"}
+			/>
+			<Text
+				style={[
+					styles.messageText,
+					{
+						color: colors.textPrimary,
+						fontSize: typography.sizes.lg,
+						marginTop: 16,
+						fontWeight: "600",
+					},
+				]}
+			>
 				Something went wrong
 			</Text>
-			<Text style={[styles.messageText, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: 8, textAlign: "center", paddingHorizontal: 32 }]}>
+			<Text
+				style={[
+					styles.messageText,
+					{
+						color: colors.textSecondary,
+						fontSize: typography.sizes.sm,
+						marginTop: 8,
+						textAlign: "center",
+						paddingHorizontal: 32,
+					},
+				]}
+			>
 				{message}
 			</Text>
 			<Pressable
 				onPress={onRetry}
-				style={[styles.retryButton, { backgroundColor: colors.primary, marginTop: 24 }]}
+				style={[
+					styles.retryButton,
+					{ backgroundColor: colors.primary, marginTop: 24 },
+				]}
 			>
-				<Text style={[styles.retryText, { color: colors.textInverse, fontSize: typography.sizes.base, fontWeight: "600" }]}>
+				<Text
+					style={[
+						styles.retryText,
+						{
+							color: colors.textInverse,
+							fontSize: typography.sizes.base,
+							fontWeight: "600",
+						},
+					]}
+				>
 					Try Again
 				</Text>
 			</Pressable>
-			<Pressable
-				onPress={() => router.back()}
-				style={{ marginTop: 16 }}
-			>
-				<Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
+			<Pressable onPress={() => router.back()} style={{ marginTop: 16 }}>
+				<Text
+					style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}
+				>
 					Go Back
 				</Text>
 			</Pressable>
@@ -469,19 +532,58 @@ function InvalidRoomState({ message }: { message: string }) {
 	const { colors, typography } = useTheme();
 	const router = useRouter();
 	return (
-		<SafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-			<Ionicons name="chatbubble-ellipses-outline" size={64} color={colors.textTertiary} />
-			<Text style={[styles.messageText, { color: colors.textPrimary, fontSize: typography.sizes.lg, marginTop: 16, fontWeight: "600" }]}>
+		<SafeAreaView
+			style={[styles.centerContainer, { backgroundColor: colors.background }]}
+		>
+			<Ionicons
+				name="chatbubble-ellipses-outline"
+				size={64}
+				color={colors.textTertiary}
+			/>
+			<Text
+				style={[
+					styles.messageText,
+					{
+						color: colors.textPrimary,
+						fontSize: typography.sizes.lg,
+						marginTop: 16,
+						fontWeight: "600",
+					},
+				]}
+			>
 				Chat Not Available
 			</Text>
-			<Text style={[styles.messageText, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: 8, textAlign: "center", paddingHorizontal: 32 }]}>
+			<Text
+				style={[
+					styles.messageText,
+					{
+						color: colors.textSecondary,
+						fontSize: typography.sizes.sm,
+						marginTop: 8,
+						textAlign: "center",
+						paddingHorizontal: 32,
+					},
+				]}
+			>
 				{message}
 			</Text>
 			<Pressable
 				onPress={() => router.back()}
-				style={[styles.retryButton, { backgroundColor: colors.primary, marginTop: 24 }]}
+				style={[
+					styles.retryButton,
+					{ backgroundColor: colors.primary, marginTop: 24 },
+				]}
 			>
-				<Text style={[styles.retryText, { color: colors.textInverse, fontSize: typography.sizes.base, fontWeight: "600" }]}>
+				<Text
+					style={[
+						styles.retryText,
+						{
+							color: colors.textInverse,
+							fontSize: typography.sizes.base,
+							fontWeight: "600",
+						},
+					]}
+				>
 					Go Back
 				</Text>
 			</Pressable>

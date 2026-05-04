@@ -23,6 +23,9 @@ const MAX_HISTORY_PER_RIDER = 120;
 const MAX_REASONABLE_SPEED_KMH = 220;
 const ONLINE_THRESHOLD_MS = 30000;
 
+const isUuid = (value) =>
+	typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value);
+
 const normalizeRideStatus = (status) => {
 	const normalized = String(status || "").toUpperCase();
 	return normalized === "PLANNING" ? "PENDING" : normalized;
@@ -73,6 +76,14 @@ const broadcastToRoom = ({
 };
 
 const validateRideAccess = async ({ riderId, rideId }) => {
+	if (!isUuid(rideId)) {
+		return {
+			allowed: false,
+			reason: "Invalid rideId",
+			code: "RIDE_INVALID_ID",
+		};
+	}
+
 	const ride = await Ride.findByPk(rideId, {
 		attributes: ["id", "status", "community_id", "route_polygon", "creator_id"],
 	});

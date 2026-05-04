@@ -9,6 +9,7 @@ import { useLocation } from "../../src/hooks/useLocation";
 import { useTheme } from "../../src/hooks/useTheme";
 import { useWebSocket } from "../../src/hooks/useWebSocket";
 import { RiderLocation } from "../../src/types/groupChat";
+import { isUuid } from "../../src/utils/isUuid";
 
 const upsertRiderLocation = (
 	prev: RiderLocation[],
@@ -60,6 +61,7 @@ export default function SoloRideLiveScreen() {
 	const params = useLocalSearchParams();
 	const { colors, metrics, typography } = useTheme();
 	const rideId = typeof params.id === "string" ? params.id : "";
+	const isValidRideId = isUuid(rideId);
 
 	const { location, getCurrentLocation, startWatching } = useLocation();
 	const {
@@ -80,7 +82,13 @@ export default function SoloRideLiveScreen() {
 	>(null);
 
 	React.useEffect(() => {
-		if (!rideId || !isConnected) {
+		if (!isValidRideId) {
+			setStatus("Offline solo ride. Live updates unavailable.");
+		}
+	}, [isValidRideId]);
+
+	React.useEffect(() => {
+		if (!isValidRideId || !isConnected) {
 			return;
 		}
 
@@ -94,7 +102,7 @@ export default function SoloRideLiveScreen() {
 	}, [isConnected, rideId, sendWsMessage]);
 
 	React.useEffect(() => {
-		if (!rideId || !isConnected) {
+		if (!isValidRideId || !isConnected) {
 			return;
 		}
 
@@ -115,18 +123,21 @@ export default function SoloRideLiveScreen() {
 	}, [getCurrentLocation, isConnected, rideId, startWatching]);
 
 	React.useEffect(() => {
-		if (!rideId || !location || !isConnected) {
+		if (!isValidRideId || !location || !isConnected) {
 			return;
 		}
 
 		setRiderLocations((prev) =>
-			upsertRiderLocation(prev, toSoloRiderLocation({
-				riderId: "self-rider",
-				name: "You",
-				latitude: location.latitude,
-				longitude: location.longitude,
-				updatedAt: new Date().toISOString(),
-			})),
+			upsertRiderLocation(
+				prev,
+				toSoloRiderLocation({
+					riderId: "self-rider",
+					name: "You",
+					latitude: location.latitude,
+					longitude: location.longitude,
+					updatedAt: new Date().toISOString(),
+				}),
+			),
 		);
 		setLocationsLastUpdatedAt(new Date().toISOString());
 
@@ -163,19 +174,21 @@ export default function SoloRideLiveScreen() {
 								typeof entry?.latitude === "number" &&
 								typeof entry?.longitude === "number",
 						)
-						.map((entry) => toSoloRiderLocation({
-							riderId: entry.riderId as string,
-							name:
-								typeof entry.name === "string" && entry.name.trim().length > 0
-									? entry.name
-									: "Rider",
-							latitude: entry.latitude as number,
-							longitude: entry.longitude as number,
-							updatedAt:
-								typeof entry.updatedAt === "string"
-									? entry.updatedAt
-									: new Date().toISOString(),
-						})),
+						.map((entry) =>
+							toSoloRiderLocation({
+								riderId: entry.riderId as string,
+								name:
+									typeof entry.name === "string" && entry.name.trim().length > 0
+										? entry.name
+										: "Rider",
+								latitude: entry.latitude as number,
+								longitude: entry.longitude as number,
+								updatedAt:
+									typeof entry.updatedAt === "string"
+										? entry.updatedAt
+										: new Date().toISOString(),
+							}),
+						),
 				);
 				setLocationsLastUpdatedAt(new Date().toISOString());
 			}
@@ -209,19 +222,21 @@ export default function SoloRideLiveScreen() {
 								typeof entry?.latitude === "number" &&
 								typeof entry?.longitude === "number",
 						)
-						.map((entry) => toSoloRiderLocation({
-							riderId: entry.riderId as string,
-							name:
-								typeof entry.name === "string" && entry.name.trim().length > 0
-									? entry.name
-									: "Rider",
-							latitude: entry.latitude as number,
-							longitude: entry.longitude as number,
-							updatedAt:
-								typeof entry.updatedAt === "string"
-									? entry.updatedAt
-									: new Date().toISOString(),
-						})),
+						.map((entry) =>
+							toSoloRiderLocation({
+								riderId: entry.riderId as string,
+								name:
+									typeof entry.name === "string" && entry.name.trim().length > 0
+										? entry.name
+										: "Rider",
+								latitude: entry.latitude as number,
+								longitude: entry.longitude as number,
+								updatedAt:
+									typeof entry.updatedAt === "string"
+										? entry.updatedAt
+										: new Date().toISOString(),
+							}),
+						),
 				);
 				setLocationsLastUpdatedAt(new Date().toISOString());
 			}
@@ -255,19 +270,23 @@ export default function SoloRideLiveScreen() {
 				const latitude = payload.latitude;
 				const longitude = payload.longitude;
 				setRiderLocations((prev) =>
-					upsertRiderLocation(prev, toSoloRiderLocation({
-						riderId: payload.riderId as string,
-						name:
-							typeof payload.name === "string" && payload.name.trim().length > 0
-								? payload.name
-								: "Rider",
-						latitude,
-						longitude,
-						updatedAt:
-							typeof payload.updatedAt === "string"
-								? payload.updatedAt
-								: new Date().toISOString(),
-					})),
+					upsertRiderLocation(
+						prev,
+						toSoloRiderLocation({
+							riderId: payload.riderId as string,
+							name:
+								typeof payload.name === "string" &&
+								payload.name.trim().length > 0
+									? payload.name
+									: "Rider",
+							latitude,
+							longitude,
+							updatedAt:
+								typeof payload.updatedAt === "string"
+									? payload.updatedAt
+									: new Date().toISOString(),
+						}),
+					),
 				);
 				setLocationsLastUpdatedAt(new Date().toISOString());
 			}
