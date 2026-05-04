@@ -1,6 +1,7 @@
 import React from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
 	ChatHeader,
@@ -92,7 +93,20 @@ export default function ChatsScreen() {
 					typeof params.username === "string" ? params.username : undefined,
 			},
 		});
-	}, [params.autoOpen, params.avatar, params.name, params.riderId, params.username, router]);
+	}, [
+		params.autoOpen,
+		params.avatar,
+		params.name,
+		params.riderId,
+		params.username,
+		router,
+	]);
+
+	useFocusEffect(
+		React.useCallback(() => {
+			void refreshChats();
+		}, [refreshChats]),
+	);
 
 	const styles = React.useMemo(
 		() =>
@@ -113,7 +127,10 @@ export default function ChatsScreen() {
 	);
 
 	return (
-		<SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.safeArea}>
+		<SafeAreaView
+			edges={["top", "left", "right", "bottom"]}
+			style={styles.safeArea}
+		>
 			<View style={styles.container}>
 				<ChatHeader
 					accentBack
@@ -138,10 +155,7 @@ export default function ChatsScreen() {
 						/>
 					}
 					renderItem={({ item }) => (
-						<ChatItem
-							item={item}
-							onPress={() => openChat(item)}
-						/>
+						<ChatItem item={item} onPress={() => openChat(item)} />
 					)}
 					showsVerticalScrollIndicator={false}
 				/>

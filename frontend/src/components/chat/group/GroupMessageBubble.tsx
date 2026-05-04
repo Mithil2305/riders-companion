@@ -38,6 +38,26 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 					alignItems: "flex-end",
 					marginBottom: metrics.md,
 				},
+				avatarWrap: {
+					position: "relative",
+					marginRight: metrics.sm,
+				},
+				avatar: {
+					width: 38,
+					height: 38,
+					borderRadius: metrics.radius.md,
+				},
+				onlineBadge: {
+					position: "absolute",
+					bottom: 0,
+					right: 0,
+					width: 12,
+					height: 12,
+					borderRadius: 6,
+					backgroundColor: colors.success || "#4CAF50",
+					borderWidth: 2,
+					borderColor: colors.card,
+				},
 				incomingContent: {
 					maxWidth: "84%",
 				},
@@ -142,15 +162,10 @@ export function GroupMessageBubble({ item }: GroupMessageBubbleProps) {
 
 	return (
 		<View style={styles.incomingRow}>
-			<Image
-				source={{ uri: item.avatar }}
-				style={{
-					width: 38,
-					height: 38,
-					borderRadius: metrics.radius.md,
-					marginRight: metrics.sm,
-				}}
-			/>
+			<View style={styles.avatarWrap}>
+				<Image source={{ uri: item.avatar }} style={styles.avatar} />
+				{item.isOnline === true && <View style={styles.onlineBadge} />}
+			</View>
 			<View style={styles.incomingContent}>
 				<View style={styles.incomingBubble}>
 					<Text style={styles.senderName}>{item.senderName}</Text>

@@ -26,6 +26,7 @@ export type GroupChatItem =
 			avatar: string;
 			time: string;
 			createdAt?: string;
+			isOnline?: boolean;
 	  }
 	| {
 			id: string;
@@ -37,6 +38,7 @@ export type GroupChatItem =
 			time: string;
 			locationLabel: string;
 			createdAt?: string;
+			isOnline?: boolean;
 	  }
 	| {
 			id: string;
@@ -63,6 +65,7 @@ export type RiderLocation = {
 	altitude: number | null;
 	timestamp: string;
 	updatedAt: string;
+	avatar?: string | null;
 	isLeader?: boolean;
 	isOnline?: boolean;
 	rideStatus?: string | null;

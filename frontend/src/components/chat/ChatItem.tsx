@@ -28,7 +28,10 @@ const toPreviewText = (value: string, maxLength = 15) => {
 export function ChatItem({ item, onPress, onLongPress }: ChatItemProps) {
 	const { colors, metrics, typography } = useTheme();
 	const isEnded = item.status === "ended";
-	const isActive = item.isOnline || item.status === "active";
+	const isActive =
+		item.roomType === "group"
+			? Boolean(item.isOnline)
+			: Boolean(item.isOnline || item.status === "active");
 	const normalizedMessage = item.message.toLowerCase();
 	const isTypingMessage = normalizedMessage.includes("typing");
 	const previewMessage = toPreviewText(item.message, 15);

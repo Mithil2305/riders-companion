@@ -21,11 +21,11 @@ let clipsFeedCache: ClipItem[] | null = null;
 const mergeClips = (liveClips: ClipItem[], legacyClips: ClipItem[]) => {
 	const clipByKey = new Map<string, ClipItem>();
 	for (const clip of liveClips) {
-		clipByKey.set(`${clip.riderId ?? ""}:${clip.media}`, clip);
+		clipByKey.set(`clip:${clip.id}`, clip);
 	}
 
 	for (const clip of legacyClips) {
-		const dedupeKey = `${clip.riderId ?? ""}:${clip.media}`;
+		const dedupeKey = `post:${clip.sourcePostId ?? clip.id}`;
 		if (!clipByKey.has(dedupeKey)) {
 			clipByKey.set(dedupeKey, clip);
 		}
@@ -47,12 +47,11 @@ const toClipItem = (
 		"https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80",
 	media: clip.videoUrl,
 	createdAt: clip.createdAt,
-	caption:
-		clip.caption?.trim().length
-			? clip.caption
-			: clip.songId
-				? `Now playing: ${clip.songId}`
-				: "Ride clip",
+	caption: clip.caption?.trim().length
+		? clip.caption
+		: clip.songId
+			? `Now playing: ${clip.songId}`
+			: "Ride clip",
 	likes: Number(clip.likesCount ?? 0),
 	comments: Number(clip.commentsCount ?? 0),
 	shares: Number(clip.sharesCount ?? 0),
@@ -158,80 +157,76 @@ export function useClipsFeed(): UseClipsFeedResult {
 		}
 	}, [loadClips]);
 
-	const updateClipLike = React.useCallback((clipId: string, forceLiked?: boolean) => {
-		setClips((current) => {
-			const target = current.find((item) => item.id === clipId);
-			if (!target) {
-				return current;
-			}
-
-			const nextLiked =
-				typeof forceLiked === "boolean" ? forceLiked : !target.likedByMe;
-			if (target.likedByMe === nextLiked) {
-				return current;
-			}
-			const previousLikes = target.likes;
-
-			void (async () => {
-				try {
-					const result = target.sourcePostId
-						? nextLiked
-							? await FeedService.likePost(target.sourcePostId)
-							: await FeedService.unlikePost(target.sourcePostId)
-						: nextLiked
-							? await ClipService.likeClip(clipId)
-							: await ClipService.unlikeClip(clipId);
-
-					setClips((latest) =>
-						{
-							const next = latest.map((item) =>
-							item.id === clipId
-								? {
-										...item,
-										likes: result.likesCount,
-										likedByMe: nextLiked,
-									}
-								: item,
-							);
-							clipsFeedCache = next;
-							return next;
-						},
-					);
-				} catch {
-					setClips((latest) =>
-						{
-							const next = latest.map((item) =>
-							item.id === clipId
-								? {
-										...item,
-										likes: previousLikes,
-										likedByMe: !nextLiked,
-									}
-								: item,
-							);
-							clipsFeedCache = next;
-							return next;
-						},
-					);
+	const updateClipLike = React.useCallback(
+		(clipId: string, forceLiked?: boolean) => {
+			setClips((current) => {
+				const target = current.find((item) => item.id === clipId);
+				if (!target) {
+					return current;
 				}
-			})();
 
-			const next = current.map((item) =>
-				item.id === clipId
-					? {
-							...item,
-							likedByMe: nextLiked,
-							likes: Math.max(
-								0,
-								item.likes + (nextLiked ? 1 : -1),
-							),
-						}
-					: item,
-			);
-			clipsFeedCache = next;
-			return next;
-		});
-	}, []);
+				const nextLiked =
+					typeof forceLiked === "boolean" ? forceLiked : !target.likedByMe;
+				if (target.likedByMe === nextLiked) {
+					return current;
+				}
+				const previousLikes = target.likes;
+
+				void (async () => {
+					try {
+						const result = target.sourcePostId
+							? nextLiked
+								? await FeedService.likePost(target.sourcePostId)
+								: await FeedService.unlikePost(target.sourcePostId)
+							: nextLiked
+								? await ClipService.likeClip(clipId)
+								: await ClipService.unlikeClip(clipId);
+
+						setClips((latest) => {
+							const next = latest.map((item) =>
+								item.id === clipId
+									? {
+											...item,
+											likes: result.likesCount,
+											likedByMe: nextLiked,
+										}
+									: item,
+							);
+							clipsFeedCache = next;
+							return next;
+						});
+					} catch {
+						setClips((latest) => {
+							const next = latest.map((item) =>
+								item.id === clipId
+									? {
+											...item,
+											likes: previousLikes,
+											likedByMe: !nextLiked,
+										}
+									: item,
+							);
+							clipsFeedCache = next;
+							return next;
+						});
+					}
+				})();
+
+				const next = current.map((item) =>
+					item.id === clipId
+						? {
+								...item,
+								likedByMe: nextLiked,
+								likes: Math.max(0, item.likes + (nextLiked ? 1 : -1)),
+							}
+						: item,
+				);
+				clipsFeedCache = next;
+				return next;
+			});
+		},
+		[],
+	);
 
 	const toggleLike = React.useCallback(
 		(clipId: string) => {
@@ -247,15 +242,18 @@ export function useClipsFeed(): UseClipsFeedResult {
 		[updateClipLike],
 	);
 
-	const updateCommentCount = React.useCallback((clipId: string, count: number) => {
-		setClips((current) => {
-			const next = current.map((clip) =>
-				clip.id === clipId ? { ...clip, comments: count } : clip,
-			);
-			clipsFeedCache = next;
-			return next;
-		});
-	}, []);
+	const updateCommentCount = React.useCallback(
+		(clipId: string, count: number) => {
+			setClips((current) => {
+				const next = current.map((clip) =>
+					clip.id === clipId ? { ...clip, comments: count } : clip,
+				);
+				clipsFeedCache = next;
+				return next;
+			});
+		},
+		[],
+	);
 
 	const incrementShareCount = React.useCallback((clipId: string) => {
 		setClips((current) => {

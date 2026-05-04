@@ -3,6 +3,7 @@ import {
 	ActivityIndicator,
 	Animated,
 	Easing,
+	Image,
 	Platform,
 	StyleSheet,
 	Text,
@@ -206,11 +207,13 @@ interface LiveMapSectionProps {
 interface RiderMarkerViewProps {
 	isLeader: boolean;
 	markerPulse: Animated.Value;
+	avatar?: string | null;
 }
 
 const RiderMarkerView = React.memo(function RiderMarkerView({
 	isLeader,
 	markerPulse,
+	avatar,
 }: RiderMarkerViewProps) {
 	const { colors } = useTheme();
 	const markerStyles = React.useMemo(
@@ -235,6 +238,19 @@ const RiderMarkerView = React.memo(function RiderMarkerView({
 					width: 16,
 					height: 16,
 				},
+				avatarWrap: {
+					width: 28,
+					height: 28,
+					borderRadius: 14,
+					overflow: "hidden",
+					borderWidth: 2,
+					borderColor: "white",
+					backgroundColor: colors.card,
+				},
+				avatar: {
+					width: "100%",
+					height: "100%",
+				},
 				iconWrap: {
 					width: 26,
 					height: 26,
@@ -257,9 +273,19 @@ const RiderMarkerView = React.memo(function RiderMarkerView({
 					{ transform: [{ scale: markerPulse }] },
 				]}
 			/>
-			<View style={markerStyles.iconWrap}>
-				<Ionicons color={colors.textInverse} name="navigate" size={14} />
-			</View>
+			{avatar && avatar.trim().length > 0 ? (
+				<View style={markerStyles.avatarWrap}>
+					<Image
+						source={{ uri: avatar }}
+						style={markerStyles.avatar}
+						resizeMode="cover"
+					/>
+				</View>
+			) : (
+				<View style={markerStyles.iconWrap}>
+					<Ionicons color={colors.textInverse} name="navigate" size={14} />
+				</View>
+			)}
 		</View>
 	);
 });
@@ -328,9 +354,12 @@ function LocationPin({
 }
 
 // ── Validation helpers ──────────────────────────────────────────────────────
-const isValidCoordinate = (lat: number | null | undefined, lng: number | null | undefined): boolean => {
+const isValidCoordinate = (
+	lat: number | null | undefined,
+	lng: number | null | undefined,
+): boolean => {
 	if (lat == null || lng == null) return false;
-	if (typeof lat !== 'number' || typeof lng !== 'number') return false;
+	if (typeof lat !== "number" || typeof lng !== "number") return false;
 	if (Number.isNaN(lat) || Number.isNaN(lng)) return false;
 	if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
 	// Valid latitude range: -90 to 90
@@ -341,7 +370,7 @@ const isValidCoordinate = (lat: number | null | undefined, lng: number | null | 
 };
 
 const filterValidRiders = (riders: RiderLocation[]): RiderLocation[] => {
-	return riders.filter(r => isValidCoordinate(r.latitude, r.longitude));
+	return riders.filter((r) => isValidCoordinate(r.latitude, r.longitude));
 };
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -860,7 +889,8 @@ export function LiveMapSection({
 		: rideStarted
 			? "RIDE LIVE"
 			: "ROUTE PREVIEW";
-	const showEmpty = rideStarted && riders.length > 0 && validRiders.length === 0;
+	const showEmpty =
+		rideStarted && riders.length > 0 && validRiders.length === 0;
 	const showSpeedChip = rideStarted || isRideEnded;
 
 	return (
@@ -945,6 +975,7 @@ export function LiveMapSection({
 							<RiderMarkerView
 								isLeader={rider.riderId === leaderRider?.riderId}
 								markerPulse={markerPulse}
+								avatar={rider.avatar}
 							/>
 						</Marker>
 					))}

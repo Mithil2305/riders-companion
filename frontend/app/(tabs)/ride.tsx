@@ -21,6 +21,7 @@ import {
 	type CoRider,
 } from "../../src/components/ride";
 import type { RideLocationValue } from "../../src/components/map/RideLocationPicker";
+import RideService from "../../src/services/RideService";
 
 type RideScreenStep =
 	| "picker"
@@ -42,6 +43,8 @@ export default function RideScreen() {
 		useState<RideLocationValue | null>(null);
 	const [groupEndingLocation, setGroupEndingLocation] =
 		useState<RideLocationValue | null>(null);
+	const [isSubmittingSoloRide, setIsSubmittingSoloRide] = useState(false);
+	const [isSubmittingGroupRide, setIsSubmittingGroupRide] = useState(false);
 
 	const isMapStep =
 		currentStep === "solo-start" ||
@@ -51,16 +54,29 @@ export default function RideScreen() {
 	const { animatedStyle: swipeAnimatedStyle, swipeHandlers } =
 		useTabSwipeNavigation("ride", { enabled: !isMapStep });
 
-	const handleSoloRideStart = (startingPoint: string, endingPoint: string) => {
-		router.push({
-			pathname: "/solo-ride/[id]",
-			params: {
-				startingPoint,
-				endingPoint,
-				rideType: "solo",
-			},
-		});
-	};
+	const buildRideGroupName = React.useCallback((destination: string) => {
+		const destinationWord =
+			destination
+				.trim()
+				.split(/[\s,]+/)
+				.filter((value) => value.length > 0)[0] ?? "ride";
+		return `${destinationWord.toLowerCase()} ride group`;
+	}, []);
+
+	const handleSoloRideStart = React.useCallback(
+		(rideId: string, startingPoint: string, endingPoint: string) => {
+			router.push({
+				pathname: "/navigation",
+				params: {
+					rideId,
+					canEndRide: "true",
+					sourceLabel: startingPoint,
+					destinationLabel: endingPoint,
+				},
+			});
+		},
+		[router],
+	);
 
 	const handleSelectSoloRide = () => {
 		setCurrentStep("solo-start");
@@ -75,13 +91,57 @@ export default function RideScreen() {
 		setCurrentStep("solo-end");
 	};
 
-	const handleSoloEndSubmit = (location: RideLocationValue) => {
+	const handleSoloEndSubmit = async (location: RideLocationValue) => {
 		setSoloEndingLocation(location);
 		const startingPoint = soloStartingLocation?.placeName ?? "";
-		if (!startingPoint.trim()) {
+		const endingPoint = location.placeName;
+		if (!startingPoint.trim() || !endingPoint.trim()) {
 			return;
 		}
-		handleSoloRideStart(startingPoint, location.placeName);
+
+		setIsSubmittingSoloRide(true);
+		try {
+			const startDate = new Date().toISOString();
+			const response = await RideService.createRide({
+				rideType: "solo",
+				privacy: "solo",
+				rideTitle: "",
+				source: startingPoint,
+				destination: endingPoint,
+				pickupLocation: startingPoint,
+				dropLocation: endingPoint,
+				startDate,
+				days: 1,
+				budget: 0,
+				maxRiders: 0,
+				ridePace: "balanced",
+				roadPreference: "mixed",
+				meetupNotes: "",
+				emergencyContactName: "",
+				emergencyContactPhone: "",
+				rideNotes: "",
+				includesFood: false,
+				includesFuel: false,
+				bikeProvided: false,
+				stayArranged: false,
+				stayDetails: "",
+				invitedFriendIds: [],
+			});
+			await RideService.startRide(response.ride.id).catch(() => null);
+			handleSoloRideStart(response.ride.id, startingPoint, endingPoint);
+		} catch {
+			router.push({
+				pathname: "/solo-ride/[id]",
+				params: {
+					id: "solo-live",
+					startingPoint,
+					endingPoint,
+					rideType: "solo",
+				},
+			});
+		} finally {
+			setIsSubmittingSoloRide(false);
+		}
 	};
 
 	const handleGroupRideStartProceed = (location: RideLocationValue) => {
@@ -94,21 +154,58 @@ export default function RideScreen() {
 		setCurrentStep("group-invite");
 	};
 
-	const handleGroupRideInviteSubmit = (selectedRiders: CoRider[]) => {
+	const handleGroupRideInviteSubmit = async (selectedRiders: CoRider[]) => {
 		const startingPoint = groupStartingLocation?.placeName ?? "";
 		const endingPoint = groupEndingLocation?.placeName ?? "";
 		if (!startingPoint.trim() || !endingPoint.trim()) {
 			return;
 		}
-		router.push({
-			pathname: "/group-chat/[id]",
-			params: {
-				startingPoint,
-				endingPoint,
-				riderIds: selectedRiders.map((rider) => rider.id).join(","),
+
+		const groupName = buildRideGroupName(endingPoint);
+		setIsSubmittingGroupRide(true);
+		try {
+			const startDate = new Date();
+			const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+			const response = await RideService.createRide({
 				rideType: "group",
-			},
-		});
+				privacy: "friends",
+				rideTitle: groupName,
+				source: startingPoint,
+				destination: endingPoint,
+				pickupLocation: startingPoint,
+				dropLocation: endingPoint,
+				startDate: startDate.toISOString(),
+				endDate: endDate.toISOString(),
+				days: 1,
+				budget: 0,
+				maxRiders: Math.max(2, selectedRiders.length + 1),
+				ridePace: "balanced",
+				roadPreference: "mixed",
+				meetupNotes: "",
+				emergencyContactName: "",
+				emergencyContactPhone: "",
+				rideNotes: "",
+				includesFood: false,
+				includesFuel: false,
+				bikeProvided: false,
+				stayArranged: false,
+				stayDetails: "",
+				invitedFriendIds: selectedRiders.map((rider) => rider.id),
+			});
+
+			router.push({
+				pathname: `/group-chat/${response.ride.id}`,
+				params: {
+					name: groupName,
+					startingPoint,
+					endingPoint,
+					riderIds: selectedRiders.map((rider) => rider.id).join(","),
+					rideType: "group",
+				},
+			});
+		} finally {
+			setIsSubmittingGroupRide(false);
+		}
 	};
 
 	const handleBack = () => {
@@ -308,7 +405,7 @@ export default function RideScreen() {
 				onChangeEndingLocation={setSoloEndingLocation}
 				onNext={handleSoloStartProceed}
 				onSubmit={handleSoloEndSubmit}
-				isLoading={false}
+				isLoading={isSubmittingSoloRide}
 			/>
 		</Animated.View>
 	);
@@ -356,9 +453,9 @@ export default function RideScreen() {
 					if (!startingPoint || !endingPoint) {
 						return;
 					}
-					handleGroupRideInviteSubmit(selectedRiders);
+					void handleGroupRideInviteSubmit(selectedRiders);
 				}}
-				isLoading={false}
+				isLoading={isSubmittingGroupRide}
 			/>
 		</Animated.View>
 	);

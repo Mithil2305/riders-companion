@@ -167,6 +167,13 @@ const normalizeRiderLocation = (
 			typeof record.participantStatus === "string"
 				? record.participantStatus
 				: undefined,
+		avatar:
+			typeof record.avatar === "string" && record.avatar.trim().length > 0
+				? record.avatar
+				: typeof record.profileImageUrl === "string" &&
+					  record.profileImageUrl.trim().length > 0
+					? record.profileImageUrl
+					: null,
 	};
 };
 
@@ -251,6 +258,15 @@ const parseRideSystemMessage = (value: unknown): string | null => {
 const mapApiMessageToGroupItem = (
 	entry: Record<string, unknown>,
 	currentUserId?: string,
+	riderProfilesById?: Map<
+		string,
+		{
+			name: string;
+			avatar: string;
+			username?: string | null;
+			isOnline?: boolean;
+		}
+	>,
 ): GroupChatItem | null => {
 	const text =
 		typeof entry.message === "string" && entry.message.trim().length > 0
@@ -265,10 +281,19 @@ const mapApiMessageToGroupItem = (
 	}
 
 	const senderId = typeof entry.senderId === "string" ? entry.senderId : null;
+	const knownSender =
+		senderId && riderProfilesById?.has(senderId)
+			? riderProfilesById.get(senderId)
+			: null;
 	const senderName =
 		typeof entry.senderName === "string" && entry.senderName.trim().length > 0
 			? entry.senderName
-			: "Rider";
+			: (knownSender?.name ?? "Rider");
+	const senderAvatar =
+		typeof entry.senderAvatar === "string" &&
+		entry.senderAvatar.trim().length > 0
+			? entry.senderAvatar
+			: (knownSender?.avatar ?? avatarForName(senderName));
 	const createdAt =
 		typeof entry.createdAt === "string"
 			? entry.createdAt
@@ -299,11 +324,12 @@ const mapApiMessageToGroupItem = (
 		id: String(entry.id ?? `in-${Date.now()}-${Math.random()}`),
 		kind: "incoming",
 		senderId: senderId ?? undefined,
-		senderName: senderName.toUpperCase(),
+		senderName: senderName,
 		message: text,
-		avatar: avatarForName(senderName),
+		avatar: senderAvatar,
 		time: toClockTime(createdAt),
 		createdAt,
+		isOnline: knownSender?.isOnline,
 	};
 };
 
@@ -376,6 +402,17 @@ export function useGroupChatScreen(
 	const [mapLoading, setMapLoading] = useState(true);
 	const [mapError, setMapError] = useState<string | null>(null);
 	const [typingRiders, setTypingRiders] = useState<string[]>([]);
+	const [riderProfilesById, setRiderProfilesById] = useState<
+		Map<
+			string,
+			{
+				name: string;
+				avatar: string;
+				username?: string | null;
+				isOnline?: boolean;
+			}
+		>
+	>(new Map());
 	const [isLoading, setIsLoading] = useState(true);
 	const [isError, setIsError] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -405,7 +442,9 @@ export function useGroupChatScreen(
 
 	const applySnapshot = useCallback(
 		(snapshot: RideSnapshot) => {
-			const nextRideStatus = String(snapshot.rideStatus || "PENDING").toUpperCase();
+			const nextRideStatus = String(
+				snapshot.rideStatus || "PENDING",
+			).toUpperCase();
 			setRideStatus(nextRideStatus);
 			setIsRideEnded(nextRideStatus === "COMPLETED");
 			setRideRoute(normalizeRoute(snapshot.route));
@@ -419,6 +458,30 @@ export function useGroupChatScreen(
 			setLocationsLastUpdatedAt(
 				snapshot.snapshotAt || new Date().toISOString(),
 			);
+
+			// Build riderProfilesById Map from snapshot participants
+			const profilesMap = new Map<
+				string,
+				{
+					name: string;
+					avatar: string;
+					username?: string | null;
+					isOnline?: boolean;
+				}
+			>();
+			snapshot.participants.forEach((participant: any) => {
+				profilesMap.set(participant.riderId, {
+					name: participant.name || "Rider",
+					avatar:
+						participant.avatar && participant.avatar.trim().length > 0
+							? participant.avatar
+							: avatarForName(participant.name || "Rider"),
+					username: participant.username || null,
+					isOnline: participant.isOnline,
+				});
+			});
+			setRiderProfilesById(profilesMap);
+
 			setRideMembers((prev) => {
 				const map = new Map<string, GroupRideMember>();
 				prev.forEach((member) => map.set(member.id, member));
@@ -492,15 +555,45 @@ export function useGroupChatScreen(
 		setRoomTitle(sanitizedInitialRoomName ?? `Ride Room ${roomId}`);
 		knownMessageIdsRef.current.clear();
 
-		void ChatService.getRoomMessages(roomId)
-			.then((response) => {
+		void Promise.all([
+			ChatService.getRoomMessages(roomId),
+			RideService.getRideSnapshot(roomId),
+		])
+			.then(([messagesResponse, snapshotResponse]) => {
 				if (!isMounted) return;
 
-				const mapped = (response.messages || [])
+				// Build riderProfilesById from snapshot if available
+				const profilesMap = new Map<
+					string,
+					{
+						name: string;
+						avatar: string;
+						username?: string | null;
+						isOnline?: boolean;
+					}
+				>();
+				if (snapshotResponse.snapshot?.participants) {
+					const snapshot = snapshotResponse.snapshot as any;
+					snapshot.participants.forEach((participant: any) => {
+						profilesMap.set(participant.riderId, {
+							name: participant.name || "Rider",
+							avatar:
+								participant.avatar && participant.avatar.trim().length > 0
+									? participant.avatar
+									: avatarForName(participant.name || "Rider"),
+							username: participant.username || null,
+							isOnline: participant.isOnline,
+						});
+					});
+					setRiderProfilesById(profilesMap);
+				}
+
+				const mapped = (messagesResponse.messages || [])
 					.map((entry) =>
 						mapApiMessageToGroupItem(
 							entry as Record<string, unknown>,
 							user?.id,
+							profilesMap,
 						),
 					)
 					.filter(Boolean) as GroupChatItem[];
@@ -878,11 +971,16 @@ export function useGroupChatScreen(
 				return;
 			}
 
+			const knownSender =
+				senderId && riderProfilesById.has(senderId)
+					? riderProfilesById.get(senderId)
+					: null;
 			const senderName =
 				typeof payload.senderName === "string" &&
 				payload.senderName.trim().length > 0
-					? payload.senderName.toUpperCase()
-					: "RIDER";
+					? payload.senderName
+					: (knownSender?.name ?? "Rider");
+			const senderAvatar = knownSender?.avatar ?? avatarForName(senderName);
 			knownMessageIdsRef.current.add(messageId);
 
 			setMessages((prev) => [
@@ -893,9 +991,10 @@ export function useGroupChatScreen(
 					senderId,
 					senderName,
 					message: text,
-					avatar: avatarForName(senderName),
+					avatar: senderAvatar,
 					time: toClockTime(createdAt),
 					createdAt,
+					isOnline: knownSender?.isOnline,
 				},
 			]);
 			return;
@@ -1019,7 +1118,14 @@ export function useGroupChatScreen(
 
 			void requestSnapshot();
 		}
-	}, [applySnapshot, lastMessage, requestSnapshot, roomId, user?.id]);
+	}, [
+		applySnapshot,
+		lastMessage,
+		requestSnapshot,
+		roomId,
+		riderProfilesById,
+		user?.id,
+	]);
 
 	// Handle connection changes
 	useEffect(() => {
@@ -1082,9 +1188,7 @@ export function useGroupChatScreen(
 			void ChatService.sendMessage(roomId, trimmed)
 				.then((response: any) => {
 					const createdAt =
-						typeof response.createdAt === "string"
-							? response.createdAt
-							: now;
+						typeof response.createdAt === "string" ? response.createdAt : now;
 					knownMessageIdsRef.current.add(String(response.id));
 					setMessages((prev) =>
 						prev.map((message) =>
@@ -1234,11 +1338,7 @@ export function useGroupChatScreen(
 				}, 3000);
 			}
 		},
-		[
-			isRideEnded,
-			roomId,
-			user?.id,
-		],
+		[isRideEnded, roomId, user?.id],
 	);
 
 	const leaderLocation = React.useMemo(() => {

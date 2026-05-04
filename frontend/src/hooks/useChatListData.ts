@@ -1,9 +1,16 @@
 import React from "react";
 import { ChatFilter, ChatPreview } from "../types/chat";
 import ChatService from "../services/ChatService";
+import RideService from "../services/RideService";
 import { useWebSocket } from "./useWebSocket";
-import { parseRideInviteMessage, toRideInvitePreview } from "../utils/rideInviteMessage";
-import { parseSharedContentMessage, toSharedContentPreview } from "../utils/sharedContentMessage";
+import {
+	parseRideInviteMessage,
+	toRideInvitePreview,
+} from "../utils/rideInviteMessage";
+import {
+	parseSharedContentMessage,
+	toSharedContentPreview,
+} from "../utils/sharedContentMessage";
 
 const formatPreviewTime = (iso?: string) => {
 	if (!iso) {
@@ -46,7 +53,8 @@ export function useChatListData() {
 					const invitePayload = parseRideInviteMessage(latest?.message);
 					const sharedPayload = parseSharedContentMessage(latest?.message);
 					const avatar =
-						conversation.meta.avatar && conversation.meta.avatar.trim().length > 0
+						conversation.meta.avatar &&
+						conversation.meta.avatar.trim().length > 0
 							? conversation.meta.avatar
 							: toAvatarUrl(conversation.meta.name);
 
@@ -54,19 +62,18 @@ export function useChatListData() {
 						id: conversation.id,
 						name: conversation.meta.name,
 						username: conversation.meta.username ?? undefined,
-						message:
-							invitePayload
-								? toRideInvitePreview(
-										invitePayload,
-										latest?.senderId === conversation.id ? "receiver" : "sender",
-								  )
-								: sharedPayload
-									? toSharedContentPreview(sharedPayload)
-									: latest?.attachmentUrl && !latest.message
-										? "Photo"
-										: latest?.message && latest.message.trim().length > 0
-											? latest.message
-											: "No messages yet",
+						message: invitePayload
+							? toRideInvitePreview(
+									invitePayload,
+									latest?.senderId === conversation.id ? "receiver" : "sender",
+								)
+							: sharedPayload
+								? toSharedContentPreview(sharedPayload)
+								: latest?.attachmentUrl && !latest.message
+									? "Photo"
+									: latest?.message && latest.message.trim().length > 0
+										? latest.message
+										: "No messages yet",
 						time: formatPreviewTime(latest?.createdAt),
 						avatar,
 						roomType: "personal",
@@ -80,27 +87,34 @@ export function useChatListData() {
 				},
 			);
 
-			const blockedIds = new Set(blockedData.blockedUsers.map((item) => item.id));
-			const blockedPreviews: ChatPreview[] = blockedData.blockedUsers.map((item) => ({
-				id: item.id,
-				name: item.meta.name,
-				username: item.meta.username ?? undefined,
-				message: "Blocked user",
-				time: "--:--",
-				avatar:
-					item.meta.avatar && item.meta.avatar.trim().length > 0
-						? item.meta.avatar
-						: toAvatarUrl(item.meta.name),
-				roomType: "personal",
-				status: "blocked",
-				isOnline: false,
-			}));
+			const blockedIds = new Set(
+				blockedData.blockedUsers.map((item) => item.id),
+			);
+			const blockedPreviews: ChatPreview[] = blockedData.blockedUsers.map(
+				(item) => ({
+					id: item.id,
+					name: item.meta.name,
+					username: item.meta.username ?? undefined,
+					message: "Blocked user",
+					time: "--:--",
+					avatar:
+						item.meta.avatar && item.meta.avatar.trim().length > 0
+							? item.meta.avatar
+							: toAvatarUrl(item.meta.name),
+					roomType: "personal",
+					status: "blocked",
+					isOnline: false,
+				}),
+			);
 
 			const rooms = roomsResponse.communities || [];
 			const groupPreviews = await Promise.all(
 				rooms.map(async (room) => {
 					try {
-						const history = await ChatService.getRoomMessages(String(room.id));
+						const [history, snapshotResponse] = await Promise.all([
+							ChatService.getRoomMessages(String(room.id)),
+							RideService.getRideSnapshot(String(room.id)).catch(() => null),
+						]);
 						const latest = history.messages?.[history.messages.length - 1] as
 							| {
 									message?: string;
@@ -109,6 +123,19 @@ export function useChatListData() {
 									createdAt?: string;
 							  }
 							| undefined;
+						const participants = snapshotResponse?.snapshot?.participants ?? [];
+						const onlineCount = participants.filter(
+							(participant) => participant.isOnline === true,
+						).length;
+						const memberCount = participants.filter(
+							(participant) =>
+								String(participant.participantStatus || "").toUpperCase() !==
+								"DECLINED",
+						).length;
+						const defaultPresenceMessage =
+							memberCount > 0
+								? `${onlineCount}/${memberCount} riders online`
+								: "No riders online";
 
 						return {
 							id: String(room.id),
@@ -117,13 +144,14 @@ export function useChatListData() {
 								latest?.attachmentUrl && !latest?.message
 									? "Photo"
 									: typeof latest?.message === "string" &&
-											latest.message.trim().length > 0
+										  latest.message.trim().length > 0
 										? latest.message
-										: "No messages yet",
+										: defaultPresenceMessage,
 							time: formatPreviewTime(latest?.createdAt),
 							avatar: toAvatarUrl(room.name || `Room ${room.id}`),
 							roomType: "group" as const,
 							status: "active" as const,
+							isOnline: onlineCount > 0,
 							senderName:
 								typeof latest?.senderName === "string" &&
 								latest.senderName.trim().length > 0
@@ -139,6 +167,7 @@ export function useChatListData() {
 							avatar: toAvatarUrl(room.name || `Room ${room.id}`),
 							roomType: "group" as const,
 							status: "active" as const,
+							isOnline: false,
 						};
 					}
 				}),

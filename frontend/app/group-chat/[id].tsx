@@ -41,11 +41,9 @@ function GroupChatScreenContent() {
 		typeof params.name === "string" ? params.name : undefined;
 	const { colors, typography } = useTheme();
 
-	// CRITICAL: Validate roomId before proceeding
-	if (!roomId || roomId.trim().length === 0) {
-		return <InvalidRoomState message="Invalid room ID. Please try again." />;
-	}
+	const isRoomIdValid = roomId.trim().length > 0;
 
+	// CRITICAL: All hooks must be called before any conditional returns
 	const [rideDetailsVisible, setRideDetailsVisible] = React.useState(false);
 	const [recenterSignal, setRecenterSignal] = React.useState(0);
 	const [contentHeight, setContentHeight] = React.useState(0);
@@ -96,16 +94,6 @@ function GroupChatScreenContent() {
 		isError,
 		errorMessage,
 	} = useGroupChatScreen(roomId, roomStatus, initialRoomName);
-
-	// Show loading state while initializing
-	if (isLoading) {
-		return <LoadingState message="Loading chat..." />;
-	}
-
-	// Show error state if something went wrong
-	if (isError) {
-		return <ErrorState message={errorMessage || "Failed to load chat"} onRetry={() => router.replace(`/group-chat/${roomId}`)} />;
-	}
 
 	// Defensive: Validate critical data before rendering
 	const safeRoomTitle = roomTitle?.trim?.() || "Ride Chat";
@@ -273,6 +261,19 @@ function GroupChatScreenContent() {
 		[sheetBounds.collapsedTop, sheetBounds.expandedTop, sheetTop, snapSheet],
 	);
 
+	// Render states: invalid room, loading, error, or main content
+	if (!isRoomIdValid) {
+		return <InvalidRoomState message="Invalid room ID. Please try again." />;
+	}
+
+	if (isLoading) {
+		return <LoadingState message="Loading chat..." />;
+	}
+
+	if (isError) {
+		return <ErrorState message={errorMessage || "Failed to load chat"} onRetry={() => router.replace(`/group-chat/${roomId}`)} />;
+	}
+
 	return (
 		<SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
 			<KeyboardAvoidingView
@@ -423,7 +424,7 @@ function LoadingState({ message }: { message: string }) {
 	return (
 		<SafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
 			<ActivityIndicator size="large" color={colors.primary} />
-			<Text style={[styles.messageText, { color: colors.textSecondary, fontSize: typography.sizes.md, marginTop: 16 }]}>
+			<Text style={[styles.messageText, { color: colors.textSecondary, fontSize: typography.sizes.base, marginTop: 16 }]}>
 				{message}
 			</Text>
 		</SafeAreaView>
@@ -447,7 +448,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 				onPress={onRetry}
 				style={[styles.retryButton, { backgroundColor: colors.primary, marginTop: 24 }]}
 			>
-				<Text style={[styles.retryText, { color: colors.textInverse, fontSize: typography.sizes.md, fontWeight: "600" }]}>
+				<Text style={[styles.retryText, { color: colors.textInverse, fontSize: typography.sizes.base, fontWeight: "600" }]}>
 					Try Again
 				</Text>
 			</Pressable>
@@ -480,7 +481,7 @@ function InvalidRoomState({ message }: { message: string }) {
 				onPress={() => router.back()}
 				style={[styles.retryButton, { backgroundColor: colors.primary, marginTop: 24 }]}
 			>
-				<Text style={[styles.retryText, { color: colors.textInverse, fontSize: typography.sizes.md, fontWeight: "600" }]}>
+				<Text style={[styles.retryText, { color: colors.textInverse, fontSize: typography.sizes.base, fontWeight: "600" }]}>
 					Go Back
 				</Text>
 			</Pressable>
