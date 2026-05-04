@@ -7,7 +7,10 @@ const apiRoutes = require("./src/routes");
 const setupWebSockets = require("./src/websockets/wss");
 const { assertCryptoReady } = require("./src/services/chatCryptoService");
 const { syncDatabaseSchema } = require("./src/utils/databaseSync");
-const { errorHandler, notFoundHandler } = require("./src/middlewares/errorHandler");
+const {
+	errorHandler,
+	notFoundHandler,
+} = require("./src/middlewares/errorHandler");
 const swaggerSpecs = require("./src/config/swagger");
 
 const app = express();
@@ -19,11 +22,22 @@ app.use(express.json({ limit: requestBodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
 
 // Swagger documentation
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
-	explorer: true,
-	customCss: ".swagger-ui .topbar { display: none }",
-	customSiteTitle: "Riders Companion API Docs",
-}));
+app.use(
+	"/api-docs",
+	swaggerUi.serve,
+	swaggerUi.setup(swaggerSpecs, {
+		explorer: true,
+		customCss: ".swagger-ui .topbar { display: none }",
+		customSiteTitle: "Riders Companion API Docs",
+	}),
+);
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+	res
+		.status(200)
+		.json({ success: true, message: "Server is healthy", status: "ok" });
+});
 
 app.use("/api", apiRoutes);
 
@@ -79,9 +93,7 @@ async function startServer() {
 
 		if (process.env.DB_AUTO_SYNC !== "false") {
 			const { alter } = await syncDatabaseSchema(sequelize);
-			console.log(
-				`Database ready${alter ? " with schema alter" : ""}.`,
-			);
+			console.log(`Database ready${alter ? " with schema alter" : ""}.`);
 		}
 
 		server.listen(port, "0.0.0.0", () => {
